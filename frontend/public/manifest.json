@@ -2,7 +2,7 @@
   "name": "MindVault",
   "short_name": "MindVault",
   "description": "Your personal visual inspiration tool for filmmakers and creators",
-  "start_url": "/",
+  "start_url": "/library",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

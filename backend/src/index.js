@@ -6,6 +6,7 @@ const routes = require('./routes');
 const { createBot } = require('./bot');
 const { runAutoBackup } = require('./backup');
 const supabasePoller = require('./supabase-poller');
+const librarySync    = require('./library-sync');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -55,6 +56,9 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // Start Supabase share-queue poller (only if env vars are set)
   supabasePoller.init();
+
+  // Sync library snapshot to Supabase on startup
+  librarySync.init();
 });
 
 // Start Telegram Bot (DB setting takes priority over .env)
