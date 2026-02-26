@@ -2,16 +2,25 @@
  * MindVault Library Sync
  *
  * On app start: pushes a snapshot of all links to Supabase library_cache.
- * Thumbnail URLs are resolved per-source for maximum reliability on mobile:
+ * Thumbnail strategy per source:
  *
- *   YouTube  → permanent img.youtube.com URL (never expires)
- *   Vimeo    → fresh URL via Vimeo oEmbed API (fetched at sync time)
- *   Others   → stored thumbnail_url as-is (may expire; shows placeholder if broken)
+ *   YouTube   → permanent img.youtube.com URL (never expires)
+ *   Vimeo     → fresh URL via Vimeo oEmbed API (fetched at sync time)
+ *   Instagram → local thumbnail resized to 160×90 via sips (macOS built-in),
+ *               embedded as base64 data URI — no CDN expiry, no extra cost
+ *   Others    → stored thumbnail_url as-is
  */
 
 const { createClient } = require('@supabase/supabase-js');
 const { getAllLinks }   = require('./database');
 const fetch            = require('node-fetch');
+const fs               = require('fs');
+const path             = require('path');
+const os               = require('os');
+const { execFile }     = require('child_process');
+
+const DATA_ROOT  = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+const THUMB_DIR  = path.join(DATA_ROOT, 'thumbnails');
 
 let supabase = null;
 
@@ -85,9 +94,13 @@ async function resolveThumbnail(link) {
     if (fresh) return fresh;
   }
 
+  // ── Instagram — embed local thumbnail as base64 (CDN links expire) ────────
+  if (source === 'instagram' || url.includes('instagram.com')) {
+    const b64 = await localThumbnailToBase64(link.local_thumbnail);
+    if (b64) return b64;
+  }
+
   // ── All other sources — use stored thumbnail_url as-is ───────────────────
-  // Instagram CDN links expire; they'll gracefully fall back to the
-  // SVG placeholder on the phone. No fix possible without server proxy.
   return link.thumbnail_url || null;
 }
 
@@ -112,6 +125,39 @@ async function fetchVimeoThumbnail(videoUrl) {
       || data.thumbnail_url
       || null;
   } catch { return null; }
+}
+
+/**
+ * Resize a local thumbnail to 160×90 using ffmpeg (cross-platform).
+ * Returns a base64 data URI. ~5KB per image instead of ~175KB.
+ */
+async function localThumbnailToBase64(localThumbFilename) {
+  if (!localThumbFilename) return null;
+  const srcPath = path.join(THUMB_DIR, localThumbFilename);
+  if (!fs.existsSync(srcPath)) return null;
+
+  const tmpPath = path.join(os.tmpdir(), `mv_thumb_${Date.now()}.jpg`);
+
+  try {
+    // Resize with ffmpeg — already installed for video features, cross-platform
+    await new Promise((resolve, reject) => {
+      execFile('ffmpeg', [
+        '-y',
+        '-i', srcPath,
+        '-vf', 'scale=160:90:force_original_aspect_ratio=decrease,pad=160:90:(ow-iw)/2:(oh-ih)/2',
+        '-q:v', '6',   // JPEG quality (2=best, 31=worst) — 6 is ~80% quality
+        tmpPath,
+      ], { timeout: 8000 }, (err) => err ? reject(err) : resolve());
+    });
+
+    const buffer = fs.readFileSync(tmpPath);
+    return `data:image/jpeg;base64,${buffer.toString('base64')}`;
+  } catch {
+    // ffmpeg failed — return null, show placeholder
+    return null;
+  } finally {
+    try { fs.unlinkSync(tmpPath); } catch {}
+  }
 }
 
 function safeParseJson(value, fallback) {
