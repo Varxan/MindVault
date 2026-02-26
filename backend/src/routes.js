@@ -1947,13 +1947,12 @@ router.post('/share', async (req, res) => {
     // Insert link into DB
     const result = insertLink.run({
       url,
-      title:       linkTitle,
-      description: linkDesc,
-      image:       metadata.image || null,
-      source:      source || 'mobile-share',
-      tags:        JSON.stringify(['mobile-share']),
-      created_at:  now,
-      updated_at:  now,
+      title:         linkTitle,
+      description:   linkDesc,
+      thumbnail_url: metadata.thumbnail_url || null,
+      source:        source || 'mobile-share',
+      tags:          JSON.stringify(['mobile-share']),
+      note:          null,
     });
 
     const linkId = result.lastInsertRowid;
