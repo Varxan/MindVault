@@ -2,30 +2,32 @@
  * Supabase Share Queue Poller
  *
  * Polls the Supabase `share_queue` table every 10 seconds.
- * New (unprocessed) entries are imported into the local SQLite DB,
- * then marked as processed so they won't be picked up again.
+ * Imports links by calling the SAME ENDPOINT as the desktop "Add Link" button.
+ *
+ * A row is ready to import when:
+ *   - tags_ready = true  (user submitted or skipped the tag step), OR
+ *   - created_at is older than TAG_TIMEOUT_MS (user never interacted — use AI tags)
  *
  * Requires env vars:
  *   SUPABASE_URL  — your Supabase project URL
  *   SUPABASE_KEY  — anon or service_role key
  */
 
-const { createClient }       = require('@supabase/supabase-js');
-const { insertLink, updateLink } = require('./database');
-const { detectSource, fetchSmartMetadata } = require('./metadata');
-const { analyzeContent }     = require('./ai');
+const { createClient } = require('@supabase/supabase-js');
 
-const POLL_INTERVAL_MS = 10_000; // 10 seconds
+const POLL_INTERVAL_MS = 10_000;   // 10 seconds
+const TAG_TIMEOUT_MS   = 120_000;  // 2 minutes — import even if user never added tags
+const BACKEND_URL      = process.env.BACKEND_URL || 'http://localhost:3001';
 
-let supabase = null;
-let pollTimer = null;
+let supabase   = null;
+let pollTimer  = null;
 
 function init() {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_KEY;
 
   if (!url || !key) {
-    console.log('ℹ️  Supabase poller disabled (SUPABASE_URL / SUPABASE_SERVICE_KEY not set)');
+    console.log('ℹ️  Supabase poller disabled (SUPABASE_URL / SUPABASE_KEY not set)');
     return;
   }
 
@@ -60,9 +62,21 @@ async function poll() {
 
     if (!data || data.length === 0) return;
 
-    console.log(`📥 ${data.length} new shared link(s) from phone — importing…`);
+    const cutoff = Date.now() - TAG_TIMEOUT_MS;
 
-    for (const entry of data) {
+    // Only import rows that are ready:
+    // - user clicked "Add" or "Skip" (tags_ready = true), OR
+    // - row is older than 2 minutes (timeout, import with AI tags)
+    const ready = data.filter(entry =>
+      entry.tags_ready === true ||
+      new Date(entry.created_at).getTime() < cutoff
+    );
+
+    if (ready.length === 0) return;
+
+    console.log(`📥 ${ready.length} shared link(s) ready to import…`);
+
+    for (const entry of ready) {
       await importEntry(entry);
     }
 
@@ -73,53 +87,41 @@ async function poll() {
 
 async function importEntry(entry) {
   try {
-    // Fetch metadata (title, description, image)
-    let metadata = {};
-    try {
-      metadata = await fetchSmartMetadata(entry.url);
-    } catch (e) {
-      console.warn(`⚠️  Metadata fetch failed for ${entry.url}:`, e.message);
+    console.log(`🔄 Importing: ${entry.url}`);
+
+    // Parse user-supplied tags (comma-separated string → array)
+    const userTags = entry.tags
+      ? entry.tags.split(',').map(t => t.trim()).filter(t => t.length > 0)
+      : [];
+
+    const body = { url: entry.url };
+
+    // If user added tags, pass them — this skips AI auto-tagging
+    if (userTags.length > 0) {
+      body.tags = userTags;
+      console.log(`🏷️  Using user tags: ${userTags.join(', ')}`);
     }
+    // Otherwise omit tags → backend will run AI auto-tagging
 
-    const title  = entry.title || metadata.title || entry.url;
-    const desc   = metadata.description || entry.text || '';
-    const source = detectSource(entry.url);
-    const now    = new Date().toISOString();
-
-    // Insert into local SQLite
-    const result = insertLink.run({
-      url:         entry.url,
-      title,
-      description: desc,
-      image:       metadata.image || null,
-      source:      source || 'mobile-share',
-      tags:        JSON.stringify(['mobile-share']),
-      created_at:  now,
-      updated_at:  now,
+    const res = await fetch(`${BACKEND_URL}/api/links`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body),
     });
 
-    const linkId = result.lastInsertRowid;
-    console.log(`✅ Imported shared link [${linkId}]: ${title}`);
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`${res.status} ${errText}`);
+    }
+
+    const result = await res.json();
+    console.log(`✅ Imported [${result.id}]: ${result.title}`);
 
     // Mark as processed in Supabase
     await supabase
       .from('share_queue')
       .update({ processed: true })
       .eq('id', entry.id);
-
-    // AI auto-tagging in background (non-blocking)
-    setImmediate(async () => {
-      try {
-        const link = { id: linkId, url: entry.url, title, description: desc };
-        const tags = await analyzeContent(link);
-        if (tags && tags.length > 0) {
-          updateLink.run({ tags: JSON.stringify(tags), id: linkId });
-          console.log(`🏷️  Auto-tagged [${linkId}]: ${tags.join(', ')}`);
-        }
-      } catch (e) {
-        console.warn('⚠️  Auto-tag failed:', e.message);
-      }
-    });
 
   } catch (err) {
     console.error(`❌ Failed to import ${entry.url}:`, err.message);
