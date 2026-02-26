@@ -9,14 +9,25 @@ const supabase    = supabaseUrl && supabaseKey
   ? createClient(supabaseUrl, supabaseKey)
   : null;
 
-const SOURCE_ICONS = {
-  youtube:   '▶',
-  vimeo:     '🎬',
-  instagram: '📷',
-  twitter:   '𝕏',
-  tiktok:    '🎵',
-  web:       '🔗',
-};
+// Minimalist SVG placeholder — thin lines, muted gold, no emoji
+function ThumbPlaceholder() {
+  return (
+    <div style={{
+      width: '100%',
+      aspectRatio: '16/9',
+      background: '#111',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="6" width="26" height="20" rx="2" stroke="#3a3020" strokeWidth="1.2"/>
+        <circle cx="10" cy="13" r="2.5" stroke="#3a3020" strokeWidth="1.2"/>
+        <path d="M3 22 L10 15 L16 20 L22 14 L29 22" stroke="#3a3020" strokeWidth="1.2" strokeLinejoin="round"/>
+      </svg>
+    </div>
+  );
+}
 
 export default function LibraryPage() {
   const [links, setLinks]       = useState([]);
@@ -250,16 +261,13 @@ export default function LibraryPage() {
                       loading="lazy"
                       onError={e => {
                         e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
+                        e.target.nextSibling.style.display = 'block';
                       }}
                     />
                   : null
                 }
-                <div
-                  className="thumb-placeholder"
-                  style={{ display: link.thumbnail_url ? 'none' : 'flex' }}
-                >
-                  {SOURCE_ICONS[link.source] || SOURCE_ICONS.web}
+                <div style={{ display: link.thumbnail_url ? 'none' : 'block' }}>
+                  <ThumbPlaceholder />
                 </div>
 
                 {/* Info */}
