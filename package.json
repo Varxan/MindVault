@@ -1,0 +1,76 @@
+{
+  "name": "mindvault",
+  "version": "1.0.0",
+  "description": "MindVault – Personal visual inspiration tool",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "backend": "cd backend && npm start",
+    "backend:dev": "cd backend && npm run dev",
+    "frontend": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run backend:dev\" \"npm run frontend\"",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "setup": "npm run install:all",
+
+    "build": "cd frontend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "rebuild:native": "node scripts/rebuild-native.js",
+    "electron:dev": "concurrently \"npm run backend:dev\" \"npm run frontend\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "npm run build:frontend && electron-builder",
+    "dist": "npm run build:frontend && npm run rebuild:native && electron-builder --mac --arm64"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "concurrently": "^8.2.2",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.mindvault.app",
+    "productName": "MindVault",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": ["**/*", "!node_modules/**", "!data/**", "!.env", "!.git/**"]
+      },
+      {
+        "from": "backend/node_modules",
+        "to": "backend/node_modules"
+      },
+      {
+        "from": "frontend/.next/standalone",
+        "to": "frontend-standalone"
+      },
+      {
+        "from": "frontend/.next/static",
+        "to": "frontend-standalone/.next/static"
+      },
+      {
+        "from": "frontend/public",
+        "to": "frontend-standalone/public"
+      }
+    ],
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["arm64"] }
+      ],
+      "icon": "electron/icons/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "nsis": {
+      "oneClick": true,
+      "installerIcon": "electron/icons/icon.ico"
+    },
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false
+  }
+}

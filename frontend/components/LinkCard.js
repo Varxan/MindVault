@@ -1,0 +1,581 @@
+'use client';
+
+import { useState } from 'react';
+import VideoPlayerModal from './VideoPlayerModal';
+import PreviewModal from './PreviewModal';
+import SourceLogo from './SourceLogo';
+import { fetchCollectionsForLink, addLinksToCollection, removeLinkFromCollection } from '../lib/api';
+import { getApiBase } from '../lib/config';
+
+
+export default function LinkCard({ link, onDelete, onRefresh }) {
+  const [downloading, setDownloading] = useState(false);
+  const [carouselFiles, setCarouselFiles] = useState([]);
+  const [carouselMediaPath, setCarouselMediaPath] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const [tagInput, setTagInput] = useState('');
+  const [savingTags, setSavingTags] = useState(false);
+  const [videoPlayerOpen, setVideoPlayerOpen] = useState(false);
+  const [videoCarouselFiles, setVideoCarouselFiles] = useState([]);
+  const [collectionsMenuOpen, setCollectionsMenuOpen] = useState(false);
+  const [linkCollections, setLinkCollections] = useState([]);
+  const [allCollections, setAllCollections] = useState([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const [mediaSaved, setMediaSaved] = useState(!!link.media_saved);
+  const [noteEditing, setNoteEditing] = useState(false);
+  const [noteText, setNoteText] = useState(link.note || '');
+  const [savingNote, setSavingNote] = useState(false);
+
+  const isUpload = link.source === 'upload';
+
+  const domain = (() => {
+    if (isUpload) return 'Upload';
+    try { return new URL(link.url).hostname.replace('www.', ''); } catch { return link.url; }
+  })();
+
+  const dateStr = new Date(link.created_at).toLocaleDateString('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+  });
+
+  const tags = (() => {
+    try { return JSON.parse(link.tags || '[]'); } catch { return []; }
+  })();
+
+  // Build thumbnail URL: prefer local, fallback to remote
+  const thumbnailSrc = (() => {
+    if (link.local_thumbnail) {
+      if (link.source === 'upload') {
+        return `${getApiBase()}/files/uploads/${link.local_thumbnail}`;
+      }
+      return `${getApiBase()}/files/thumbnails/${link.local_thumbnail}`;
+    }
+    if (link.thumbnail_url && link.thumbnail_url.startsWith('http')) {
+      return link.thumbnail_url;
+    }
+    return null;
+  })();
+
+  const favicon = !isUpload
+    ? `https://www.google.com/s2/favicons?domain=${domain}&sz=64`
+    : null;
+
+  const canDownload = ['instagram', 'youtube', 'vimeo', 'tiktok'].includes(link.source);
+  const hasMedia = !!link.media_path;
+
+  const handleToggleSave = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const res = await fetch(`${getApiBase()}/links/${link.id}/save`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setMediaSaved(data.saved);
+      onRefresh?.();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  const handleDownload = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (hasMedia) {
+      // Already downloaded – check for multiple files (carousel)
+      try {
+        const filesRes = await fetch(`${getApiBase()}/links/${link.id}/files`);
+        const files = await filesRes.json();
+        const mediaFiles = files.filter(f => f.type !== 'thumbnail');
+        if (mediaFiles.length > 1) {
+          // Auto-open first video in editor, pass all files for switching
+          const firstVideo = mediaFiles.find(f => f.type === 'video');
+          if (firstVideo) {
+            setCarouselMediaPath(firstVideo.filename);
+            setVideoCarouselFiles(mediaFiles);
+            setVideoPlayerOpen(true);
+          } else {
+            // No videos, show picker for images
+            setCarouselFiles(mediaFiles);
+          }
+          return;
+        }
+      } catch {}
+      // Single file: video → player, otherwise open in new tab
+      if (link.media_type === 'video') {
+        setVideoCarouselFiles([]);
+        setVideoPlayerOpen(true);
+      } else {
+        window.open(`${getApiBase()}/files/media/${link.media_path}`, '_blank');
+      }
+      return;
+    }
+
+    try {
+      setDownloading(true);
+      const res = await fetch(`${getApiBase()}/links/${link.id}/download`, { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Download failed');
+
+      // If carousel with multiple files, show picker
+      if (data.allFiles && data.allFiles.length > 1) {
+        setCarouselFiles(data.allFiles);
+      }
+
+      onRefresh?.();
+    } catch (err) {
+      alert('Download error: ' + err.message);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleAnalyze = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      setAnalyzing(true);
+      const res = await fetch(`${getApiBase()}/links/${link.id}/analyze`, { method: 'POST' });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Analysis failed');
+
+      onRefresh?.();
+    } catch (err) {
+      alert('Analysis error: ' + err.message);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleOpenCollections = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (collectionsMenuOpen) {
+      setCollectionsMenuOpen(false);
+      return;
+    }
+    try {
+      setCollectionsLoading(true);
+      const [linkCols, res] = await Promise.all([
+        fetchCollectionsForLink(link.id),
+        fetch(`${getApiBase()}/collections`, { cache: 'no-store' }).then(r => r.json()),
+      ]);
+      setLinkCollections(linkCols.map(c => c.id));
+      setAllCollections(res);
+      setCollectionsMenuOpen(true);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      setCollectionsLoading(false);
+    }
+  };
+
+  const handleToggleCollection = async (collectionId) => {
+    const isIn = linkCollections.includes(collectionId);
+    try {
+      if (isIn) {
+        await removeLinkFromCollection(collectionId, link.id);
+        setLinkCollections(prev => prev.filter(id => id !== collectionId));
+      } else {
+        await addLinksToCollection(collectionId, [link.id]);
+        setLinkCollections(prev => [...prev, collectionId]);
+      }
+      onRefresh?.();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  const linkHref = isUpload
+    ? (thumbnailSrc || '#')
+    : link.url;
+
+  return (
+    <div className="card">
+      {/* Action Buttons */}
+      <div className="card-actions">
+        {/* Download (only shown before media is downloaded) */}
+        {canDownload && !hasMedia && (
+          <button
+            className="card-action-btn"
+            onClick={handleDownload}
+            title="Download"
+            disabled={downloading}
+          >
+            {downloading
+              ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2v20M2 12h20"/></svg>
+              : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v10M7 10l5 5 5-5"/><path d="M5 19h14"/></svg>}
+          </button>
+        )}
+
+        {/* Save/Unsave (only shown when media is downloaded) */}
+        {hasMedia && (
+          <button
+            className={`card-action-btn ${mediaSaved ? 'card-save-active' : ''}`}
+            onClick={handleToggleSave}
+            title={mediaSaved ? 'Saved – protected from cache clear' : 'Save – keep when clearing cache'}
+          >
+            {mediaSaved
+              ? <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>}
+          </button>
+        )}
+
+        {/* Open original source */}
+        {!isUpload && (
+          <button
+            className="card-action-btn"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(link.url, '_blank');
+            }}
+            title="Open source"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </button>
+        )}
+
+        {link.author_url && (
+          <button
+            className="card-action-btn"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(link.author_url, '_blank');
+            }}
+            title="Open profile"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 12 0v1"/></svg>
+          </button>
+        )}
+
+        {tags.length === 0 && (thumbnailSrc || link.thumbnail_url) && (
+          <button
+            className="card-action-btn"
+            onClick={handleAnalyze}
+            title="AI analysis & auto-tags"
+            disabled={analyzing}
+          >
+            {analyzing ? '...' : 'AI'}
+          </button>
+        )}
+
+        <button
+          className="card-action-btn"
+          onClick={handleOpenCollections}
+          title="Add to collection"
+          disabled={collectionsLoading}
+        >
+          {collectionsLoading ? '...' : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>}
+        </button>
+
+        <button
+          className="card-action-btn card-delete-btn"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDelete(link.id);
+          }}
+          title="Delete"
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      {/* Collections dropdown */}
+      {collectionsMenuOpen && (
+        <div className="card-collections-menu" onClick={(e) => e.stopPropagation()}>
+          {allCollections.length === 0 ? (
+            <div className="card-collections-empty">No collections yet</div>
+          ) : (
+            allCollections.map((c) => (
+              <label key={c.id} className="card-collections-item">
+                <input
+                  type="checkbox"
+                  checked={linkCollections.includes(c.id)}
+                  onChange={() => handleToggleCollection(c.id)}
+                />
+                <span>{c.name}</span>
+              </label>
+            ))
+          )}
+          <button
+            className="card-collections-close"
+            onClick={(e) => { e.stopPropagation(); setCollectionsMenuOpen(false); }}
+          >
+            Done
+          </button>
+        </div>
+      )}
+
+      {/* Carousel file picker */}
+      {carouselFiles.length > 0 && (
+        <div className="card-carousel-menu" onClick={(e) => e.stopPropagation()} onMouseLeave={() => setCarouselFiles([])}>
+          <div className="card-carousel-header">
+            {carouselFiles.length} files
+          </div>
+          {carouselFiles.map((f, i) => (
+            <button
+              key={f.filename}
+              className="card-carousel-item"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCarouselFiles([]);
+                if (f.type === 'video') {
+                  setCarouselMediaPath(f.filename);
+                  setVideoPlayerOpen(true);
+                } else {
+                  window.open(`${getApiBase()}${f.downloadUrl.replace(/^\/api/, '')}`, '_blank');
+                }
+              }}
+            >
+              <span className="card-carousel-index">{i + 1}</span>
+              <span className="card-carousel-type">{f.type === 'video' ? 'Video' : 'Image'}</span>
+              <span className="card-carousel-size">{f.sizeFormatted}</span>
+            </button>
+          ))}
+          <button
+            className="card-carousel-close"
+            onClick={(e) => { e.stopPropagation(); setCarouselFiles([]); }}
+          >
+            Close
+          </button>
+        </div>
+      )}
+
+      <div className="card-thumbnail-link" onClick={async () => {
+        if (hasMedia && link.media_type === 'video') {
+          // Check for carousel files and auto-open first video
+          try {
+            const filesRes = await fetch(`${getApiBase()}/links/${link.id}/files`);
+            const files = await filesRes.json();
+            const mediaFiles = files.filter(f => f.type !== 'thumbnail');
+            if (mediaFiles.length > 1) {
+              const firstVideo = mediaFiles.find(f => f.type === 'video');
+              if (firstVideo) {
+                setCarouselMediaPath(firstVideo.filename);
+                setVideoCarouselFiles(mediaFiles);
+              }
+            } else {
+              setCarouselMediaPath(null);
+              setVideoCarouselFiles([]);
+            }
+          } catch {
+            setCarouselMediaPath(null);
+            setVideoCarouselFiles([]);
+          }
+          setVideoPlayerOpen(true);
+        } else {
+          setPreviewOpen(true);
+        }
+      }} style={{ cursor: 'pointer' }}>
+        {thumbnailSrc ? (
+          <div className="card-image-wrapper">
+            <img
+              className="card-image"
+              src={thumbnailSrc}
+              alt={link.title || ''}
+              loading="lazy"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.parentElement.classList.add('card-placeholder');
+                if (favicon) {
+                  e.target.parentElement.innerHTML =
+                    `<img src="${favicon}" alt="" width="32" height="32" style="opacity: 0.6" />`;
+                }
+              }}
+            />
+          </div>
+        ) : (
+          <div className="card-placeholder">
+            {favicon ? (
+              <img src={favicon} alt="" width="32" height="32" style={{ opacity: 0.6 }} />
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{ opacity: 0.25 }}><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="card-body">
+        <div className="card-meta-row">
+          <span className="card-source-icon" title={link.source}>
+            <SourceLogo source={link.source} size={14} />
+          </span>
+          <span className="card-domain">{domain}</span>
+        </div>
+
+        {(() => {
+          // Vimeo: replace generic "Watch..." titles with description
+          if (link.source === 'vimeo' && link.title && /watch/i.test(link.title)) {
+            return link.description ? <div className="card-title">{link.description}</div> : null;
+          }
+          // Instagram: replace generic "instagram" title with account name from author_url
+          if (link.source === 'instagram' && (!link.title || link.title.toLowerCase() === 'instagram')) {
+            const accountName = link.author_url
+              ? link.author_url.replace(/https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/.*$/, '')
+              : null;
+            return accountName ? <div className="card-title">{accountName}</div> : null;
+          }
+          return link.title ? <div className="card-title">{link.title}</div> : null;
+        })()}
+
+        {/* Note: click to edit, or add new */}
+        {noteEditing ? (
+          <form
+            className="card-note-edit"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                setSavingNote(true);
+                const res = await fetch(`${getApiBase()}/links/${link.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ note: noteText.trim() || null }),
+                });
+                if (!res.ok) throw new Error('Failed');
+                setNoteEditing(false);
+                onRefresh?.();
+              } catch (err) {
+                alert('Error saving note');
+              } finally {
+                setSavingNote(false);
+              }
+            }}
+          >
+            <textarea
+              className="card-note-textarea"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="Add a note..."
+              autoFocus
+              rows={2}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  e.target.form.requestSubmit();
+                }
+                if (e.key === 'Escape') {
+                  setNoteText(link.note || '');
+                  setNoteEditing(false);
+                }
+              }}
+            />
+            <div className="card-note-actions">
+              <button type="submit" className="card-note-save" disabled={savingNote}>
+                {savingNote ? '...' : '✓'}
+              </button>
+              <button
+                type="button"
+                className="card-note-cancel"
+                onClick={() => { setNoteText(link.note || ''); setNoteEditing(false); }}
+              >
+                ✕
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div
+            className={`card-note ${!link.note ? 'card-note-empty' : ''}`}
+            onClick={(e) => { e.stopPropagation(); setNoteText(link.note || ''); setNoteEditing(true); }}
+            title="Click to edit note"
+          >
+            {link.note || '+ Note'}
+          </div>
+        )}
+
+        <div className="card-tags-section">
+          <div
+            className="card-tags-toggle"
+            onClick={() => setTagsOpen(!tagsOpen)}
+          >
+            <span className="card-tags-label">
+              {tags.length} {tags.length === 1 ? 'Tag' : 'Tags'}
+            </span>
+            <span className={`card-tags-arrow ${tagsOpen ? 'open' : ''}`}>›</span>
+          </div>
+
+          {tagsOpen && (
+            <div className="card-tags-content">
+              {tags.length > 0 && (
+                <div className="card-tags">
+                  {tags.map((tag, i) => (
+                    <span key={i} className="card-tag">{tag}</span>
+                  ))}
+                </div>
+              )}
+              <form
+                className="card-tag-input-row"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const newTags = tagInput
+                    .split(/[,\n]+/)
+                    .map(t => t.replace(/^#+/, '').trim().toLowerCase())
+                    .filter(t => t.length > 0);
+                  if (newTags.length === 0) return;
+
+                  const merged = [...new Set([...tags, ...newTags])];
+                  try {
+                    setSavingTags(true);
+                    const res = await fetch(`${getApiBase()}/links/${link.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ tags: merged }),
+                    });
+                    if (!res.ok) throw new Error('Failed');
+                    setTagInput('');
+                    onRefresh?.();
+                  } catch (err) {
+                    alert('Error saving tags');
+                  } finally {
+                    setSavingTags(false);
+                  }
+                }}
+              >
+                <input
+                  className="card-tag-input"
+                  type="text"
+                  placeholder="Add tags..."
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  disabled={savingTags}
+                />
+                <button
+                  type="submit"
+                  className="card-tag-submit"
+                  disabled={savingTags || !tagInput.trim()}
+                >
+                  {savingTags ? '...' : '+'}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+
+        <div className="card-date">{dateStr}</div>
+      </div>
+
+      {videoPlayerOpen && (
+        <VideoPlayerModal
+          link={carouselMediaPath ? { ...link, media_path: carouselMediaPath } : link}
+          carouselFiles={videoCarouselFiles}
+          onClose={() => { setVideoPlayerOpen(false); setCarouselMediaPath(null); setVideoCarouselFiles([]); }}
+          onGifCreated={() => onRefresh?.()}
+          onSwitchFile={(filename) => setCarouselMediaPath(filename)}
+        />
+      )}
+
+      {previewOpen && (
+        <PreviewModal
+          link={link}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
+    </div>
+  );
+}

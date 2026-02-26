@@ -1,0 +1,22 @@
+node_modules/
+.next/
+
+# Datenbank
+*.db
+*.db-wal
+*.db-shm
+
+# Env-Dateien mit API Keys — nie auf GitHub!
+.env
+.env.local
+.env.*.local
+
+# Lokale Daten (Uploads, Thumbnails, Media)
+backend/data/
+
+# Electron Build-Output (DMG ist zu gross für git)
+dist/
+out/
+
+# macOS
+.DS_Store

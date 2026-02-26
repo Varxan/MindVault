@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MindVault — Setup Guide</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface2: #1a1a1a;
+    --border: #2a2a2a;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --accent: #E8A045;
+    --accent-dim: rgba(232,160,69,0.15);
+    --green: #4ade80;
+    --green-dim: rgba(74,222,128,0.15);
+    --red: #f87171;
+    --blue: #60a5fa;
+    --blue-dim: rgba(96,165,250,0.15);
+    --purple: #c084fc;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ─── Header ─── */
+  .header {
+    text-align: center;
+    padding: 60px 20px 40px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(232,160,69,0.05) 0%, transparent 100%);
+  }
+
+  .header .logo {
+    font-size: 48px;
+    margin-bottom: 8px;
+  }
+
+  .header h1 {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .header h1 span { color: var(--accent); }
+
+  .header p {
+    color: var(--text-dim);
+    font-size: 16px;
+    margin-top: 8px;
+  }
+
+  /* ─── Progress Bar ─── */
+  .progress-bar {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    padding: 30px 20px 0;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+
+  .progress-step {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .progress-step:hover { opacity: 0.8; }
+
+  .progress-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    color: var(--text-dim);
+    transition: all 0.3s;
+    flex-shrink: 0;
+  }
+
+  .progress-dot.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+  }
+
+  .progress-dot.done {
+    background: var(--green);
+    border-color: var(--green);
+    color: #000;
+  }
+
+  .progress-line {
+    width: 60px;
+    height: 2px;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+
+  .progress-line.done { background: var(--green); }
+
+  .progress-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    text-align: center;
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+
+  .progress-step-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ─── Container ─── */
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 50px 20px 80px;
+  }
+
+  /* ─── Steps ─── */
+  .step {
+    display: none;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .step.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .step h2 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .step h2 .icon {
+    font-size: 28px;
+  }
+
+  .step .subtitle {
+    color: var(--text-dim);
+    margin-bottom: 30px;
+    font-size: 15px;
+  }
+
+  /* ─── Cards ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card p {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  /* ─── Instruction Steps ─── */
+  .instructions {
+    list-style: none;
+    counter-reset: step;
+  }
+
+  .instructions li {
+    counter-increment: step;
+    display: flex;
+    gap: 16px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+
+  .instructions li:last-child { border-bottom: none; }
+
+  .step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .step-content {
+    flex: 1;
+  }
+
+  .step-content strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 15px;
+  }
+
+  .step-content span {
+    color: var(--text-dim);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* ─── Visual Mockups ─── */
+  .mockup {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 16px 0;
+  }
+
+  .mockup-header {
+    background: #1e1e1e;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mockup-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #333;
+  }
+
+  .mockup-dot.red { background: #ff5f57; }
+  .mockup-dot.yellow { background: #febc2e; }
+  .mockup-dot.green { background: #28c840; }
+
+  .mockup-title {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-left: 8px;
+  }
+
+  .mockup-body {
+    padding: 20px;
+  }
+
+  /* ─── Chat Mockup ─── */
+  .chat-mockup {
+    background: linear-gradient(180deg, #0e2f44 0%, #0a1929 100%);
+    border-radius: 10px;
+    padding: 16px;
+    margin: 16px 0;
+    font-family: -apple-system, system-ui, sans-serif;
+  }
+
+  .chat-header-mock {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 12px;
+  }
+
+  .chat-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0088cc, #0066aa);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .chat-name {
+    font-weight: 600;
+    font-size: 14px;
+  }
+
+  .chat-badge {
+    font-size: 10px;
+    color: #0088cc;
+    background: rgba(0,136,204,0.15);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .chat-msg {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    max-width: 85%;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  .chat-msg.user {
+    background: #0088cc;
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+  }
+
+  .chat-msg.bot {
+    background: rgba(255,255,255,0.08);
+    color: #ddd;
+    border-bottom-left-radius: 4px;
+  }
+
+  .chat-msg .highlight {
+    background: rgba(232,160,69,0.3);
+    color: var(--accent);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 12px;
+  }
+
+  /* ─── Code Block ─── */
+  .code-block {
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    color: var(--green);
+    position: relative;
+    margin: 10px 0;
+    overflow-x: auto;
+  }
+
+  .code-block .comment { color: #555; }
+  .code-block .string { color: var(--accent); }
+
+  .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .copy-btn:hover {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* ─── Token Input ─── */
+  .token-input-group {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .token-input {
+    flex: 1;
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .token-input:focus {
+    border-color: var(--accent);
+  }
+
+  .token-input::placeholder {
+    color: #444;
+  }
+
+  /* ─── Info Box ─── */
+  .info-box {
+    display: flex;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin: 12px 0;
+    align-items: flex-start;
+  }
+
+  .info-box.tip {
+    background: var(--accent-dim);
+    border: 1px solid rgba(232,160,69,0.2);
+    color: var(--accent);
+  }
+
+  .info-box.success {
+    background: var(--green-dim);
+    border: 1px solid rgba(74,222,128,0.2);
+    color: var(--green);
+  }
+
+  .info-box.info {
+    background: var(--blue-dim);
+    border: 1px solid rgba(96,165,250,0.2);
+    color: var(--blue);
+  }
+
+  .info-box .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ─── Buttons ─── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .btn-primary:hover {
+    background: #d4912e;
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    background: #222;
+    border-color: #444;
+  }
+
+  .btn-sm {
+    padding: 8px 16px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+
+  .nav-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ─── Checklist ─── */
+  .checklist {
+    list-style: none;
+  }
+
+  .checklist li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+
+  .checklist li:last-child { border-bottom: none; }
+
+  .check-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .check-icon.required {
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .check-icon.optional {
+    background: var(--surface2);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+
+  .tag {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-left: auto;
+  }
+
+  .tag.required { background: var(--accent-dim); color: var(--accent); }
+  .tag.optional { background: var(--surface2); color: var(--text-dim); }
+
+  /* ─── OS Tabs ─── */
+  .os-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 3px;
+    margin-bottom: 16px;
+    width: fit-content;
+  }
+
+  .os-tab {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text-dim);
+    border: none;
+    background: none;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .os-tab.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  .os-content { display: none; }
+  .os-content.active { display: block; }
+
+  /* ─── Visual Flow Diagram ─── */
+  .flow-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 24px 0;
+    flex-wrap: wrap;
+  }
+
+  .flow-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    text-align: center;
+    min-width: 120px;
+  }
+
+  .flow-box .icon { font-size: 24px; margin-bottom: 6px; }
+  .flow-box .label { font-size: 12px; font-weight: 600; }
+  .flow-box .sublabel { font-size: 10px; color: var(--text-dim); }
+
+  .flow-arrow {
+    color: var(--accent);
+    font-size: 20px;
+  }
+
+  /* ─── Architecture Diagram ─── */
+  .arch-diagram {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: start;
+    padding: 20px 0;
+  }
+
+  .arch-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  .arch-box h4 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .arch-box ul {
+    list-style: none;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .arch-box ul li {
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .arch-box ul li::before {
+    content: '›';
+    color: var(--accent);
+    font-weight: bold;
+  }
+
+  .arch-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-size: 24px;
+    padding-top: 30px;
+  }
+
+  .arch-connector span {
+    font-size: 10px;
+    color: var(--text-dim);
+    writing-mode: vertical-rl;
+    margin-top: 8px;
+  }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 600px) {
+    .container { padding: 30px 16px 60px; }
+    .header { padding: 40px 16px 30px; }
+    .header h1 { font-size: 24px; }
+    .progress-line { width: 30px; }
+    .arch-diagram { grid-template-columns: 1fr; }
+    .arch-connector { flex-direction: row; padding: 0; }
+    .flow-diagram { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">🧠</div>
+  <h1>Mind<span>Vault</span> Setup</h1>
+  <p>Schritt-für-Schritt Einrichtung in 5 Minuten</p>
+</div>
+
+<!-- Progress Bar -->
+<div class="progress-bar" id="progressBar">
+  <div class="progress-step-wrap">
+    <div class="progress-step" onclick="goToStep(0)">
+      <div class="progress-dot active" id="dot-0">1</div>
+    </div>
+  </div>
+  <div class="progress-line" id="line-0"></div>
+  <div class="progress-step-wrap">
+    <div class="progress-step" onclick="goToStep(1)">
+      <div class="progress-dot" id="dot-1">2</div>
+    </div>
+  </div>
+  <div class="progress-line" id="line-1"></div>
+  <div class="progress-step-wrap">
+    <div class="progress-step" onclick="goToStep(2)">
+      <div class="progress-dot" id="dot-2">3</div>
+    </div>
+  </div>
+  <div class="progress-line" id="line-2"></div>
+  <div class="progress-step-wrap">
+    <div class="progress-step" onclick="goToStep(3)">
+      <div class="progress-dot" id="dot-3">4</div>
+    </div>
+  </div>
+  <div class="progress-line" id="line-3"></div>
+  <div class="progress-step-wrap">
+    <div class="progress-step" onclick="goToStep(4)">
+      <div class="progress-dot" id="dot-4">5</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ═══════════ STEP 0: Overview ═══════════ -->
+  <div class="step active" id="step-0">
+    <h2><span class="icon">📋</span> Übersicht</h2>
+    <p class="subtitle">Was du brauchst und wie MindVault funktioniert</p>
+
+    <!-- Architecture -->
+    <div class="card">
+      <h3>🏗️ So funktioniert MindVault</h3>
+      <div class="flow-diagram">
+        <div class="flow-box">
+          <div class="icon">📱</div>
+          <div class="label">Telegram</div>
+          <div class="sublabel">Link senden</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box" style="border-color: var(--accent);">
+          <div class="icon">🧠</div>
+          <div class="label">MindVault</div>
+          <div class="sublabel">Verarbeiten</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">
+          <div class="icon">🎬</div>
+          <div class="label">Dein Archiv</div>
+          <div class="sublabel">Videos & Medien</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>✅ Checkliste</h3>
+      <ul class="checklist">
+        <li>
+          <span class="check-icon required">1</span>
+          <div>
+            <strong>Node.js</strong><br>
+            <span style="color:var(--text-dim);font-size:12px">JavaScript Runtime — einmalige Installation</span>
+          </div>
+          <span class="tag required">Pflicht</span>
+        </li>
+        <li>
+          <span class="check-icon required">2</span>
+          <div>
+            <strong>Telegram Bot Token</strong><br>
+            <span style="color:var(--text-dim);font-size:12px">Zum Empfangen von Links via Telegram</span>
+          </div>
+          <span class="tag required">Pflicht</span>
+        </li>
+        <li>
+          <span class="check-icon optional">3</span>
+          <div>
+            <strong>yt-dlp + ffmpeg</strong><br>
+            <span style="color:var(--text-dim);font-size:12px">Für Video-Download und Editor-Funktionen</span>
+          </div>
+          <span class="tag optional">Empfohlen</span>
+        </li>
+        <li>
+          <span class="check-icon optional">4</span>
+          <div>
+            <strong>AI API Key (Anthropic)</strong><br>
+            <span style="color:var(--text-dim);font-size:12px">Für automatisches Tagging mit KI</span>
+          </div>
+          <span class="tag optional">Optional</span>
+        </li>
+        <li>
+          <span class="check-icon optional">5</span>
+          <div>
+            <strong>ngrok</strong><br>
+            <span style="color:var(--text-dim);font-size:12px">Tunnel für Telegram Webhook (wenn nicht auf Server)</span>
+          </div>
+          <span class="tag optional">Optional</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="nav-buttons">
+      <div></div>
+      <button class="btn btn-primary" onclick="goToStep(1)">Los geht's →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ STEP 1: Installation ═══════════ -->
+  <div class="step" id="step-1">
+    <h2><span class="icon">⚡</span> Installation</h2>
+    <p class="subtitle">Ein Befehl installiert alles automatisch</p>
+
+    <!-- All-in-One -->
+    <div class="card">
+      <h3>🚀 All-in-One Installer</h3>
+      <p>Der Installer erkennt dein System und installiert automatisch alles was fehlt: Homebrew (Mac), Node.js, yt-dlp, ffmpeg und MindVault.</p>
+
+      <ol class="instructions">
+        <li>
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <strong>Terminal öffnen</strong>
+            <span><strong>Mac:</strong> Spotlight (⌘ + Leertaste) → "Terminal" eingeben<br>
+            <strong>Windows:</strong> Startmenü → "cmd" eingeben</span>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <strong>Installer starten</strong>
+            <span>Navigiere zum MindVault-Ordner und starte den Installer:</span>
+
+            <div class="os-tabs" style="margin-top: 10px;">
+              <button class="os-tab active" onclick="switchOS('mac', this)">🍎 Mac / Linux</button>
+              <button class="os-tab" onclick="switchOS('win', this)">🪟 Windows</button>
+            </div>
+
+            <div class="os-content active" id="os-mac">
+              <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Kopieren</button>
+                cd ~/Downloads/MindVault<br>
+                chmod +x install.sh<br>
+                ./install.sh
+              </div>
+            </div>
+
+            <div class="os-content" id="os-win">
+              <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Kopieren</button>
+                cd %USERPROFILE%\Downloads\MindVault<br>
+                install.bat
+              </div>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <strong>Lehne dich zurück</strong>
+            <span>Der Installer macht den Rest. Du siehst den Fortschritt live im Terminal:</span>
+            <div class="mockup" style="margin-top: 12px;">
+              <div class="mockup-header">
+                <div class="mockup-dot red"></div>
+                <div class="mockup-dot yellow"></div>
+                <div class="mockup-dot green"></div>
+                <span class="mockup-title">Terminal — install.sh</span>
+              </div>
+              <div class="mockup-body" style="font-family: monospace; font-size: 12px; line-height: 1.8;">
+                <div style="color: var(--accent); font-weight: 700;">  ╔══════════════════════════════════════════╗</div>
+                <div style="color: var(--accent); font-weight: 700;">  ║       🧠 MindVault — Full Installer      ║</div>
+                <div style="color: var(--accent); font-weight: 700;">  ╚══════════════════════════════════════════╝</div>
+                <br>
+                <div style="color: #60a5fa; font-weight: 600;">  [1/5] Paketmanager</div>
+                <div style="color: var(--green);">  ✓ Homebrew bereits installiert</div>
+                <br>
+                <div style="color: #60a5fa; font-weight: 600;">  [2/5] Node.js</div>
+                <div style="color: var(--green);">  ✓ Node.js v22.11.0</div>
+                <div style="color: var(--green);">  ✓ npm 10.9.0</div>
+                <br>
+                <div style="color: #60a5fa; font-weight: 600;">  [3/5] Media Tools (yt-dlp + ffmpeg)</div>
+                <div style="color: var(--green);">  ✓ yt-dlp 2025.01.15</div>
+                <div style="color: var(--green);">  ✓ ffmpeg installiert</div>
+                <br>
+                <div style="color: #60a5fa; font-weight: 600;">  [4/5] MindVault einrichten</div>
+                <div style="color: var(--green);">  ✓ Backend bereit</div>
+                <div style="color: var(--green);">  ✓ Frontend bereit</div>
+                <div style="color: var(--green);">  ✓ Frontend gebaut</div>
+                <br>
+                <div style="color: var(--green); font-weight: 700;">  ══════════════════════════════════════</div>
+                <div style="color: var(--green); font-weight: 700;">    ✓ MindVault ist bereit!</div>
+                <div style="color: var(--green); font-weight: 700;">  ══════════════════════════════════════</div>
+              </div>
+            </div>
+          </div>
+        </li>
+      </ol>
+
+      <div class="info-box success">
+        <span class="icon">✓</span>
+        <span><strong>Das war's!</strong> Der Installer installiert Homebrew, Node.js, yt-dlp, ffmpeg und alle MindVault-Pakete in einem Durchgang. Dauert ca. 2–5 Minuten.</span>
+      </div>
+    </div>
+
+    <!-- What gets installed -->
+    <div class="card">
+      <h3>📦 Was wird installiert?</h3>
+      <ul class="checklist">
+        <li>
+          <span class="check-icon required" style="font-size: 14px;">🍺</span>
+          <div>
+            <strong>Homebrew</strong> <span style="color:var(--text-dim);font-size:12px">(nur Mac)</span><br>
+            <span style="color:var(--text-dim);font-size:12px">Paketmanager — installiert die anderen Tools</span>
+          </div>
+          <span class="tag" style="background:var(--green-dim);color:var(--green)">Auto</span>
+        </li>
+        <li>
+          <span class="check-icon required" style="font-size: 14px;">⬢</span>
+          <div>
+            <strong>Node.js + npm</strong><br>
+            <span style="color:var(--text-dim);font-size:12px">JavaScript Runtime für Backend & Frontend</span>
+          </div>
+          <span class="tag" style="background:var(--green-dim);color:var(--green)">Auto</span>
+        </li>
+        <li>
+          <span class="check-icon required" style="font-size: 14px;">📥</span>
+          <div>
+            <strong>yt-dlp</strong><br>
+            <span style="color:var(--text-dim);font-size:12px">Video-Downloader (YouTube, Instagram, etc.)</span>
+          </div>
+          <span class="tag" style="background:var(--green-dim);color:var(--green)">Auto</span>
+        </li>
+        <li>
+          <span class="check-icon required" style="font-size: 14px;">🎬</span>
+          <div>
+            <strong>ffmpeg</strong><br>
+            <span style="color:var(--text-dim);font-size:12px">Video-Verarbeitung (Clips, GIFs, Screenshots)</span>
+          </div>
+          <span class="tag" style="background:var(--green-dim);color:var(--green)">Auto</span>
+        </li>
+        <li>
+          <span class="check-icon required" style="font-size: 14px;">🧠</span>
+          <div>
+            <strong>MindVault</strong><br>
+            <span style="color:var(--text-dim);font-size:12px">Backend + Frontend Dependencies & Build</span>
+          </div>
+          <span class="tag" style="background:var(--green-dim);color:var(--green)">Auto</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="goToStep(0)">← Zurück</button>
+      <button class="btn btn-primary" onclick="goToStep(2)">Weiter: Telegram Bot →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ STEP 2: Telegram Bot ═══════════ -->
+  <div class="step" id="step-2">
+    <h2><span class="icon">🤖</span> Telegram Bot erstellen</h2>
+    <p class="subtitle">Erstelle deinen persönlichen Bot um Links an MindVault zu senden</p>
+
+    <div class="card">
+      <h3>📱 Bot bei BotFather erstellen</h3>
+
+      <ol class="instructions">
+        <li>
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <strong>BotFather öffnen</strong>
+            <span>Öffne Telegram und suche nach <strong>@BotFather</strong> — das ist Telegrams offizieller Bot-Ersteller.</span>
+            <div class="chat-mockup" style="margin-top: 12px;">
+              <div class="chat-header-mock">
+                <div class="chat-avatar">🤖</div>
+                <div>
+                  <div class="chat-name">BotFather</div>
+                  <div class="chat-badge">verified bot</div>
+                </div>
+              </div>
+              <div style="font-size:12px; color:#888; text-align:center; margin-bottom:8px;">Tippe auf Start oder sende /newbot</div>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <strong>Neuen Bot erstellen</strong>
+            <span>Sende den Befehl:</span>
+            <div class="code-block" style="background: #0e2f44;">
+              <button class="copy-btn" onclick="copyCode(this)">Kopieren</button>
+              /newbot
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <strong>Namen vergeben</strong>
+            <span>BotFather fragt nach einem <strong>Anzeigenamen</strong> und einem <strong>Benutzernamen</strong>.</span>
+            <div class="chat-mockup" style="margin-top: 12px;">
+              <div class="chat-msg bot">Alright, a new bot. How are we going to call it? Please choose a name for your bot.</div>
+              <div class="chat-msg user">MindVault</div>
+              <div class="chat-msg bot">Good. Now let's choose a username for your bot. It must end in 'bot'. Like this, for example: TetrisBot or tetris_bot.</div>
+              <div class="chat-msg user">mein_mindvault_bot</div>
+            </div>
+            <div class="info-box tip" style="margin-top: 8px;">
+              <span class="icon">💡</span>
+              <span>Der Benutzername muss auf <strong>bot</strong> enden und einzigartig sein. Zum Beispiel: <code>marco_mindvault_bot</code></span>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <strong>Token kopieren</strong>
+            <span>BotFather gibt dir einen <strong>API Token</strong> — das ist der Schlüssel für deinen Bot.</span>
+            <div class="chat-mockup" style="margin-top: 12px;">
+              <div class="chat-msg bot">
+                Done! Congratulations on your new bot.<br><br>
+                Use this token to access the HTTP API:<br>
+                <span class="highlight">7123456789:AAH1234abcd5678efgh-XYZTOKEN</span><br><br>
+                Keep your token secure and store it safely.
+              </div>
+            </div>
+            <div class="info-box tip" style="margin-top: 8px;">
+              <span class="icon">⚠️</span>
+              <span><strong>Wichtig:</strong> Teile diesen Token mit niemandem! Er gibt vollen Zugriff auf deinen Bot.</span>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>⚙️ Token in MindVault eintragen</h3>
+      <p>Starte MindVault und trage den Token in den Settings ein:</p>
+
+      <ol class="instructions">
+        <li>
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <strong>MindVault starten</strong>
+            <div class="os-tabs">
+              <button class="os-tab active" onclick="switchOS3('mac3', this)">🍎 Mac / Linux</button>
+              <button class="os-tab" onclick="switchOS3('win3', this)">🪟 Windows</button>
+            </div>
+            <div class="os-content active" id="os-mac3">
+              <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Kopieren</button>
+                ./start.sh
+              </div>
+            </div>
+            <div class="os-content" id="os-win3">
+              <div class="code-block">
+                <button class="copy-btn" onclick="copyCode(this)">Kopieren</button>
+                start.bat
+              </div>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <strong>Öffne <a href="http://localhost:3000" target="_blank" style="color:var(--accent)">localhost:3000</a> im Browser</strong>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <strong>Settings öffnen → Telegram Bot Token einfügen</strong>
+            <span>Klicke auf das Zahnrad-Icon (⚙️) rechts oben und füge den Token ein.</span>
+            <div class="mockup" style="margin-top: 12px;">
+              <div class="mockup-header">
+                <div class="mockup-dot red"></div>
+                <div class="mockup-dot yellow"></div>
+                <div class="mockup-dot green"></div>
+                <span class="mockup-title">MindVault — Settings</span>
+              </div>
+              <div class="mockup-body">
+                <div style="margin-bottom: 16px;">
+                  <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;">Telegram Bot Token</div>
+                  <div style="display: flex; gap: 8px;">
+                    <div style="flex:1; background: #0d0d0d; border: 1px solid var(--accent); border-radius: 6px; padding: 10px 14px; font-family: monospace; font-size: 12px; color: var(--accent);">
+                      7123456789:AAH1234abcd5678...
+                    </div>
+                    <div style="background: var(--accent); color: #000; padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor:default;">
+                      Save
+                    </div>
+                  </div>
+                </div>
+                <div style="font-size: 11px; color: var(--green);">✓ Bot connected: @mein_mindvault_bot</div>
+              </div>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>🌐 Webhook mit ngrok verbinden <span class="tag optional" style="margin-left:8px">Für lokale Nutzung</span></h3>
+      <p>Telegram muss deinen lokalen Server erreichen können. Dafür brauchst du ngrok (oder einen Server mit öffentlicher IP).</p>
+
+      <ol class="instructions">
+        <li>
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <strong>ngrok installieren</strong>
+            <span>Erstelle ein kostenloses Konto auf <a href="https://ngrok.com" target="_blank" style="color:var(--accent)">ngrok.com</a> und lade es herunter.</span>
+            <div class="code-block">
+              <button class="copy-btn" onclick="copyCode(this)">Kopieren</button>
+              <span class="comment"># Mac (Homebrew)</span><br>
+              brew install ngrok
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <strong>ngrok starten</strong>
+            <div class="code-block">
+              <button class="copy-btn" onclick="copyCode(this)">Kopieren</button>
+              ngrok http 3001
+            </div>
+            <span>Du bekommst eine URL wie <code style="color:var(--accent)">https://abc123.ngrok.io</code></span>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <strong>Webhook wird automatisch gesetzt</strong>
+            <span>MindVault erkennt die ngrok-URL automatisch beim Starten und setzt den Telegram Webhook.</span>
+            <div class="info-box success">
+              <span class="icon">✓</span>
+              <span>Jetzt kannst du Links an deinen Bot senden und sie erscheinen in MindVault!</span>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="goToStep(1)">← Zurück</button>
+      <button class="btn btn-primary" onclick="goToStep(3)">Weiter: AI Setup →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ STEP 3: AI API ═══════════ -->
+  <div class="step" id="step-3">
+    <h2><span class="icon">🤖</span> AI API verbinden</h2>
+    <p class="subtitle">Optional: Aktiviere automatisches Tagging mit Anthropic Claude</p>
+
+    <div class="card">
+      <h3>🔑 Anthropic API Key erstellen</h3>
+
+      <ol class="instructions">
+        <li>
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <strong>Anthropic Console öffnen</strong>
+            <span>Gehe zu <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a> und erstelle ein Konto (falls noch nicht vorhanden).</span>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <strong>API Key generieren</strong>
+            <span>Gehe zu <strong>Settings → API Keys → Create Key</strong></span>
+            <div class="mockup" style="margin-top: 12px;">
+              <div class="mockup-header">
+                <div class="mockup-dot red"></div>
+                <div class="mockup-dot yellow"></div>
+                <div class="mockup-dot green"></div>
+                <span class="mockup-title">Anthropic Console — API Keys</span>
+              </div>
+              <div class="mockup-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                  <div style="font-size: 14px; font-weight: 600;">API Keys</div>
+                  <div style="background: var(--accent); color: #000; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor:default;">
+                    + Create Key
+                  </div>
+                </div>
+                <div style="background: #0d0d0d; border-radius: 6px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <div style="font-size: 13px; font-weight: 500;">MindVault</div>
+                    <div style="font-size: 11px; color: var(--text-dim); font-family: monospace;">sk-ant-api03-...xxxxx</div>
+                  </div>
+                  <div style="font-size: 11px; color: var(--green);">Active</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <strong>Key kopieren</strong>
+            <span>Kopiere den angezeigten Key. Er beginnt mit <code style="color:var(--accent)">sk-ant-...</code></span>
+            <div class="info-box tip">
+              <span class="icon">⚠️</span>
+              <span><strong>Wichtig:</strong> Der Key wird nur einmal angezeigt! Kopiere ihn sofort.</span>
+            </div>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <strong>In MindVault eintragen</strong>
+            <span>Öffne MindVault Settings → AI API Key → Einfügen → Speichern</span>
+            <div class="mockup" style="margin-top: 12px;">
+              <div class="mockup-header">
+                <div class="mockup-dot red"></div>
+                <div class="mockup-dot yellow"></div>
+                <div class="mockup-dot green"></div>
+                <span class="mockup-title">MindVault — Settings</span>
+              </div>
+              <div class="mockup-body">
+                <div style="margin-bottom: 16px;">
+                  <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;">AI API Key (Anthropic)</div>
+                  <div style="display: flex; gap: 8px;">
+                    <div style="flex:1; background: #0d0d0d; border: 1px solid var(--accent); border-radius: 6px; padding: 10px 14px; font-family: monospace; font-size: 12px; color: var(--accent);">
+                      sk-ant-api03-xxxxxxx...
+                    </div>
+                    <div style="background: var(--accent); color: #000; padding: 10px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor:default;">
+                      Save
+                    </div>
+                  </div>
+                </div>
+                <div style="font-size: 11px; color: var(--green);">✓ AI connected — Auto-tagging enabled</div>
+              </div>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>💰 Kosten</h3>
+      <div class="info-box info">
+        <span class="icon">ℹ</span>
+        <span>Anthropic bietet $5 Startguthaben an. MindVault nutzt <strong>Claude Haiku</strong> (das günstigste Modell) — eine Analyse kostet ca. <strong>$0.001</strong>. Damit reichen $5 für tausende Analysen.</span>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="goToStep(2)">← Zurück</button>
+      <button class="btn btn-primary" onclick="goToStep(4)">Weiter: Fertig! →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ STEP 4: Done ═══════════ -->
+  <div class="step" id="step-4">
+    <h2><span class="icon">🎉</span> Fertig!</h2>
+    <p class="subtitle">MindVault ist bereit</p>
+
+    <div class="card" style="text-align: center; padding: 40px;">
+      <div style="font-size: 64px; margin-bottom: 16px;">🧠</div>
+      <h3 style="justify-content: center; font-size: 20px; margin-bottom: 16px;">MindVault ist eingerichtet!</h3>
+
+      <div class="os-tabs" style="justify-content: center; margin: 0 auto 16px;">
+        <button class="os-tab active" onclick="switchOS4('mac4', this)">🍎 Mac / Linux</button>
+        <button class="os-tab" onclick="switchOS4('win4', this)">🪟 Windows</button>
+      </div>
+
+      <div class="os-content active" id="os-mac4">
+        <div class="code-block" style="text-align: left;">
+          <button class="copy-btn" onclick="copyCode(this)">Kopieren</button>
+          ./start.sh
+        </div>
+      </div>
+
+      <div class="os-content" id="os-win4">
+        <div class="code-block" style="text-align: left;">
+          <button class="copy-btn" onclick="copyCode(this)">Kopieren</button>
+          start.bat
+        </div>
+      </div>
+
+      <p style="margin-top: 16px;">Dann öffne <a href="http://localhost:3000" target="_blank" style="color:var(--accent); font-weight: 600;">localhost:3000</a> im Browser.</p>
+    </div>
+
+    <div class="card">
+      <h3>🚀 So nutzt du MindVault</h3>
+      <ol class="instructions">
+        <li>
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <strong>Link an deinen Telegram Bot senden</strong>
+            <span>Kopiere einen Instagram, YouTube oder anderen Link und sende ihn an deinen Bot.</span>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <strong>In MindVault öffnen</strong>
+            <span>Der Link erscheint automatisch im Dashboard. Klicke auf das Thumbnail zum Ansehen.</span>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <strong>Download & Bearbeiten</strong>
+            <span>Lade Videos herunter, erstelle Clips, GIFs oder Screenshots direkt im integrierten Editor.</span>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <strong>Organisieren</strong>
+            <span>Nutze Collections, Tags und die Suche um dein Archiv zu organisieren.</span>
+          </div>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Architecture -->
+    <div class="card">
+      <h3>🏗️ Architektur</h3>
+      <div class="arch-diagram">
+        <div class="arch-box">
+          <h4>🎨 Frontend <span style="color:var(--text-dim);font-weight:400">(Port 3000)</span></h4>
+          <ul>
+            <li>Next.js / React</li>
+            <li>Grid Dashboard</li>
+            <li>Video Editor</li>
+            <li>Preview Modal</li>
+            <li>Collection Manager</li>
+          </ul>
+        </div>
+        <div class="arch-connector">
+          ⇄
+          <span>API</span>
+        </div>
+        <div class="arch-box">
+          <h4>📡 Backend <span style="color:var(--text-dim);font-weight:400">(Port 3001)</span></h4>
+          <ul>
+            <li>Express.js Server</li>
+            <li>SQLite Datenbank</li>
+            <li>Telegram Bot</li>
+            <li>yt-dlp Integration</li>
+            <li>AI Tagging (Claude)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="goToStep(3)">← Zurück</button>
+      <a class="btn btn-primary" href="http://localhost:3000" target="_blank">MindVault öffnen →</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let currentStep = 0;
+  const totalSteps = 5;
+
+  function goToStep(n) {
+    // Hide all steps
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById(`step-${n}`).classList.add('active');
+
+    // Update progress dots
+    for (let i = 0; i < totalSteps; i++) {
+      const dot = document.getElementById(`dot-${i}`);
+      dot.className = 'progress-dot';
+      if (i < n) {
+        dot.className = 'progress-dot done';
+        dot.textContent = '✓';
+      } else if (i === n) {
+        dot.className = 'progress-dot active';
+        dot.textContent = i + 1;
+      } else {
+        dot.textContent = i + 1;
+      }
+
+      // Update lines
+      if (i < totalSteps - 1) {
+        const line = document.getElementById(`line-${i}`);
+        line.className = i < n ? 'progress-line done' : 'progress-line';
+      }
+    }
+
+    currentStep = n;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function copyCode(btn) {
+    const block = btn.parentElement;
+    const text = block.textContent.replace('Kopieren', '').replace('Kopiert!', '').trim()
+      .replace(/# .*/g, '').replace(/:: .*/g, '').replace(/\n\s*\n/g, '\n').trim();
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Kopiert!';
+      btn.style.color = 'var(--green)';
+      btn.style.borderColor = 'var(--green)';
+      setTimeout(() => {
+        btn.textContent = 'Kopieren';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }, 2000);
+    });
+  }
+
+  function switchOS(id, btn) {
+    btn.parentElement.querySelectorAll('.os-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    const card = btn.closest('.card');
+    card.querySelectorAll('.os-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(`os-${id}`).classList.add('active');
+  }
+
+  function switchOS2(id, btn) {
+    btn.parentElement.querySelectorAll('.os-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    const card = btn.closest('.card');
+    card.querySelectorAll('.os-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(`os-${id}`).classList.add('active');
+  }
+
+  function switchOS3(id, btn) {
+    btn.parentElement.querySelectorAll('.os-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    const li = btn.closest('li');
+    li.querySelectorAll('.os-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(`os-${id}`).classList.add('active');
+  }
+
+  function switchOS4(id, btn) {
+    btn.parentElement.querySelectorAll('.os-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    const card = btn.closest('.card');
+    card.querySelectorAll('.os-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(`os-${id}`).classList.add('active');
+  }
+</script>
+
+</body>
+</html>

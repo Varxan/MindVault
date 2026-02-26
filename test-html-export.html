@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MindVault Backup — 20.02.2026</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0a; color: #d4d4d4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; padding: 32px; }
+  .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: baseline; }
+  .header h1 { font-size: 22px; font-weight: 600; color: #fff; letter-spacing: -0.3px; }
+  .header .stats { font-size: 13px; color: #666; }
+  .grid { display: flex; flex-direction: column; gap: 1px; background: #1a1a1a; border-radius: 10px; overflow: hidden; border: 1px solid #222; }
+  .card { display: flex; gap: 16px; padding: 14px 16px; background: #111; cursor: pointer; transition: background 0.15s; }
+  .card:hover { background: #1a1a1a; }
+  .thumb { flex-shrink: 0; width: 80px; height: 56px; border-radius: 6px; overflow: hidden; background: #1a1a1a; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .no-thumb { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #444; }
+  .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .title { font-size: 14px; font-weight: 500; color: #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .title .dim { color: #555; font-weight: 400; }
+  .url { font-size: 11px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
+  .url:hover { color: #888; text-decoration: underline; }
+  .meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+  .source { font-size: 10px; font-weight: 700; color: #E8A045; background: rgba(232,160,69,0.12); padding: 1px 6px; border-radius: 3px; letter-spacing: 0.5px; }
+  .date { font-size: 11px; color: #555; }
+  .tag { font-size: 10px; color: #888; background: #1e1e1e; padding: 1px 6px; border-radius: 3px; }
+  .col { font-size: 10px; color: #6aa3e8; background: rgba(106,163,232,0.1); padding: 1px 6px; border-radius: 3px; }
+  .note { font-size: 11px; color: #666; font-style: italic; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 600px) { body { padding: 12px; } .thumb { width: 56px; height: 40px; } }
+  @media print { body { background: #fff; color: #222; } .card { background: #fff; } .grid { border-color: #ddd; background: #ddd; } .title { color: #111; } .source { color: #b07820; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>MindVault</h1>
+  <span class="stats">83 links &middot; 4 collections &middot; exported 20. February 2026</span>
+</div>
+<div class="grid">
+        <div class="card" onclick="window.open('https://www.instagram.com/p/DU4Q4Eej0_p/','_blank')">
+          <div class="thumb"><div class="no-thumb">No preview</div></div>
+          <div class="info">
+            <div class="title">Video 1</div>
+            <a class="url" href="https://www.instagram.com/p/DU4Q4Eej0_p/" target="_blank" onclick="event.stopPropagation()">https://www.instagram.com/p/DU4Q4Eej0_p/?img_index=8&amp;igsh=eHp2YXJ3a2diMmIz</a>
+            <div class="meta">
+              <span class="source">IG</span>
+              <span class="date">20.02.2026</span>
+              <span class="tag">cinematic</span>
+              <span class="tag">truck</span>
+              <span class="col">Inspiration</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" onclick="window.open('https://vimeo.com/718760624','_blank')">
+          <div class="thumb"><img src="https://i.vimeocdn.com/video/1454729766-abc123_640.jpg" loading="lazy" alt="" /></div>
+          <div class="info">
+            <div class="title">RVshare - 'Outside Voice'</div>
+            <a class="url" href="https://vimeo.com/718760624" target="_blank" onclick="event.stopPropagation()">https://vimeo.com/718760624</a>
+            <div class="meta">
+              <span class="source">VM</span>
+              <span class="date">18.02.2026</span>
+              <span class="tag">commercial</span>
+              <span class="tag">lifestyle</span>
+            </div>
+            <div class="note">Great pacing and color grade</div>
+          </div>
+        </div>
+
+        <div class="card" onclick="window.open('https://vimeo.com/497376331','_blank')">
+          <div class="thumb"><img src="https://i.vimeocdn.com/video/1030000000-def456_640.jpg" loading="lazy" alt="" /></div>
+          <div class="info">
+            <div class="title">LOBOS 1707</div>
+            <a class="url" href="https://vimeo.com/497376331" target="_blank" onclick="event.stopPropagation()">https://vimeo.com/497376331</a>
+            <div class="meta">
+              <span class="source">VM</span>
+              <span class="date">15.02.2026</span>
+              <span class="tag">spirits</span>
+              <span class="tag">luxury</span>
+              <span class="col">Commercials</span>
+              <span class="col">Favorites</span>
+            </div>
+          </div>
+        </div>
+</div>
+</body>
+</html>
