@@ -259,9 +259,8 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   // Resolve DATA_PATH here — app.getPath() is guaranteed correct after ready
-  DATA_PATH = isDev
-    ? path.join(__dirname, '..', 'backend', 'data')
-    : path.join(app.getPath('userData'), 'data');
+  // Always use userData — same DB in dev and production, no more split data
+  DATA_PATH = path.join(app.getPath('userData'), 'data');
 
   initLog();
   log(`[Electron] Starting MindVault (${isDev ? 'dev' : 'production'})…`);
