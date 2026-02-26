@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mindvault-v1';
+const CACHE_NAME = 'mindvault-v3';
 const URLS_TO_CACHE = [
   '/',
   '/index.html',
