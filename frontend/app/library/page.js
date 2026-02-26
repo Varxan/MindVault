@@ -189,22 +189,6 @@ export default function LibraryPage() {
           onChange={e => setSearch(e.target.value)}
         />
 
-        {/* Tag filter pills */}
-        {allTags.length > 0 && (
-          <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingTop: '8px', paddingBottom: '2px' }}>
-            <span
-              className={`tag-chip${!activeTag ? ' active' : ''}`}
-              onClick={() => setActiveTag(null)}
-            >All</span>
-            {allTags.map(tag => (
-              <span
-                key={tag}
-                className={`tag-chip${activeTag === tag ? ' active' : ''}`}
-                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-              >{tag}</span>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Body */}
