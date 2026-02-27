@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { getApiBase } from '../lib/config';
 
 const PWA_BASE_URL = process.env.NEXT_PUBLIC_PWA_URL || 'https://mindvault-pwa.vercel.app';
 const TRIAL_DAYS   = 30;
@@ -14,7 +15,7 @@ export default function MobileQRSection() {
 
   // Load device config from backend
   useEffect(() => {
-    fetch('/api/device-info')
+    fetch(`${getApiBase()}/device-info`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data?.deviceId) {
