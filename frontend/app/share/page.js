@@ -46,6 +46,18 @@ export default function SharePage() {
     const share = { url, title: p.get('title') || '', text: p.get('text') || '' };
     setShareData(share);
 
+    // Deduplicate: don't re-insert if same URL was just saved (within 30s)
+    // This prevents double-inserts from Web Share Target loading the page twice
+    const lastKey = 'mindvault_last_share';
+    const lastShare = JSON.parse(localStorage.getItem(lastKey) || '{}');
+    const now = Date.now();
+    if (lastShare.url === url && (now - (lastShare.ts || 0)) < 30_000) {
+      // Same URL within 30 seconds — reuse the existing ID, don't re-insert
+      if (lastShare.id) setSavedId(lastShare.id);
+      setTimeout(() => tagRef.current?.focus(), 200);
+      return;
+    }
+
     // Fire insert immediately in background via secure server API
     const deviceId = localStorage.getItem('mindvault_device_id');
     fetch('/api/share-queue', {
@@ -59,7 +71,12 @@ export default function SharePage() {
       }),
     })
       .then(r => r.json())
-      .then(data => { if (data.id) setSavedId(data.id); })
+      .then(data => {
+        if (data.id) {
+          setSavedId(data.id);
+          localStorage.setItem(lastKey, JSON.stringify({ url, id: data.id, ts: now }));
+        }
+      })
       .catch(() => {});
 
     setTimeout(() => tagRef.current?.focus(), 200);

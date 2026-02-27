@@ -39,17 +39,29 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const deviceId = searchParams.get('device_id') || null;
 
-    let query = supabase
-      .from('share_queue')
-      .select('*')
-      .eq('processed', false)
-      .order('created_at', { ascending: true });
+    // Return all unprocessed rows:
+    // - rows matching this device_id, OR
+    // - rows with user_id IS NULL (phone shared before pairing / no device set)
+    // This is a single-user app so no cross-user leakage risk.
+    let data, error;
 
     if (deviceId) {
-      query = query.eq('user_id', deviceId);
+      // user_id = deviceId OR user_id IS NULL
+      const result = await supabase
+        .from('share_queue')
+        .select('*')
+        .eq('processed', false)
+        .or(`user_id.eq.${deviceId},user_id.is.null`)
+        .order('created_at', { ascending: true });
+      data = result.data; error = result.error;
+    } else {
+      const result = await supabase
+        .from('share_queue')
+        .select('*')
+        .eq('processed', false)
+        .order('created_at', { ascending: true });
+      data = result.data; error = result.error;
     }
-
-    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
