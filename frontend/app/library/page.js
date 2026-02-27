@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
+// Supabase (anon key) — used only for share_queue
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase    = supabaseUrl && supabaseKey
@@ -39,47 +40,42 @@ export default function LibraryPage() {
   const [updatedAt, setUpdatedAt] = useState(null);
 
   useEffect(() => {
-    if (!supabase) { setError('Supabase not configured'); setLoading(false); return; }
-
     // Get device_id from localStorage (set during /pair pairing)
     const deviceId = typeof window !== 'undefined'
       ? localStorage.getItem('mindvault_device_id')
       : null;
 
-    // Build queue query
-    const queueQuery = deviceId
-      ? supabase.from('share_queue').select('id, url, title, created_at').eq('processed', false).eq('user_id', deviceId).order('created_at', { ascending: false })
-      : supabase.from('share_queue').select('id, url, title, created_at').eq('processed', false).order('created_at', { ascending: false });
+    // ── 1. Fetch library via secure server-side API route ──────────────────
+    const libraryUrl = deviceId
+      ? `/api/library-cache?device_id=${encodeURIComponent(deviceId)}`
+      : '/api/library-cache';
 
-    // Build library query with fallback logic
-    let libraryQuery;
-    if (deviceId) {
-      libraryQuery = supabase.from('library_cache').select('links, updated_at').eq('user_id', deviceId).single();
-    } else {
-      libraryQuery = supabase.from('library_cache').select('links, updated_at').eq('singleton_id', 1).single();
+    const libraryFetch = fetch(libraryUrl).then(r => r.json());
+
+    // ── 2. Fetch pending share queue (anon key, filtered by device_id) ─────
+    let queueFetch = Promise.resolve({ data: [], error: null });
+    if (supabase) {
+      const q = deviceId
+        ? supabase.from('share_queue').select('id, url, title, created_at').eq('processed', false).eq('user_id', deviceId).order('created_at', { ascending: false })
+        : supabase.from('share_queue').select('id, url, title, created_at').eq('processed', false).order('created_at', { ascending: false });
+      queueFetch = q;
     }
 
-    // Fetch library + queue in parallel, with fallback for device_id → singleton_id
-    Promise.all([libraryQuery, queueQuery])
-    .then(async ([libraryResult, { data: queue }]) => {
-      let cache = libraryResult.data;
-      let err = libraryResult.error;
-
-      // If device_id query failed/empty, fallback to singleton_id=1
-      if ((err || !cache) && deviceId) {
-        const fallback = await supabase.from('library_cache').select('links, updated_at').eq('singleton_id', 1).single();
-        cache = fallback.data;
-        err = fallback.error;
-      }
-
-      if (err) setError('Could not load library');
-      else {
-        setLinks(Array.isArray(cache?.links) ? cache.links : []);
-        setUpdatedAt(cache?.updated_at);
-      }
-      setPending(queue || []);
-      setLoading(false);
-    });
+    Promise.all([libraryFetch, queueFetch])
+      .then(([libraryData, queueResult]) => {
+        if (libraryData.error) {
+          setError('Could not load library');
+        } else {
+          setLinks(Array.isArray(libraryData.links) ? libraryData.links : []);
+          setUpdatedAt(libraryData.updated_at);
+        }
+        setPending(queueResult.data || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError('Could not load library');
+        setLoading(false);
+      });
   }, []);
 
   // All unique tags sorted by frequency
