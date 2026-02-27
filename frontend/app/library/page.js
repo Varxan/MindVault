@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // Supabase (anon key) — used only for share_queue
@@ -34,49 +34,70 @@ export default function LibraryPage() {
   const [links, setLinks]         = useState([]);
   const [pending, setPending]     = useState([]);
   const [loading, setLoading]     = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError]         = useState(null);
   const [search, setSearch]       = useState('');
   const [activeTag, setActiveTag] = useState(null);
   const [updatedAt, setUpdatedAt] = useState(null);
+  const updatedAtRef              = useRef(null); // track without re-render
 
-  useEffect(() => {
-    // Get device_id from localStorage (set during /pair pairing)
+  const fetchLibrary = useCallback(async ({ silent = false } = {}) => {
     const deviceId = typeof window !== 'undefined'
       ? localStorage.getItem('mindvault_device_id')
       : null;
 
-    // ── 1. Fetch library via secure server-side API route ──────────────────
     const libraryUrl = deviceId
       ? `/api/library-cache?device_id=${encodeURIComponent(deviceId)}`
       : '/api/library-cache';
 
-    const libraryFetch = fetch(libraryUrl).then(r => r.json());
+    if (!silent) setRefreshing(true);
 
-    // ── 2. Fetch pending share queue (anon key, filtered by device_id) ─────
-    let queueFetch = Promise.resolve({ data: [], error: null });
-    if (supabase) {
-      const q = deviceId
-        ? supabase.from('share_queue').select('id, url, title, created_at').eq('processed', false).eq('user_id', deviceId).order('created_at', { ascending: false })
-        : supabase.from('share_queue').select('id, url, title, created_at').eq('processed', false).order('created_at', { ascending: false });
-      queueFetch = q;
-    }
+    try {
+      const [libraryData] = await Promise.all([
+        fetch(libraryUrl).then(r => r.json()),
+      ]);
 
-    Promise.all([libraryFetch, queueFetch])
-      .then(([libraryData, queueResult]) => {
-        if (libraryData.error) {
-          setError('Could not load library');
-        } else {
-          setLinks(Array.isArray(libraryData.links) ? libraryData.links : []);
-          setUpdatedAt(libraryData.updated_at);
-        }
-        setPending(queueResult.data || []);
-        setLoading(false);
-      })
-      .catch(err => {
+      if (libraryData.error) {
         setError('Could not load library');
-        setLoading(false);
-      });
+      } else {
+        const newUpdatedAt = libraryData.updated_at;
+        // Only re-render links if data actually changed
+        if (newUpdatedAt !== updatedAtRef.current) {
+          updatedAtRef.current = newUpdatedAt;
+          setLinks(Array.isArray(libraryData.links) ? libraryData.links : []);
+          setUpdatedAt(newUpdatedAt);
+        }
+        setError(null);
+      }
+    } catch {
+      if (!silent) setError('Could not load library');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
+
+  // ── Initial load ───────────────────────────────────────────────────────────
+  useEffect(() => { fetchLibrary(); }, [fetchLibrary]);
+
+  // ── Refresh when app comes back to foreground ──────────────────────────────
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchLibrary({ silent: true });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [fetchLibrary]);
+
+  // ── Poll every 30s (only updates state if data changed) ───────────────────
+  useEffect(() => {
+    const id = setInterval(() => fetchLibrary({ silent: true }), 30_000);
+    return () => clearInterval(id);
+  }, [fetchLibrary]);
 
   // All unique tags sorted by frequency
   const allTags = useMemo(() => {
@@ -182,6 +203,18 @@ export default function LibraryPage() {
           justify-content: center;
           font-size: 28px;
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn-refresh {
+          background: none; border: none;
+          color: #444; cursor: pointer;
+          padding: 4px; display: flex;
+          align-items: center; justify-content: center;
+          border-radius: 6px;
+          -webkit-tap-highlight-color: transparent;
+          transition: color 0.15s;
+        }
+        .btn-refresh:active { color: #888; }
+        .spinning { animation: spin 0.7s linear infinite; }
       `}</style>
 
       {/* Header */}
@@ -196,11 +229,26 @@ export default function LibraryPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
           <img src="/icon-512x512.png" alt="MindVault" style={{ width: 28, height: 28, borderRadius: 6 }} />
           <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.3px' }}>MindVault</span>
-          {!loading && (
-            <span style={{ marginLeft: 'auto', color: '#555', fontSize: 12 }}>
-              {filtered.length} / {links.length}
-            </span>
-          )}
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+            {!loading && (
+              <span style={{ color: '#555', fontSize: 12 }}>
+                {filtered.length} / {links.length}
+              </span>
+            )}
+            <button
+              className="btn-refresh"
+              onClick={() => fetchLibrary()}
+              title="Refresh library"
+            >
+              <svg
+                className={refreshing ? 'spinning' : ''}
+                width="15" height="15" viewBox="0 0 15 15" fill="none"
+              >
+                <path d="M13 7.5A5.5 5.5 0 112.5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M2 2v3h3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </span>
         </div>
 
         {/* Search */}
