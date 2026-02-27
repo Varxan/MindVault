@@ -1,13 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabase    = supabaseUrl && supabaseKey
-  ? createClient(supabaseUrl, supabaseKey)
-  : null;
 
 const QUEUE_KEY = 'mindvault_share_queue';
 function loadQueue() {
@@ -15,11 +8,32 @@ function loadQueue() {
 }
 function saveQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
 
+// Elegant minimal checkmark SVG
+function IconCheck() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="20" r="19" stroke="#c8a84b" strokeWidth="1.2"/>
+      <path d="M12 20.5L17.5 26L28 14" stroke="#c8a84b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+// Elegant minimal offline/queued SVG
+function IconOffline() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="20" r="19" stroke="#555" strokeWidth="1.2"/>
+      <path d="M20 12V22" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M15 18L20 23L25 18" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M13 27H27" stroke="#555" strokeWidth="1.2" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 export default function SharePage() {
-  const [phase, setPhase]         = useState('input'); // input | saving | done | queued | error
-  const [tagInput, setTagInput]   = useState('');
-  const [savePromise, setSavePromise] = useState(null);
-  const [savedId, setSavedId]     = useState(null);
+  const [phase, setPhase]       = useState('input'); // input | saving | done | queued
+  const [tagInput, setTagInput] = useState('');
+  const [savedId, setSavedId]   = useState(null);
   const [shareData, setShareData] = useState(null);
   const tagRef = useRef(null);
 
@@ -27,88 +41,81 @@ export default function SharePage() {
   useEffect(() => {
     const p   = new URLSearchParams(window.location.search);
     const url = p.get('url') || p.get('text') || '';
-    if (!url) {
-      setPhase('done');
-      return;
-    }
+    if (!url) { setPhase('done'); return; }
+
     const share = { url, title: p.get('title') || '', text: p.get('text') || '' };
     setShareData(share);
 
-    // Fire Supabase insert immediately in background
-    if (supabase) {
-      const deviceId = typeof window !== 'undefined'
-        ? localStorage.getItem('mindvault_device_id')
-        : null;
+    // Fire insert immediately in background via secure server API
+    const deviceId = localStorage.getItem('mindvault_device_id');
+    fetch('/api/share-queue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url:       share.url,
+        title:     share.title || null,
+        text:      share.text  || null,
+        device_id: deviceId || null,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => { if (data.id) setSavedId(data.id); })
+      .catch(() => {});
 
-      const promise = supabase
-        .from('share_queue')
-        .insert({
-          url:        share.url,
-          title:      share.title || null,
-          text:       share.text  || null,
-          tags_ready: false,
-          ...(deviceId ? { user_id: deviceId } : {}),
-        })
-        .select('id')
-        .single();
-      setSavePromise(promise);
-    }
-
-    // Focus tag input
     setTimeout(() => tagRef.current?.focus(), 200);
   }, []);
 
   const handleSend = useCallback(async () => {
     if (!shareData) return;
     setPhase('saving');
-
     try {
-      let id = savedId;
-
-      // If Supabase insert hasn't resolved yet, await it now
-      if (!id && savePromise) {
-        const { data, error } = await savePromise;
-        if (error) throw error;
-        id = data?.id;
-        setSavedId(id);
-      }
-
       // Attach tags + mark ready
-      if (id && supabase) {
-        await supabase
-          .from('share_queue')
-          .update({ tags: tagInput.trim() || null, tags_ready: true })
-          .eq('id', id);
+      if (savedId) {
+        await fetch('/api/share-queue', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: savedId, tags: tagInput.trim() || null, tags_ready: true }),
+        });
+      } else {
+        // Insert wasn't done yet — do a fresh insert with tags
+        const deviceId = localStorage.getItem('mindvault_device_id');
+        await fetch('/api/share-queue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url:       shareData.url,
+            title:     shareData.title || null,
+            tags:      tagInput.trim() || null,
+            tags_ready: true,
+            device_id: deviceId || null,
+          }),
+        });
       }
-
       setPhase('done');
     } catch {
-      // Offline fallback
       const q = loadQueue();
       q.push({ ...shareData, tags: tagInput.trim() || null });
       saveQueue(q);
       setPhase('queued');
     }
-  }, [shareData, savedId, savePromise, tagInput]);
+  }, [shareData, savedId, tagInput]);
 
   const handleSkip = useCallback(async () => {
     if (!shareData) return;
     setPhase('saving');
     try {
-      let id = savedId;
-      if (!id && savePromise) {
-        const { data, error } = await savePromise;
-        if (error) throw error;
-        id = data?.id;
-      }
-      if (id && supabase) {
-        await supabase.from('share_queue').update({ tags_ready: true }).eq('id', id);
+      if (savedId) {
+        await fetch('/api/share-queue', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: savedId, tags_ready: true }),
+        });
       }
       setPhase('done');
     } catch {
       setPhase('queued');
     }
-  }, [shareData, savedId, savePromise]);
+  }, [shareData, savedId]);
 
   const handleKey = (e) => {
     if (e.key === 'Enter') { e.preventDefault(); handleSend(); }
@@ -229,8 +236,8 @@ export default function SharePage() {
         {/* ── Done ────────────────────────────────────────── */}
         {(phase === 'done' || phase === 'queued') && (
           <div style={{ textAlign:'center' }}>
-            <div className="check" style={{ fontSize:'42px', marginBottom:'16px' }}>
-              {phase === 'done' ? '✓' : '📥'}
+            <div className="check" style={{ display:'flex', justifyContent:'center', marginBottom:'20px' }}>
+              {phase === 'done' ? <IconCheck /> : <IconOffline />}
             </div>
             <div style={{ color:'#e8e8e8', fontSize:'17px', fontWeight:600, marginBottom:'8px' }}>
               {phase === 'done' ? 'Added to queue' : 'Saved offline'}
