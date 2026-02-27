@@ -8,57 +8,106 @@ function loadQueue() {
 }
 function saveQueue(q) { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); }
 
-// Elegant minimal checkmark SVG
-function IconCheck() {
+// ── Icons ──────────────────────────────────────────────────────────────────
+
+function IconCheck({ color = '#c8a84b' }) {
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="20" cy="20" r="19" stroke="#c8a84b" strokeWidth="1.2"/>
-      <path d="M12 20.5L17.5 26L28 14" stroke="#c8a84b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+      <circle cx="22" cy="22" r="21" stroke={color} strokeWidth="1.2"/>
+      <path d="M13 22.5L19 28.5L31 15" stroke={color} strokeWidth="1.6"
+            strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
 
-// Elegant minimal offline/queued SVG
 function IconOffline() {
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="20" cy="20" r="19" stroke="#555" strokeWidth="1.2"/>
-      <path d="M20 12V22" stroke="#888" strokeWidth="1.5" strokeLinecap="round"/>
-      <path d="M15 18L20 23L25 18" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M13 27H27" stroke="#555" strokeWidth="1.2" strokeLinecap="round"/>
+    <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+      <circle cx="22" cy="22" r="21" stroke="#444" strokeWidth="1.2"/>
+      <path d="M22 13V24" stroke="#666" strokeWidth="1.6" strokeLinecap="round"/>
+      <path d="M16 20L22 26L28 20" stroke="#666" strokeWidth="1.6"
+            strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M14 30H30" stroke="#444" strokeWidth="1.2" strokeLinecap="round"/>
     </svg>
   );
 }
 
+// Pulsing dots while waiting for desktop to process
+function PulsingDots() {
+  return (
+    <div style={{ display:'flex', gap:'5px', justifyContent:'center', alignItems:'center' }}>
+      {[0,1,2].map(i => (
+        <div key={i} style={{
+          width: 4, height: 4,
+          borderRadius: '50%',
+          background: '#c8a84b',
+          animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
+          opacity: 0.5,
+        }}/>
+      ))}
+    </div>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────
+
 export default function SharePage() {
-  const [phase, setPhase]       = useState('input'); // input | saving | done | queued
+  // phases: input → saving → queued → saved
+  //                              └──→ offline (on error)
+  const [phase, setPhase]       = useState('input');
   const [tagInput, setTagInput] = useState('');
   const [savedId, setSavedId]   = useState(null);
   const [shareData, setShareData] = useState(null);
-  const tagRef = useRef(null);
+  const tagRef   = useRef(null);
+  const pollRef  = useRef(null);  // interval handle for status polling
 
-  // ── Parse URL params immediately on mount ──────────────────────────────────
+  // ── Stop polling on unmount ────────────────────────────────────────────────
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+
+  // ── Poll until the desktop processes our item ──────────────────────────────
+  const startPolling = useCallback((id) => {
+    if (!id) return;
+    const deadline = Date.now() + 3 * 60_000; // 3 minutes max
+
+    pollRef.current = setInterval(async () => {
+      if (Date.now() > deadline) {
+        clearInterval(pollRef.current);
+        return; // timed out — leave in 'queued' state
+      }
+      try {
+        const r = await fetch('/api/share-queue');
+        if (!r.ok) return;
+        const { items } = await r.json();
+        // If our item is no longer in the unprocessed list → it was imported
+        const stillPending = items.some(item => item.id === id);
+        if (!stillPending) {
+          clearInterval(pollRef.current);
+          setPhase('saved');
+        }
+      } catch (_) {}
+    }, 4_000); // check every 4 seconds
+  }, []);
+
+  // ── Parse URL params on mount ──────────────────────────────────────────────
   useEffect(() => {
     const p   = new URLSearchParams(window.location.search);
     const url = p.get('url') || p.get('text') || '';
-    if (!url) { setPhase('done'); return; }
+    if (!url) { setPhase('saved'); return; }
 
     const share = { url, title: p.get('title') || '', text: p.get('text') || '' };
     setShareData(share);
 
-    // Deduplicate: don't re-insert if same URL was just saved (within 30s)
-    // This prevents double-inserts from Web Share Target loading the page twice
-    const lastKey = 'mindvault_last_share';
+    // Dedup guard: same URL within 30s → reuse existing row
+    const lastKey   = 'mindvault_last_share';
     const lastShare = JSON.parse(localStorage.getItem(lastKey) || '{}');
-    const now = Date.now();
-    if (lastShare.url === url && (now - (lastShare.ts || 0)) < 30_000) {
-      // Same URL within 30 seconds — reuse the existing ID, don't re-insert
-      if (lastShare.id) setSavedId(lastShare.id);
+    const now       = Date.now();
+    if (lastShare.url === url && (now - (lastShare.ts || 0)) < 30_000 && lastShare.id) {
+      setSavedId(lastShare.id);
       setTimeout(() => tagRef.current?.focus(), 200);
       return;
     }
 
-    // Fire insert immediately in background via secure server API
+    // Insert in background immediately
     const deviceId = localStorage.getItem('mindvault_device_id');
     fetch('/api/share-queue', {
       method: 'POST',
@@ -67,7 +116,7 @@ export default function SharePage() {
         url:       share.url,
         title:     share.title || null,
         text:      share.text  || null,
-        device_id: deviceId || null,
+        device_id: deviceId   || null,
       }),
     })
       .then(r => r.json())
@@ -82,40 +131,44 @@ export default function SharePage() {
     setTimeout(() => tagRef.current?.focus(), 200);
   }, []);
 
+  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleSend = useCallback(async () => {
     if (!shareData) return;
     setPhase('saving');
     try {
-      // Attach tags + mark ready
-      if (savedId) {
+      let id = savedId;
+      if (id) {
         await fetch('/api/share-queue', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: savedId, tags: tagInput.trim() || null, tags_ready: true }),
+          body: JSON.stringify({ id, tags: tagInput.trim() || null, tags_ready: true }),
         });
       } else {
-        // Insert wasn't done yet — do a fresh insert with tags
         const deviceId = localStorage.getItem('mindvault_device_id');
-        await fetch('/api/share-queue', {
+        const r = await fetch('/api/share-queue', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            url:       shareData.url,
-            title:     shareData.title || null,
-            tags:      tagInput.trim() || null,
+            url:        shareData.url,
+            title:      shareData.title || null,
+            tags:       tagInput.trim() || null,
             tags_ready: true,
-            device_id: deviceId || null,
+            device_id:  deviceId || null,
           }),
         });
+        const data = await r.json();
+        id = data.id || null;
+        if (id) setSavedId(id);
       }
-      setPhase('done');
+      setPhase('queued');
+      startPolling(id);
     } catch {
       const q = loadQueue();
       q.push({ ...shareData, tags: tagInput.trim() || null });
       saveQueue(q);
-      setPhase('queued');
+      setPhase('offline');
     }
-  }, [shareData, savedId, tagInput]);
+  }, [shareData, savedId, tagInput, startPolling]);
 
   const handleSkip = useCallback(async () => {
     if (!shareData) return;
@@ -128,11 +181,12 @@ export default function SharePage() {
           body: JSON.stringify({ id: savedId, tags_ready: true }),
         });
       }
-      setPhase('done');
-    } catch {
       setPhase('queued');
+      startPolling(savedId);
+    } catch {
+      setPhase('offline');
     }
-  }, [shareData, savedId]);
+  }, [shareData, savedId, startPolling]);
 
   const handleKey = (e) => {
     if (e.key === 'Enter') { e.preventDefault(); handleSend(); }
@@ -157,9 +211,17 @@ export default function SharePage() {
           to   { opacity:1; transform:translateY(0); }
         }
         @keyframes pop {
-          0%   { transform:scale(0); opacity:0; }
-          70%  { transform:scale(1.2); }
-          100% { transform:scale(1); opacity:1; }
+          0%   { transform:scale(0.5); opacity:0; }
+          70%  { transform:scale(1.1); }
+          100% { transform:scale(1);   opacity:1; }
+        }
+        @keyframes pulse {
+          0%, 80%, 100% { transform:scale(0.6); opacity:0.3; }
+          40%            { transform:scale(1);   opacity:1;   }
+        }
+        @keyframes glow {
+          0%,100% { opacity:0.7; }
+          50%     { opacity:1;   }
         }
         .card {
           width:100%; max-width:320px;
@@ -197,21 +259,19 @@ export default function SharePage() {
           -webkit-tap-highlight-color: transparent;
         }
         .btn-skip:active { color:#888; }
-        .check { animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .icon-wrap { animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .glow { animation: glow 2s ease-in-out infinite; }
       `}</style>
 
       <div className="card">
 
-        {/* Logo — small, always visible */}
-        <div style={{ textAlign:'center', marginBottom:'32px', opacity: 0.9 }}>
-          <img
-            src="/icon-512x512.png"
-            alt="MindVault"
-            style={{ width:'48px', height:'48px', borderRadius:'11px' }}
-          />
+        {/* Logo */}
+        <div style={{ textAlign:'center', marginBottom:'28px', opacity:0.9 }}>
+          <img src="/icon-512x512.png" alt="MindVault"
+               style={{ width:'44px', height:'44px', borderRadius:'10px' }}/>
         </div>
 
-        {/* ── Input phase ─────────────────────────────────── */}
+        {/* ── Input ──────────────────────────────────────── */}
         {phase === 'input' && (
           <>
             <p style={{
@@ -221,7 +281,6 @@ export default function SharePage() {
             }}>
               Add tags
             </p>
-
             <input
               ref={tagRef}
               className="tag-field"
@@ -232,37 +291,68 @@ export default function SharePage() {
               onKeyDown={handleKey}
               enterKeyHint="send"
             />
-
             <button className="btn-send" onClick={handleSend}>
               Add to Queue
             </button>
-
             <button className="btn-skip" onClick={handleSkip}>
               Skip
             </button>
           </>
         )}
 
-        {/* ── Saving spinner ───────────────────────────────── */}
+        {/* ── Saving ─────────────────────────────────────── */}
         {phase === 'saving' && (
           <div style={{ textAlign:'center', color:'#555', fontSize:'15px' }}>
             Saving…
           </div>
         )}
 
-        {/* ── Done ────────────────────────────────────────── */}
-        {(phase === 'done' || phase === 'queued') && (
+        {/* ── Queued: waiting for desktop ─────────────────── */}
+        {phase === 'queued' && (
           <div style={{ textAlign:'center' }}>
-            <div className="check" style={{ display:'flex', justifyContent:'center', marginBottom:'20px' }}>
-              {phase === 'done' ? <IconCheck /> : <IconOffline />}
+            <div className="icon-wrap" style={{ display:'flex', justifyContent:'center', marginBottom:'18px' }}>
+              <div className="glow">
+                <IconCheck color="#c8a84b" />
+              </div>
+            </div>
+            <div style={{ color:'#e8e8e8', fontSize:'17px', fontWeight:600, marginBottom:'12px' }}>
+              Added to queue
+            </div>
+            <div style={{ marginBottom:'8px' }}>
+              <PulsingDots />
+            </div>
+            <div style={{ color:'#444', fontSize:'13px', marginTop:'8px' }}>
+              Importing to MindVault…
+            </div>
+          </div>
+        )}
+
+        {/* ── Saved: desktop confirmed import ─────────────── */}
+        {phase === 'saved' && (
+          <div style={{ textAlign:'center' }}>
+            <div className="icon-wrap" style={{ display:'flex', justifyContent:'center', marginBottom:'18px' }}>
+              <IconCheck color="#c8a84b" />
             </div>
             <div style={{ color:'#e8e8e8', fontSize:'17px', fontWeight:600, marginBottom:'8px' }}>
-              {phase === 'done' ? 'Added to queue' : 'Saved offline'}
+              Saved to MindVault
             </div>
             <div style={{ color:'#444', fontSize:'13px' }}>
-              {phase === 'done'
-                ? 'MindVault will import it when online'
-                : 'Will sync when connected'}
+              Available in your library
+            </div>
+          </div>
+        )}
+
+        {/* ── Offline fallback ────────────────────────────── */}
+        {phase === 'offline' && (
+          <div style={{ textAlign:'center' }}>
+            <div className="icon-wrap" style={{ display:'flex', justifyContent:'center', marginBottom:'18px' }}>
+              <IconOffline />
+            </div>
+            <div style={{ color:'#e8e8e8', fontSize:'17px', fontWeight:600, marginBottom:'8px' }}>
+              Saved offline
+            </div>
+            <div style={{ color:'#444', fontSize:'13px' }}>
+              Will sync when connected
             </div>
           </div>
         )}
