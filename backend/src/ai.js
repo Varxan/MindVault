@@ -6,6 +6,52 @@ const { buildPrompt } = require('./tagging-config');
 
 const { getSetting } = require('./database');
 
+// ─── AI Status Tracker ────────────────────────────────────────────────────────
+// Tracks the last API failure so the frontend can show a warning banner.
+let _aiStatus = {
+  ok: true,
+  provider: null,
+  statusCode: null,
+  errorType: null, // 'rate_limit' | 'auth' | 'billing' | 'server_error' | 'network'
+  message: null,
+  failedAt: null,
+  lastSuccess: null,
+};
+
+function recordAIFailure(provider, statusCode, bodyText) {
+  let errorType = 'unknown';
+  let message = `HTTP ${statusCode}`;
+
+  if (statusCode === 429) {
+    errorType = 'rate_limit';
+    message = 'Rate limit reached — AI tagging paused temporarily';
+  } else if (statusCode === 401 || statusCode === 403) {
+    errorType = 'auth';
+    message = 'API key invalid or expired';
+  } else if (statusCode === 402 || (bodyText && bodyText.includes('billing'))) {
+    errorType = 'billing';
+    message = 'Billing limit reached — add credits to resume AI tagging';
+  } else if (statusCode >= 500) {
+    errorType = 'server_error';
+    message = 'AI service temporarily unavailable';
+  } else if (!statusCode) {
+    errorType = 'network';
+    message = 'Network error — could not reach AI service';
+  }
+
+  _aiStatus = { ok: false, provider, statusCode, errorType, message, failedAt: new Date().toISOString(), lastSuccess: _aiStatus.lastSuccess };
+  console.warn(`[AI] ⚠️  Status recorded: ${errorType} (${statusCode}) via ${provider}`);
+}
+
+function recordAISuccess(provider) {
+  _aiStatus = { ok: true, provider, statusCode: null, errorType: null, message: null, failedAt: null, lastSuccess: new Date().toISOString() };
+}
+
+function getAIStatus() {
+  return { ..._aiStatus };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Dynamic getter: DB setting takes priority over .env
 function getAnthropicKey() {
   const dbVal = getSetting.get('anthropic_api_key');
@@ -281,6 +327,7 @@ async function analyzeContent(imageSource, context = {}) {
     }
   } catch (err) {
     console.error('[AI] ❌ Unexpected error:', err.message);
+    recordAIFailure(getPreferredProvider() || 'unknown', null, err.message);
     return fallbackAnalysis(context);
   }
 }
@@ -317,6 +364,7 @@ async function analyzeWithAnthropic(contentItems, prompt, isVideo, context) {
   if (!response.ok) {
     const errText = await response.text();
     console.error(`[AI] ❌ Anthropic API Error (${response.status}):`, errText.substring(0, 200));
+    recordAIFailure('anthropic', response.status, errText);
     return fallbackAnalysis(context);
   }
 
@@ -324,7 +372,7 @@ async function analyzeWithAnthropic(contentItems, prompt, isVideo, context) {
   const text = data.content[0]?.text || '';
 
   console.log(`[AI] 📝 Raw response (first 200 chars): ${text.substring(0, 200)}`);
-
+  recordAISuccess('anthropic');
   return parseTagResponse(text, context);
 }
 
@@ -372,6 +420,7 @@ async function analyzeWithOpenAI(contentItems, prompt, isVideo, context) {
   if (!response.ok) {
     const errText = await response.text();
     console.error(`[AI] ❌ OpenAI API Error (${response.status}):`, errText.substring(0, 200));
+    recordAIFailure('openai', response.status, errText);
     return fallbackAnalysis(context);
   }
 
@@ -379,7 +428,7 @@ async function analyzeWithOpenAI(contentItems, prompt, isVideo, context) {
   const text = data.choices[0]?.message?.content || '';
 
   console.log(`[AI] 📝 Raw response (first 200 chars): ${text.substring(0, 200)}`);
-
+  recordAISuccess('openai');
   return parseTagResponse(text, context);
 }
 
@@ -461,4 +510,4 @@ function fallbackAnalysis(context) {
   return { tags: tags.slice(0, 15), description: null };
 }
 
-module.exports = { analyzeContent, fallbackAnalysis };
+module.exports = { analyzeContent, fallbackAnalysis, getAIStatus };

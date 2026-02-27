@@ -52,6 +52,7 @@ export default function LinkGrid() {
 
   // Thumbnail repair
   const [repairStatus, setRepairStatus] = useState(null); // null | 'running' | { fixed, failed, missing }
+  const [aiStatus, setAiStatus] = useState(null); // null | { ok, errorType, message, provider }
   const handleRepairThumbnails = async () => {
     setRepairStatus('running');
     setSettingsActioned(true);
@@ -231,6 +232,22 @@ export default function LinkGrid() {
     return () => clearInterval(interval);
   }, [refresh]);
 
+  // Poll AI status every 30s to catch silent API failures
+  useEffect(() => {
+    const checkAIStatus = async () => {
+      try {
+        const res = await fetch('/api/ai-status');
+        if (res.ok) {
+          const data = await res.json();
+          setAiStatus(data);
+        }
+      } catch (_) {}
+    };
+    checkAIStatus();
+    const interval = setInterval(checkAIStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     if (!settingsOpen) { setSettingsActioned(false); return; }
     // Still close on click far outside (e.g. clicking content area)
@@ -322,6 +339,46 @@ export default function LinkGrid() {
   return (
     <>
       <AddLink onAdded={refresh} />
+
+      {/* AI Status Warning Banner */}
+      {aiStatus && !aiStatus.ok && (
+        <div style={{
+          background: aiStatus.errorType === 'rate_limit' ? 'rgba(251,191,36,0.12)' :
+                      aiStatus.errorType === 'auth'       ? 'rgba(239,68,68,0.12)' :
+                      aiStatus.errorType === 'billing'    ? 'rgba(249,115,22,0.12)' :
+                                                            'rgba(148,163,184,0.12)',
+          borderBottom: `1px solid ${
+            aiStatus.errorType === 'rate_limit' ? 'rgba(251,191,36,0.3)' :
+            aiStatus.errorType === 'auth'       ? 'rgba(239,68,68,0.3)' :
+            aiStatus.errorType === 'billing'    ? 'rgba(249,115,22,0.3)' :
+                                                  'rgba(148,163,184,0.2)'
+          }`,
+          padding: '8px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          fontSize: '13px',
+          color: aiStatus.errorType === 'rate_limit' ? '#fbbf24' :
+                 aiStatus.errorType === 'auth'       ? '#f87171' :
+                 aiStatus.errorType === 'billing'    ? '#fb923c' :
+                                                       '#94a3b8',
+        }}>
+          <span style={{ fontSize: '15px' }}>
+            {aiStatus.errorType === 'rate_limit' ? '⏳' :
+             aiStatus.errorType === 'auth'       ? '🔑' :
+             aiStatus.errorType === 'billing'    ? '💳' :
+             aiStatus.errorType === 'network'    ? '📡' : '⚠️'}
+          </span>
+          <span>
+            <strong>AI tagging paused</strong> — {aiStatus.message}
+            {aiStatus.provider && <span style={{ opacity: 0.6 }}> ({aiStatus.provider})</span>}
+          </span>
+          <button
+            onClick={() => setAiStatus(null)}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5, color: 'inherit', fontSize: '16px', lineHeight: 1 }}
+          >×</button>
+        </div>
+      )}
 
       <div className="sticky-top">
       <header className="header">

@@ -32,7 +32,7 @@ const {
   db,
 } = require('./database');
 const { detectSource, fetchMetadata, fetchSmartMetadata } = require('./metadata');
-const { analyzeContent } = require('./ai');
+const { analyzeContent, getAIStatus } = require('./ai');
 const { downloadThumbnail, generateVideoThumbnail, THUMB_DIR } = require('./thumbnails');
 const { downloadMedia, getDownloadedFiles, isYtdlpInstalled, getMediaInfo, MEDIA_DIR } = require('./downloader');
 const { createGif, createClip, createScreenshot, getVideoDuration, getGifsForLink, deleteGif, deleteClip, deleteScreenshot, GIF_DIR, CLIP_DIR, SCREENSHOT_DIR } = require('./gif-creator');
@@ -2039,6 +2039,13 @@ router.post('/repair-thumbnails', async (req, res) => {
     console.error('❌ Repair error:', err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+
+// GET /api/ai-status
+// Returns current AI provider health — used by frontend to show warning banner.
+router.get('/ai-status', (req, res) => {
+  res.json(getAIStatus());
 });
 
 // Global Express error handler — catches errors thrown/rejected in any route
