@@ -1980,6 +1980,69 @@ router.post('/share', async (req, res) => {
   }
 });
 
+// POST /api/repair-thumbnails
+// Scans all links, finds missing local thumbnails, re-downloads them.
+router.post('/repair-thumbnails', async (req, res) => {
+  try {
+    const { getAllLinks } = require('./database');
+    const allLinks = getAllLinks.all();
+
+    const results = { checked: 0, missing: 0, fixed: 0, failed: 0, details: [] };
+
+    for (const link of allLinks) {
+      results.checked++;
+
+      // Check if local thumbnail file is missing
+      const hasFile = link.local_thumbnail &&
+        require('fs').existsSync(require('path').join(THUMB_DIR, link.local_thumbnail));
+
+      if (hasFile) continue; // all good
+
+      results.missing++;
+      const fallbackUrl = link.thumbnail_url;
+
+      if (!fallbackUrl || !fallbackUrl.startsWith('http')) {
+        // No remote URL to fall back to — try re-fetching metadata
+        results.failed++;
+        results.details.push({ id: link.id, url: link.url, status: 'no_fallback' });
+        continue;
+      }
+
+      try {
+        const newFile = await downloadThumbnail(fallbackUrl);
+        if (newFile) {
+          db.prepare('UPDATE links SET local_thumbnail = ? WHERE id = ?')
+            .run(newFile, link.id);
+          results.fixed++;
+          results.details.push({ id: link.id, url: link.url, status: 'fixed', file: newFile });
+          console.log(`🔧 Repaired thumbnail [${link.id}]: ${link.url}`);
+        } else {
+          results.failed++;
+          results.details.push({ id: link.id, url: link.url, status: 'download_failed' });
+        }
+      } catch (err) {
+        results.failed++;
+        results.details.push({ id: link.id, url: link.url, status: 'error', error: err.message });
+      }
+    }
+
+    // Re-sync library cache so PWA gets updated thumbnails too
+    if (results.fixed > 0) {
+      try {
+        const librarySync = require('./library-sync');
+        await librarySync.sync();
+      } catch (_) {}
+    }
+
+    console.log(`🔧 Thumbnail repair: ${results.fixed} fixed, ${results.failed} failed of ${results.missing} missing`);
+    res.json(results);
+
+  } catch (err) {
+    console.error('❌ Repair error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Global Express error handler — catches errors thrown/rejected in any route
 // (Express 4 doesn't auto-handle async rejections, so this is the safety net)
 router.use((err, req, res, next) => { // eslint-disable-line no-unused-vars

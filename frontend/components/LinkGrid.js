@@ -50,6 +50,22 @@ export default function LinkGrid() {
   // QR modal
   const [showQRModal, setShowQRModal] = useState(false);
 
+  // Thumbnail repair
+  const [repairStatus, setRepairStatus] = useState(null); // null | 'running' | { fixed, failed, missing }
+  const handleRepairThumbnails = async () => {
+    setRepairStatus('running');
+    setSettingsActioned(true);
+    try {
+      const res = await fetch(`${getApiBase()}/repair-thumbnails`, { method: 'POST' });
+      const data = await res.json();
+      setRepairStatus(data);
+      setTimeout(() => setRepairStatus(null), 6000);
+    } catch (err) {
+      setRepairStatus({ error: err.message });
+      setTimeout(() => setRepairStatus(null), 4000);
+    }
+  };
+
   // Tag catalog modal
   const [showTagModal, setShowTagModal] = useState(false);
   const [tagCatalog, setTagCatalog] = useState(null);
@@ -386,6 +402,23 @@ export default function LinkGrid() {
                     </button>
 
                     <div className="settings-section-label">Maintenance</div>
+                    <button className="settings-item" onClick={handleRepairThumbnails} disabled={repairStatus === 'running'}>
+                      {repairStatus === 'running' ? 'Scanning…' : 'Repair thumbnails'}
+                      <span className="settings-item-sub">
+                        {repairStatus === 'running'
+                          ? 'Checking all links…'
+                          : repairStatus?.fixed !== undefined
+                            ? repairStatus.fixed > 0
+                              ? `✓ Fixed ${repairStatus.fixed} of ${repairStatus.missing} missing`
+                              : repairStatus.missing === 0
+                                ? '✓ All thumbnails OK'
+                                : `${repairStatus.missing} missing, could not fix`
+                            : repairStatus?.error
+                              ? `Error: ${repairStatus.error}`
+                              : 'Re-download missing thumbnails'}
+                      </span>
+                    </button>
+                    <div className="settings-divider" />
                     <button className="settings-item" onClick={() => { handleClearCache(); setSettingsActioned(true); }}>
                       Clear cache
                       <span className="settings-item-sub">Delete unsaved media only</span>
