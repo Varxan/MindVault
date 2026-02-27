@@ -123,6 +123,14 @@ async function importEntry(entry) {
       .update({ processed: true })
       .eq('id', entry.id);
 
+    // Sync library so new link appears in PWA immediately
+    try {
+      const librarySync = require('./library-sync');
+      await librarySync.sync();
+    } catch (e) {
+      console.log('⚠️  Library sync after import failed:', e.message);
+    }
+
   } catch (err) {
     console.error(`❌ Failed to import ${entry.url}:`, err.message);
     // Don't mark as processed — will retry on next poll

@@ -200,7 +200,7 @@ export default function SharePage() {
             />
 
             <button className="btn-send" onClick={handleSend}>
-              Save to MindVault
+              Add to Queue
             </button>
 
             <button className="btn-skip" onClick={handleSkip}>
@@ -223,12 +223,12 @@ export default function SharePage() {
               {phase === 'done' ? '✓' : '📥'}
             </div>
             <div style={{ color:'#e8e8e8', fontSize:'17px', fontWeight:600, marginBottom:'8px' }}>
-              {phase === 'done'
-                ? tagInput.trim() ? 'Saved with tags' : 'Saved to MindVault'
-                : 'Saved offline'}
+              {phase === 'done' ? 'Added to queue' : 'Saved offline'}
             </div>
             <div style={{ color:'#444', fontSize:'13px' }}>
-              {phase === 'done' ? 'You can close this tab' : 'Will sync when connected'}
+              {phase === 'done'
+                ? 'MindVault will import it when online'
+                : 'Will sync when connected'}
             </div>
           </div>
         )}

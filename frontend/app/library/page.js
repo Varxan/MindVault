@@ -30,29 +30,37 @@ function ThumbPlaceholder() {
 }
 
 export default function LibraryPage() {
-  const [links, setLinks]       = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
-  const [search, setSearch]     = useState('');
+  const [links, setLinks]         = useState([]);
+  const [pending, setPending]     = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState(null);
+  const [search, setSearch]       = useState('');
   const [updatedAt, setUpdatedAt] = useState(null);
-  const [activeTag, setActiveTag] = useState(null);
 
   useEffect(() => {
     if (!supabase) { setError('Supabase not configured'); setLoading(false); return; }
 
-    supabase
-      .from('library_cache')
-      .select('links, updated_at')
-      .eq('singleton_id', 1)
-      .single()
-      .then(({ data, error: err }) => {
-        if (err) { setError('Could not load library'); }
-        else {
-          setLinks(Array.isArray(data?.links) ? data.links : []);
-          setUpdatedAt(data?.updated_at);
-        }
-        setLoading(false);
-      });
+    // Fetch library + pending queue in parallel
+    Promise.all([
+      supabase
+        .from('library_cache')
+        .select('links, updated_at')
+        .eq('singleton_id', 1)
+        .single(),
+      supabase
+        .from('share_queue')
+        .select('id, url, title, created_at')
+        .eq('processed', false)
+        .order('created_at', { ascending: false }),
+    ]).then(([{ data: cache, error: err }, { data: queue }]) => {
+      if (err) setError('Could not load library');
+      else {
+        setLinks(Array.isArray(cache?.links) ? cache.links : []);
+        setUpdatedAt(cache?.updated_at);
+      }
+      setPending(queue || []);
+      setLoading(false);
+    });
   }, []);
 
   // All unique tags sorted by frequency
@@ -214,6 +222,48 @@ export default function LibraryPage() {
             {links.length === 0
               ? 'Library not synced yet.\nRestart MindVault on your Mac.'
               : 'No results found.'}
+          </div>
+        )}
+
+        {/* Pending queue */}
+        {!loading && pending.length > 0 && (
+          <div style={{ marginBottom: '18px' }}>
+            <div style={{
+              color: '#555', fontSize: '11px', fontWeight: 600,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              marginBottom: '8px',
+            }}>
+              In Queue ({pending.length})
+            </div>
+            {pending.map(item => (
+              <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '10px 12px', marginBottom: '6px',
+                  background: '#111', borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  textDecoration: 'none',
+                }}>
+                {/* Pending dot */}
+                <div style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: '#c8a84b', flexShrink: 0,
+                  boxShadow: '0 0 6px #c8a84b88',
+                }} />
+                <div style={{
+                  fontSize: '12px', color: '#888',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {item.title || item.url}
+                </div>
+                <div style={{
+                  marginLeft: 'auto', fontSize: '10px', color: '#3a3020',
+                  flexShrink: 0,
+                }}>
+                  pending
+                </div>
+              </a>
+            ))}
           </div>
         )}
 
