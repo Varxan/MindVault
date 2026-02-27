@@ -9,6 +9,7 @@ import AddLink from './AddLink';
 import CollectionForm from './CollectionForm';
 import PreviewModal from './PreviewModal';
 import SettingsPanel from './SettingsPanel';
+import MobileQRSection from './MobileQRSection';
 import { fetchLinks, fetchSources, fetchCollections, deleteLink, addLinksToCollection } from '../lib/api';
 import { getApiBase } from '../lib/config';
 
@@ -341,6 +342,12 @@ export default function LinkGrid() {
                       <span className="settings-item-sub">Switch to {theme === 'dark' ? 'white' : 'black'} theme</span>
                     </button>
 
+                    <div className="settings-section-label">Mobile</div>
+                    <button className="settings-item" onClick={() => { setSettingsPage('mobile'); setSettingsActioned(false); }}>
+                      Connect phone
+                      <span className="settings-item-sub">Scan QR code to install PWA</span>
+                    </button>
+
                     <div className="settings-section-label">Settings</div>
                     <button className="settings-item" onClick={() => { setShowSettingsPanel(true); setSettingsActioned(true); }}>
                       AI Provider
@@ -646,6 +653,17 @@ export default function LinkGrid() {
                         </div>
                       )}
                     </div>
+                  </>
+                )}
+
+                {settingsPage === 'mobile' && (
+                  <>
+                    <button className="settings-back" onClick={() => setSettingsPage('main')}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+                      Back
+                    </button>
+                    <div className="settings-divider" />
+                    <MobileQRSection />
                   </>
                 )}
               </div>

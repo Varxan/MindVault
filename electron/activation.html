@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MindVault</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+      background: #0e0e0e;
+      color: #e8e8e8;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      /* macOS: allow drag in title bar area */
+      -webkit-app-region: drag;
+      user-select: none;
+    }
+
+    /* Prevent drag on interactive elements */
+    input, button, a { -webkit-app-region: no-drag; }
+
+    .card {
+      width: 420px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .logo {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .logo-sq {
+      background: #c9a84c;
+      border-radius: 5px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 32px;
+      line-height: 1.5;
+    }
+
+    /* ── Screens ── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ── Form ── */
+    .field { margin-bottom: 14px; text-align: left; }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 6px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    input[type="email"],
+    input[type="text"] {
+      width: 100%;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-size: 14px;
+      color: #e8e8e8;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus { border-color: #c9a84c; }
+    input::placeholder { color: #444; }
+
+    /* ── Buttons ── */
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      margin-top: 6px;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: #c9a84c;
+      color: #0e0e0e;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.4; cursor: default; }
+    .btn-ghost {
+      background: transparent;
+      color: #c9a84c;
+      border: 1px solid #2a2a2a;
+      margin-top: 10px;
+    }
+    .btn-ghost:hover { border-color: #c9a84c; }
+
+    /* ── Trial badge ── */
+    .trial-badge {
+      display: inline-block;
+      background: rgba(201,168,76,0.12);
+      color: #c9a84c;
+      border: 1px solid rgba(201,168,76,0.3);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 22px;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Trial countdown ── */
+    .countdown {
+      font-size: 48px;
+      font-weight: 700;
+      color: #c9a84c;
+      margin: 12px 0 4px;
+    }
+    .countdown-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 24px;
+    }
+
+    /* ── Error / Success ── */
+    .msg {
+      font-size: 12px;
+      border-radius: 7px;
+      padding: 9px 12px;
+      margin-top: 12px;
+      display: none;
+    }
+    .msg.visible { display: block; }
+    .msg.error   { background: rgba(220,60,60,0.12); color: #f87171; border: 1px solid rgba(220,60,60,0.25); }
+    .msg.success { background: rgba(80,200,120,0.12); color: #4ade80; border: 1px solid rgba(80,200,120,0.25); }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: none;
+      width: 20px; height: 20px;
+      border: 2px solid #333;
+      border-top-color: #c9a84c;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 14px auto 0;
+    }
+    .spinner.visible { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Divider ── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 16px 0;
+      color: #444;
+      font-size: 12px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #2a2a2a;
+    }
+
+    /* ── Footer link ── */
+    .footer-link {
+      display: block;
+      margin-top: 20px;
+      font-size: 11px;
+      color: #555;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .footer-link:hover { color: #888; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <!-- Logo -->
+  <div class="logo">
+    <div class="logo-sq"></div>
+    <div class="logo-sq"></div>
+    <div class="logo-sq"></div>
+    <div class="logo-sq"></div>
+  </div>
+  <h1>MindVault</h1>
+
+  <!-- ────────── SCREEN 1: Registration / Trial start ────────── -->
+  <div id="screen-register" class="screen active">
+    <p class="subtitle">Save and organize your inspiration —<br>everywhere.</p>
+    <div class="trial-badge">✦ 30-day free trial</div>
+
+    <div class="field">
+      <label>Email address</label>
+      <input id="input-email" type="email" placeholder="you@example.com" autocomplete="off" />
+    </div>
+
+    <button id="btn-start-trial" class="btn btn-primary">
+      Start for free
+    </button>
+    <div id="spinner-register" class="spinner"></div>
+    <div id="msg-register" class="msg"></div>
+
+    <div class="divider">or</div>
+
+    <button id="btn-show-license" class="btn btn-ghost">
+      Enter license key
+    </button>
+  </div>
+
+  <!-- ────────── SCREEN 2: License key input ────────── -->
+  <div id="screen-license" class="screen">
+    <p class="subtitle" style="margin-bottom: 24px">Enter your license key<br>to unlock MindVault.</p>
+
+    <div class="field">
+      <label>Email address</label>
+      <input id="license-email" type="email" placeholder="you@example.com" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>License key</label>
+      <input id="license-key" type="text" placeholder="MVLT-XXXX-XXXX-XXXX" autocomplete="off" maxlength="19" />
+    </div>
+
+    <button id="btn-activate" class="btn btn-primary">
+      Activate
+    </button>
+    <div id="spinner-license" class="spinner"></div>
+    <div id="msg-license" class="msg"></div>
+
+    <a class="footer-link" id="btn-back-to-trial">← Back to trial</a>
+  </div>
+
+  <!-- ────────── SCREEN 3: Trial expired ────────── -->
+  <div id="screen-expired" class="screen">
+    <p class="subtitle" style="margin-bottom: 12px">Your free trial has ended.</p>
+    <div class="countdown" id="expired-days">30</div>
+    <p class="countdown-label">days used</p>
+    <p class="subtitle">Enter your license key<br>to continue using MindVault.</p>
+
+    <div class="field" style="margin-top: 20px">
+      <label>License key</label>
+      <input id="expired-key" type="text" placeholder="MVLT-XXXX-XXXX-XXXX" autocomplete="off" maxlength="19" />
+    </div>
+
+    <button id="btn-activate-expired" class="btn btn-primary">
+      Activate now
+    </button>
+    <div id="spinner-expired" class="spinner"></div>
+    <div id="msg-expired" class="msg"></div>
+
+    <a class="footer-link" href="https://mindvault.app" target="_blank">Buy a license key →</a>
+  </div>
+</div>
+
+<script>
+  // ── IPC bridge (exposed by preload-activation.js) ──────────────────────────
+  const api = window.activationAPI;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function showMsg(id, text, type) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = `msg visible ${type}`;
+  }
+
+  function hideMsg(id) {
+    document.getElementById(id).className = 'msg';
+  }
+
+  function setSpinner(id, on) {
+    document.getElementById(id).className = on ? 'spinner visible' : 'spinner';
+  }
+
+  function formatKey(val) {
+    // Auto-format as user types: XXXX-XXXX-XXXX-XXXX (strip prefix MVLT-)
+    const clean = val.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const parts = [];
+    for (let i = 0; i < clean.length && parts.length < 4; i += 4) {
+      parts.push(clean.slice(i, i + 4));
+    }
+    return parts.join('-');
+  }
+
+  // Auto-format license key inputs
+  ['license-key', 'expired-key'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => {
+      const pos = el.selectionStart;
+      el.value = formatKey(el.value);
+    });
+  });
+
+  // ── Screen: Register / Trial ──────────────────────────────────────────────
+  document.getElementById('btn-start-trial').addEventListener('click', async () => {
+    const email = document.getElementById('input-email').value.trim();
+    if (!email || !email.includes('@')) {
+      showMsg('msg-register', 'Please enter a valid email address.', 'error');
+      return;
+    }
+    hideMsg('msg-register');
+    setSpinner('spinner-register', true);
+    document.getElementById('btn-start-trial').disabled = true;
+
+    const result = await api.startTrial(email);
+
+    setSpinner('spinner-register', false);
+    document.getElementById('btn-start-trial').disabled = false;
+
+    if (result.success) {
+      api.launchApp();
+    } else {
+      showMsg('msg-register', result.error || 'Could not start trial. Please check your connection.', 'error');
+    }
+  });
+
+  document.getElementById('btn-show-license').addEventListener('click', () => {
+    showScreen('screen-license');
+  });
+
+  document.getElementById('btn-back-to-trial').addEventListener('click', () => {
+    showScreen('screen-register');
+  });
+
+  // ── Screen: License ───────────────────────────────────────────────────────
+  document.getElementById('btn-activate').addEventListener('click', async () => {
+    const email = document.getElementById('license-email').value.trim();
+    const key   = document.getElementById('license-key').value.trim();
+    if (!email || !email.includes('@')) {
+      showMsg('msg-license', 'Please enter your email address.', 'error');
+      return;
+    }
+    if (!key || key.length < 14) {
+      showMsg('msg-license', 'Please enter a valid license key.', 'error');
+      return;
+    }
+    hideMsg('msg-license');
+    setSpinner('spinner-license', true);
+    document.getElementById('btn-activate').disabled = true;
+
+    const fullKey = key.startsWith('MVLT-') ? key : 'MVLT-' + key;
+    const result  = await api.activateLicense(email, fullKey);
+
+    setSpinner('spinner-license', false);
+    document.getElementById('btn-activate').disabled = false;
+
+    if (result.success) {
+      showMsg('msg-license', '✓ License activated!', 'success');
+      setTimeout(() => api.launchApp(), 1200);
+    } else {
+      showMsg('msg-license', result.error || 'Invalid license key.', 'error');
+    }
+  });
+
+  // ── Screen: Expired ───────────────────────────────────────────────────────
+  document.getElementById('btn-activate-expired').addEventListener('click', async () => {
+    const key = document.getElementById('expired-key').value.trim();
+    if (!key || key.length < 14) {
+      showMsg('msg-expired', 'Please enter a valid license key.', 'error');
+      return;
+    }
+    hideMsg('msg-expired');
+    setSpinner('spinner-expired', true);
+    document.getElementById('btn-activate-expired').disabled = true;
+
+    const fullKey = key.startsWith('MVLT-') ? key : 'MVLT-' + key;
+    const result  = await api.activateLicenseExpired(fullKey);
+
+    setSpinner('spinner-expired', false);
+    document.getElementById('btn-activate-expired').disabled = false;
+
+    if (result.success) {
+      showMsg('msg-expired', '✓ License activated!', 'success');
+      setTimeout(() => api.launchApp(), 1200);
+    } else {
+      showMsg('msg-expired', result.error || 'Invalid license key.', 'error');
+    }
+  });
+
+  // ── Init: which screen to show? ───────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', async () => {
+    const state = await api.getActivationState();
+
+    if (state.screen === 'expired') {
+      document.getElementById('expired-days').textContent = state.daysUsed || 30;
+      showScreen('screen-expired');
+    } else if (state.screen === 'license') {
+      // Coming back after closing license screen
+      showScreen('screen-license');
+    }
+    // default: 'register' screen is already active
+  });
+</script>
+</body>
+</html>
