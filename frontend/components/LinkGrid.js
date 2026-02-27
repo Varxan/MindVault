@@ -47,6 +47,9 @@ export default function LinkGrid() {
   // New SettingsPanel state
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
+  // QR modal
+  const [showQRModal, setShowQRModal] = useState(false);
+
   // Tag catalog modal
   const [showTagModal, setShowTagModal] = useState(false);
   const [tagCatalog, setTagCatalog] = useState(null);
@@ -343,9 +346,9 @@ export default function LinkGrid() {
                     </button>
 
                     <div className="settings-section-label">Mobile</div>
-                    <button className="settings-item" onClick={() => { setSettingsPage('mobile'); setSettingsActioned(false); }}>
+                    <button className="settings-item" onClick={() => { setSettingsOpen(false); setShowQRModal(true); }}>
                       Connect phone
-                      <span className="settings-item-sub">Scan QR code to install PWA</span>
+                      <span className="settings-item-sub">Scan QR code to install app</span>
                     </button>
 
                     <div className="settings-section-label">Settings</div>
@@ -656,16 +659,6 @@ export default function LinkGrid() {
                   </>
                 )}
 
-                {settingsPage === 'mobile' && (
-                  <>
-                    <button className="settings-back" onClick={() => setSettingsPage('main')}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-                      Back
-                    </button>
-                    <div className="settings-divider" />
-                    <MobileQRSection />
-                  </>
-                )}
               </div>
             )}
           </div>
@@ -1002,6 +995,80 @@ export default function LinkGrid() {
         settingsStatus={settingsStatus}
         onSettingsUpdate={loadSettings}
       />
+
+      {/* QR Code Modal */}
+      {showQRModal && (
+        <div
+          onClick={() => setShowQRModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '24px',
+            animation: 'qrFadeIn 0.2s ease both',
+          }}
+        >
+          <style>{`
+            @keyframes qrFadeIn {
+              from { opacity:0; }
+              to   { opacity:1; }
+            }
+            @keyframes qrSlideUp {
+              from { opacity:0; transform:translateY(16px) scale(0.97); }
+              to   { opacity:1; transform:translateY(0)    scale(1);    }
+            }
+          `}</style>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#141414',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '20px',
+              padding: '28px 28px 24px',
+              width: '100%',
+              maxWidth: '300px',
+              position: 'relative',
+              animation: 'qrSlideUp 0.25s cubic-bezier(0.34,1.2,0.64,1) both',
+              boxShadow: '0 32px 64px rgba(0,0,0,0.6)',
+            }}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setShowQRModal(false)}
+              style={{
+                position: 'absolute', top: 14, right: 14,
+                background: 'rgba(255,255,255,0.06)',
+                border: 'none', borderRadius: '50%',
+                width: 28, height: 28,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: '#666',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.1)'; e.currentTarget.style.color='#aaa'; }}
+              onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.color='#666'; }}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
+
+            {/* Header */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ color: '#e8e8e8', fontSize: 15, fontWeight: 650, marginBottom: 4 }}>
+                Connect phone
+              </div>
+              <div style={{ color: '#555', fontSize: 12, lineHeight: 1.5 }}>
+                Scan to install the app and connect to your library
+              </div>
+            </div>
+
+            {/* QR Section */}
+            <MobileQRSection />
+          </div>
+        </div>
+      )}
     </>
   );
 }

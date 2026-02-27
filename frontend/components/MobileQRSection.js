@@ -82,7 +82,7 @@ export default function MobileQRSection() {
 
       {/* Instructions */}
       <div style={{ fontSize: '12px', color: '#888', marginBottom: '12px', lineHeight: 1.5 }}>
-        Scan the QR code with your phone to install and connect the PWA.
+        Scan with your phone to install the app and connect to your library.
       </div>
 
       {/* QR Code */}
@@ -103,19 +103,39 @@ export default function MobileQRSection() {
       <button
         onClick={copyUrl}
         style={{
-          display: 'block',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '7px',
           width: '100%',
-          padding: '8px',
-          background: copied ? 'rgba(74,222,128,0.1)' : 'rgba(201,168,76,0.08)',
-          border: `1px solid ${copied ? 'rgba(74,222,128,0.3)' : 'rgba(201,168,76,0.2)'}`,
-          borderRadius: '7px',
-          color: copied ? '#4ade80' : '#c9a84c',
+          padding: '9px',
+          background: copied ? 'rgba(74,222,128,0.07)' : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${copied ? 'rgba(74,222,128,0.25)' : 'rgba(255,255,255,0.08)'}`,
+          borderRadius: '10px',
+          color: copied ? '#4ade80' : '#888',
           fontSize: '12px',
-          cursor: 'pointer',
           fontWeight: 500,
+          cursor: 'pointer',
+          transition: 'background 0.15s, border-color 0.15s, color 0.15s',
+          letterSpacing: '0.01em',
         }}
       >
-        {copied ? '✓ Link copied!' : '🔗 Copy link'}
+        {copied ? (
+          <>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M2 6.5l3 3 6-6" stroke="#4ade80" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Copied
+          </>
+        ) : (
+          <>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <rect x="4.5" y="1" width="7.5" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+              <path d="M1 4v7.5A1.5 1.5 0 002.5 13H9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            Copy link
+          </>
+        )}
       </button>
 
       <div style={{ fontSize: '10px', color: '#555', marginTop: '8px', lineHeight: 1.4 }}>
