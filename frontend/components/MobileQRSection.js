@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getApiBase } from '../lib/config';
 
-const PWA_BASE_URL = process.env.NEXT_PUBLIC_PWA_URL || 'https://mindvault-pwa.vercel.app';
+const PWA_BASE_URL = process.env.NEXT_PUBLIC_PWA_URL || 'https://mind-vault-chi.vercel.app';
 const TRIAL_DAYS   = 30;
 
 export default function MobileQRSection() {
