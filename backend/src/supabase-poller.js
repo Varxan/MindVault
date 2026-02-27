@@ -1,58 +1,52 @@
 /**
  * Supabase Share Queue Poller
  *
- * Polls the Supabase `share_queue` table every 10 seconds.
- * Imports links by calling the SAME ENDPOINT as the desktop "Add Link" button.
+ * Polls the Vercel API every 10 seconds to fetch unprocessed share_queue items.
+ * Uses /api/share-queue (server-side, service role key) so no Supabase key
+ * is needed on the desktop — RLS is bypassed server-side.
  *
  * A row is ready to import when:
  *   - tags_ready = true  (user submitted or skipped the tag step), OR
  *   - created_at is older than TAG_TIMEOUT_MS (user never interacted — use AI tags)
  *
  * Requires env vars:
- *   SUPABASE_URL  — your Supabase project URL
- *   SUPABASE_KEY  — anon or service_role key
+ *   VERCEL_URL  — e.g. https://mind-vault-chi.vercel.app
+ *                 (falls back to SUPABASE_URL-based detection or hardcoded default)
  */
-
-const { createClient } = require('@supabase/supabase-js');
 
 const POLL_INTERVAL_MS = 10_000;   // 10 seconds
 const TAG_TIMEOUT_MS   = 120_000;  // 2 minutes — import even if user never added tags
 const BACKEND_URL      = process.env.BACKEND_URL || 'http://localhost:3001';
 
-let supabase   = null;
-let pollTimer  = null;
-let deviceId   = null;  // UUID that isolates this user's data
+// Vercel deployment URL — where /api/share-queue lives
+const VERCEL_URL = process.env.VERCEL_URL || 'https://mind-vault-chi.vercel.app';
+
+let pollTimer = null;
+let deviceId  = null;  // UUID that isolates this user's data
+
+function getDeviceId() {
+  if (process.env.MINDVAULT_DEVICE_ID) return process.env.MINDVAULT_DEVICE_ID;
+  try {
+    const fs         = require('fs');
+    const path       = require('path');
+    const dataDir    = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+    const configPath = path.join(dataDir, '..', 'user.json');
+    const config     = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    return config.deviceId || null;
+  } catch (_) {
+    return null;
+  }
+}
 
 function init() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_KEY;
-
-  if (!url || !key) {
-    console.log('ℹ️  Supabase poller disabled (SUPABASE_URL / SUPABASE_KEY not set)');
-    return;
-  }
-
-  // Get device_id for data isolation (set by Electron main process)
-  deviceId = process.env.MINDVAULT_DEVICE_ID || null;
-  if (!deviceId) {
-    // Fallback: try reading from user.json
-    try {
-      const fs   = require('fs');
-      const path = require('path');
-      const dataDir    = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
-      const configPath = path.join(dataDir, '..', 'user.json');
-      const config     = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      deviceId = config.deviceId || null;
-    } catch (_) {}
-  }
+  deviceId = getDeviceId();
 
   if (deviceId) {
-    console.log(`📡 Supabase poller started — device: ${deviceId.slice(0,8)}…`);
+    console.log(`📡 Supabase poller started — device: ${deviceId.slice(0,8)}… → ${VERCEL_URL}`);
   } else {
-    console.log('📡 Supabase poller started — no device ID (legacy mode, no user isolation)');
+    console.log(`📡 Supabase poller started — no device ID → ${VERCEL_URL}`);
   }
 
-  supabase = createClient(url, key);
   poll(); // immediate first check
   pollTimer = setInterval(poll, POLL_INTERVAL_MS);
 }
@@ -65,35 +59,27 @@ function stop() {
 }
 
 async function poll() {
-  if (!supabase) return;
-
   try {
-    // Fetch all unprocessed entries — filter by device_id if available
-    let query = supabase
-      .from('share_queue')
-      .select('*')
-      .eq('processed', false)
-      .order('created_at', { ascending: true });
+    // Build URL — filter by device_id if available
+    const url = deviceId
+      ? `${VERCEL_URL}/api/share-queue?device_id=${encodeURIComponent(deviceId)}`
+      : `${VERCEL_URL}/api/share-queue`;
 
-    if (deviceId) {
-      query = query.eq('user_id', deviceId);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.warn('⚠️  Supabase poll error:', error.message);
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn(`⚠️  Share queue fetch failed: ${res.status}`);
       return;
     }
 
-    if (!data || data.length === 0) return;
+    const { items } = await res.json();
+    if (!items || items.length === 0) return;
 
     const cutoff = Date.now() - TAG_TIMEOUT_MS;
 
     // Only import rows that are ready:
     // - user clicked "Add" or "Skip" (tags_ready = true), OR
     // - row is older than 2 minutes (timeout, import with AI tags)
-    const ready = data.filter(entry =>
+    const ready = items.filter(entry =>
       entry.tags_ready === true ||
       new Date(entry.created_at).getTime() < cutoff
     );
@@ -143,11 +129,12 @@ async function importEntry(entry) {
     const result = await res.json();
     console.log(`✅ Imported [${result.id}]: ${result.title}`);
 
-    // Mark as processed in Supabase
-    await supabase
-      .from('share_queue')
-      .update({ processed: true })
-      .eq('id', entry.id);
+    // Mark as processed via Vercel API
+    await fetch(`${VERCEL_URL}/api/share-queue`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ id: entry.id, processed: true }),
+    });
 
     // Sync library so new link appears in PWA immediately
     try {
