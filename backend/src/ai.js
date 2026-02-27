@@ -66,6 +66,23 @@ function getOpenAIKey() {
   return process.env.OPENAI_API_KEY;
 }
 
+// Check if local CLIP is enabled by user
+function isClipEnabled() {
+  const setting = getSetting.get('use_local_clip');
+  return setting?.value === 'true' || setting?.value === true;
+}
+
+// Check if Python + CLIP are available on this system
+function checkClipAvailable() {
+  return new Promise((resolve) => {
+    const { execFile } = require('child_process');
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    execFile(pythonCmd, ['-c', 'import clip; print("ok")'], { timeout: 8000 }, (err, stdout) => {
+      resolve(!err && stdout.trim() === 'ok');
+    });
+  });
+}
+
 // Determine which AI provider to use based on availability and user preference
 function getPreferredProvider() {
   const preferredSetting = getSetting.get('preferred_ai_provider');
@@ -74,7 +91,7 @@ function getPreferredProvider() {
   const anthropicKey = getAnthropicKey();
   const openaiKey = getOpenAIKey();
 
-  // If preferred provider has a key, use it
+  // CLIP is checked separately before this function is called
   if (preferred === 'openai' && openaiKey) return 'openai';
   if (preferred === 'anthropic' && anthropicKey) return 'anthropic';
 
@@ -226,6 +243,19 @@ function isVideoFile(filePath) {
  * Returns: { tags: string[], description: string }
  */
 async function analyzeContent(imageSource, context = {}) {
+  // ── CLIP local provider (runs before API check) ───────────────────────────
+  if (isClipEnabled() && imageSource && !imageSource.startsWith('http')) {
+    if (fs.existsSync(imageSource) && !isVideoFile(imageSource)) {
+      console.log('[AI] 🖥️  CLIP local mode — skipping API call');
+      const clipResult = await analyzeWithCLIP(imageSource, context);
+      if (clipResult && clipResult.tags.length > 0) {
+        recordAISuccess('clip');
+        return clipResult;
+      }
+      console.log('[AI] ⚠️  CLIP returned no tags — falling through to API');
+    }
+  }
+
   const provider = getPreferredProvider();
   if (!provider) {
     console.log('[AI] ⚠️  No AI provider configured (Anthropic or OpenAI) – using fallback analysis');
@@ -335,6 +365,56 @@ async function analyzeContent(imageSource, context = {}) {
 /**
  * Analyze using Anthropic's Claude Vision API
  */
+/**
+ * Analyze a local image using CLIP (runs Python script via child_process).
+ * Returns { tags, description } or null on failure.
+ */
+async function analyzeWithCLIP(imagePath, context = {}) {
+  const { getAllTags } = require('./tag-catalog');
+  const tags = getAllTags();
+
+  const input = JSON.stringify({
+    imagePath,
+    tags,
+    topK: 12,
+    threshold: 0.006,
+  });
+
+  return new Promise((resolve) => {
+    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const scriptPath = path.join(__dirname, 'clip_tagger.py');
+
+    execFile(pythonCmd, [scriptPath, input], { timeout: 30000 }, (err, stdout, stderr) => {
+      if (err) {
+        console.error('[CLIP] ❌ Script error:', err.message);
+        if (stderr) console.error('[CLIP] stderr:', stderr.substring(0, 200));
+        recordAIFailure('clip', null, err.message);
+        resolve(null);
+        return;
+      }
+
+      try {
+        const result = JSON.parse(stdout.trim());
+        if (result.error) {
+          console.error('[CLIP] ❌ Python error:', result.error);
+          recordAIFailure('clip', null, result.error);
+          resolve(null);
+          return;
+        }
+
+        console.log(`[CLIP] ✅ ${result.tags.length} tags on ${result.device} — ${result.tags.slice(0, 5).join(', ')}…`);
+        resolve({
+          tags: result.tags,
+          description: null, // CLIP doesn't generate descriptions
+        });
+      } catch (parseErr) {
+        console.error('[CLIP] ❌ JSON parse error:', parseErr.message, '| stdout:', stdout.substring(0, 100));
+        resolve(null);
+      }
+    });
+  });
+}
+
 async function analyzeWithAnthropic(contentItems, prompt, isVideo, context) {
   const apiKey = getAnthropicKey();
 
@@ -510,4 +590,4 @@ function fallbackAnalysis(context) {
   return { tags: tags.slice(0, 15), description: null };
 }
 
-module.exports = { analyzeContent, fallbackAnalysis, getAIStatus };
+module.exports = { analyzeContent, fallbackAnalysis, getAIStatus, checkClipAvailable };

@@ -746,6 +746,48 @@ export default function LinkGrid() {
                         </div>
                       )}
                     </div>
+                    <div className="settings-divider" />
+
+                    {/* Local AI — CLIP */}
+                    <div className="settings-field">
+                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>Local AI <span style={{ fontSize: '10px', background: 'rgba(100,220,100,0.15)', color: '#6ada6a', padding: '1px 5px', borderRadius: '3px', marginLeft: '6px', verticalAlign: 'middle' }}>Free · Offline</span></span>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 'normal', fontSize: '12px' }}>
+                          <input
+                            type="checkbox"
+                            checked={settingsStatus.use_local_clip === 'true'}
+                            onChange={async (e) => {
+                              const enable = e.target.checked;
+                              if (enable) {
+                                // Check if CLIP is installed before enabling
+                                try {
+                                  const r = await fetch('/api/clip-status');
+                                  const data = await r.json();
+                                  if (!data.available) {
+                                    alert('CLIP is not installed yet.\n\nRun this command in Terminal:\n  bash backend/scripts/setup-clip.sh\n\nThen come back to enable it.');
+                                    e.target.checked = false;
+                                    return;
+                                  }
+                                } catch (_) {}
+                              }
+                              await handleSaveToken('use_local_clip', enable ? 'true' : 'false');
+                            }}
+                            style={{ accentColor: '#6ada6a' }}
+                          />
+                          {settingsStatus.use_local_clip === 'true' ? 'Enabled' : 'Disabled'}
+                        </label>
+                      </label>
+                      <span className="settings-field-hint" style={{ marginTop: '6px' }}>
+                        Uses OpenAI CLIP running locally on your Mac — no API key or internet needed.
+                        Tags are selected by matching your image directly against the catalog.
+                        Falls back to cloud AI for videos and complex cases.
+                      </span>
+                      {settingsStatus.use_local_clip !== 'true' && (
+                        <span className="settings-field-hint" style={{ marginTop: '4px', color: 'rgba(106,218,106,0.7)' }}>
+                          First time? Run <code style={{ background: 'rgba(255,255,255,0.05)', padding: '1px 5px', borderRadius: '3px' }}>bash backend/scripts/setup-clip.sh</code> in Terminal to install (~350 MB, once).
+                        </span>
+                      )}
+                    </div>
                   </>
                 )}
 

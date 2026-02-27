@@ -32,7 +32,7 @@ const {
   db,
 } = require('./database');
 const { detectSource, fetchMetadata, fetchSmartMetadata } = require('./metadata');
-const { analyzeContent, getAIStatus } = require('./ai');
+const { analyzeContent, getAIStatus, checkClipAvailable } = require('./ai');
 const { downloadThumbnail, generateVideoThumbnail, THUMB_DIR } = require('./thumbnails');
 const { downloadMedia, getDownloadedFiles, isYtdlpInstalled, getMediaInfo, MEDIA_DIR } = require('./downloader');
 const { createGif, createClip, createScreenshot, getVideoDuration, getGifsForLink, deleteGif, deleteClip, deleteScreenshot, GIF_DIR, CLIP_DIR, SCREENSHOT_DIR } = require('./gif-creator');
@@ -1209,7 +1209,7 @@ router.get('/settings', (req, res) => {
   try {
     const rows = getAllSettings.all();
     const settings = {};
-    const nonSensitiveKeys = ['download_path', 'cloud_backup_path', 'custom_preferred_tags', 'tag_catalog_ratio', 'custom_ai_prompt', 'preferred_ai_provider'];
+    const nonSensitiveKeys = ['download_path', 'cloud_backup_path', 'custom_preferred_tags', 'tag_catalog_ratio', 'custom_ai_prompt', 'preferred_ai_provider', 'use_local_clip'];
     for (const row of rows) {
       if (nonSensitiveKeys.includes(row.key)) {
         // Show full value for non-sensitive settings
@@ -1242,6 +1242,7 @@ router.patch('/settings', (req, res) => {
       'anthropic_api_key',
       'openai_api_key',
       'preferred_ai_provider',
+      'use_local_clip',
       'download_path',
       'cloud_backup_path',
       'custom_preferred_tags',
@@ -2046,6 +2047,17 @@ router.post('/repair-thumbnails', async (req, res) => {
 // Returns current AI provider health — used by frontend to show warning banner.
 router.get('/ai-status', (req, res) => {
   res.json(getAIStatus());
+});
+
+// GET /api/clip-status
+// Checks if Python + CLIP are installed and ready for local tagging.
+router.get('/clip-status', async (req, res) => {
+  try {
+    const available = await checkClipAvailable();
+    res.json({ available, message: available ? 'CLIP ready' : 'CLIP not installed — run setup-clip.sh' });
+  } catch (err) {
+    res.json({ available: false, message: err.message });
+  }
 });
 
 // Global Express error handler — catches errors thrown/rejected in any route
