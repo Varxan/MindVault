@@ -41,19 +41,37 @@ export default function LibraryPage() {
   useEffect(() => {
     if (!supabase) { setError('Supabase not configured'); setLoading(false); return; }
 
-    // Fetch library + pending queue in parallel
-    Promise.all([
-      supabase
-        .from('library_cache')
-        .select('links, updated_at')
-        .eq('singleton_id', 1)
-        .single(),
-      supabase
-        .from('share_queue')
-        .select('id, url, title, created_at')
-        .eq('processed', false)
-        .order('created_at', { ascending: false }),
-    ]).then(([{ data: cache, error: err }, { data: queue }]) => {
+    // Get device_id from localStorage (set during /pair pairing)
+    const deviceId = typeof window !== 'undefined'
+      ? localStorage.getItem('mindvault_device_id')
+      : null;
+
+    // Build queue query
+    const queueQuery = deviceId
+      ? supabase.from('share_queue').select('id, url, title, created_at').eq('processed', false).eq('user_id', deviceId).order('created_at', { ascending: false })
+      : supabase.from('share_queue').select('id, url, title, created_at').eq('processed', false).order('created_at', { ascending: false });
+
+    // Build library query with fallback logic
+    let libraryQuery;
+    if (deviceId) {
+      libraryQuery = supabase.from('library_cache').select('links, updated_at').eq('user_id', deviceId).single();
+    } else {
+      libraryQuery = supabase.from('library_cache').select('links, updated_at').eq('singleton_id', 1).single();
+    }
+
+    // Fetch library + queue in parallel, with fallback for device_id → singleton_id
+    Promise.all([libraryQuery, queueQuery])
+    .then(async ([libraryResult, { data: queue }]) => {
+      let cache = libraryResult.data;
+      let err = libraryResult.error;
+
+      // If device_id query failed/empty, fallback to singleton_id=1
+      if ((err || !cache) && deviceId) {
+        const fallback = await supabase.from('library_cache').select('links, updated_at').eq('singleton_id', 1).single();
+        cache = fallback.data;
+        err = fallback.error;
+      }
+
       if (err) setError('Could not load library');
       else {
         setLinks(Array.isArray(cache?.links) ? cache.links : []);

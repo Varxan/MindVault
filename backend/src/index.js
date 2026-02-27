@@ -41,6 +41,55 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Device info — used by the PWA QR section in Electron
+app.get('/api/device-info', (req, res) => {
+  const fs   = require('fs');
+  const path = require('path');
+
+  // Build a list of candidate paths for user.json, in priority order:
+  //   1. DATA_PATH/../user.json  (production: userData/data/../user.json = userData/user.json)
+  //   2. MINDVAULT_DEVICE_ID from env (dev mode: Electron sets this directly)
+  const candidatePaths = [];
+  if (process.env.DATA_PATH) {
+    candidatePaths.push(path.join(process.env.DATA_PATH, '..', 'user.json'));
+  }
+  // Also try reading from the env device ID as last resort (handled in catch)
+
+  let config = null;
+  for (const p of candidatePaths) {
+    try {
+      config = JSON.parse(fs.readFileSync(p, 'utf8'));
+      if (config?.deviceId) break;
+    } catch (_) {}
+  }
+
+  if (config?.deviceId) {
+    const TRIAL_DAYS    = 30;
+    const trialStarted  = new Date(config.trialStartedAt || Date.now()).getTime();
+    const daysUsed      = Math.floor((Date.now() - trialStarted) / (1000 * 60 * 60 * 24));
+    const daysRemaining = Math.max(0, TRIAL_DAYS - daysUsed);
+
+    res.json({
+      deviceId: config.deviceId,
+      email:    config.email,
+      trialInfo: {
+        isLicensed:    config.isLicensed || false,
+        daysRemaining,
+        daysUsed,
+        trialStartedAt: config.trialStartedAt,
+      },
+    });
+  } else {
+    // Fallback: Electron sets MINDVAULT_DEVICE_ID directly via env in dev mode
+    const devId = process.env.MINDVAULT_DEVICE_ID || null;
+    res.json({
+      deviceId:  devId,
+      email:     null,
+      trialInfo: devId ? { isLicensed: true, daysRemaining: 30, daysUsed: 0 } : null,
+    });
+  }
+});
+
 // Start Express server — bind to 0.0.0.0 for local network access
 app.listen(PORT, '0.0.0.0', () => {
   const os = require('os');

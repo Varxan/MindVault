@@ -36,9 +36,19 @@ export default function SharePage() {
 
     // Fire Supabase insert immediately in background
     if (supabase) {
+      const deviceId = typeof window !== 'undefined'
+        ? localStorage.getItem('mindvault_device_id')
+        : null;
+
       const promise = supabase
         .from('share_queue')
-        .insert({ url: share.url, title: share.title || null, text: share.text || null, tags_ready: false })
+        .insert({
+          url:        share.url,
+          title:      share.title || null,
+          text:       share.text  || null,
+          tags_ready: false,
+          ...(deviceId ? { user_id: deviceId } : {}),
+        })
         .select('id')
         .single();
       setSavePromise(promise);

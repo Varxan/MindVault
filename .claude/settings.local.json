@@ -5,7 +5,8 @@
       "Bash(npm run dist:*)",
       "Bash(npm install:*)",
       "Bash(killall:*)",
-      "Bash(hdiutil detach:*)"
+      "Bash(hdiutil detach:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

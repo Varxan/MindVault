@@ -16,6 +16,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      padding: 24px; /* breathing room so card never touches window edge */
       /* macOS: allow drag in title bar area */
       -webkit-app-region: drag;
       user-select: none;
@@ -25,11 +26,12 @@
     input, button, a { -webkit-app-region: no-drag; }
 
     .card {
-      width: 420px;
+      width: 100%;
+      max-width: 400px;
       background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 16px;
-      padding: 40px;
+      border: 1px solid #252525;
+      border-radius: 14px;
+      padding: 36px 40px;
       text-align: center;
     }
 

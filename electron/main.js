@@ -291,8 +291,8 @@ function isFirstLaunch() {
 
 function showActivationWindow() {
   activationWindow = new BrowserWindow({
-    width:           460,
-    height:          560,
+    width:           480,
+    height:          580,
     resizable:       false,
     titleBarStyle:   'hiddenInset',
     vibrancy:        'under-window',
@@ -573,9 +573,22 @@ async function launchMainApp() {
     freePort(BACKEND_PORT);
 
     // Pass user's device_id to backend via env var for Supabase isolation
-    const config = loadUserConfig();
-    if (config?.deviceId) {
+    // In dev mode: auto-create a user.json with a stable dev device ID if none exists
+    let config = loadUserConfig();
+    if (!config) {
+      const crypto = require('crypto');
+      config = {
+        email:          'dev@mindvault.local',
+        deviceId:       crypto.randomUUID(),
+        trialStartedAt: new Date().toISOString(),
+        isLicensed:     true,  // dev mode is always "licensed"
+      };
+      saveUserConfig(config);
+      log(`[Electron] Dev mode: created user.json with device ID ${config.deviceId}`);
+    }
+    if (config.deviceId) {
       process.env.MINDVAULT_DEVICE_ID = config.deviceId;
+      log(`[Electron] Device ID: ${config.deviceId.slice(0, 8)}…`);
     }
 
     // Start backend and wait briefly to catch immediate crashes

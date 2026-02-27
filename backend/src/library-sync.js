@@ -23,6 +23,23 @@ const DATA_ROOT  = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
 const THUMB_DIR  = path.join(DATA_ROOT, 'thumbnails');
 
 let supabase = null;
+let deviceId = null;  // UUID for data isolation
+
+function getDeviceId() {
+  // 1. From env (set by Electron main process)
+  if (process.env.MINDVAULT_DEVICE_ID) return process.env.MINDVAULT_DEVICE_ID;
+  // 2. From user.json
+  try {
+    const path       = require('path');
+    const fs         = require('fs');
+    const dataDir    = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+    const configPath = path.join(dataDir, '..', 'user.json');
+    const config     = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    return config.deviceId || null;
+  } catch (_) {
+    return null;
+  }
+}
 
 async function init() {
   const url = process.env.SUPABASE_URL;
@@ -33,6 +50,7 @@ async function init() {
     return;
   }
 
+  deviceId = getDeviceId();
   supabase = createClient(url, key);
   await sync();
 }
@@ -55,13 +73,16 @@ async function sync() {
       created_at:    link.created_at,
     })));
 
+    // Upsert by device_id if available, else fall back to singleton_id (legacy)
+    const upsertData = deviceId
+      ? { user_id: deviceId, links, updated_at: new Date().toISOString() }
+      : { singleton_id: 1, links, updated_at: new Date().toISOString() };
+
+    const conflictCol = deviceId ? 'user_id' : 'singleton_id';
+
     const { error } = await supabase
       .from('library_cache')
-      .upsert({
-        singleton_id: 1,
-        links,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'singleton_id' });
+      .upsert(upsertData, { onConflict: conflictCol });
 
     if (error) {
       console.error('[Library Sync] ❌ Error:', error.message);

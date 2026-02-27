@@ -17,7 +17,9 @@
     "rebuild:native": "node scripts/rebuild-native.js",
     "electron:dev": "concurrently \"npm run backend:dev\" \"npm run frontend\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "npm run build:frontend && electron-builder",
-    "dist": "npm run build:frontend && npm run rebuild:native && electron-builder --mac --arm64"
+    "dist": "npm run build:frontend && npm run rebuild:native && electron-builder --mac --arm64",
+    "licenses:generate": "node scripts/generate-licenses.js",
+    "licenses:beta": "node scripts/generate-licenses.js 20 \"Beta\""
   },
   "devDependencies": {
     "@electron/rebuild": "^3.6.0",
@@ -40,7 +42,7 @@
       {
         "from": "backend",
         "to": "backend",
-        "filter": ["**/*", "!node_modules/**", "!data/**", "!.env", "!.git/**"]
+        "filter": ["**/*", "!node_modules/**", "!data/**", "!.git/**"]
       },
       {
         "from": "backend/node_modules",

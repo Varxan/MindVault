@@ -21,6 +21,7 @@ const BACKEND_URL      = process.env.BACKEND_URL || 'http://localhost:3001';
 
 let supabase   = null;
 let pollTimer  = null;
+let deviceId   = null;  // UUID that isolates this user's data
 
 function init() {
   const url = process.env.SUPABASE_URL;
@@ -31,8 +32,27 @@ function init() {
     return;
   }
 
+  // Get device_id for data isolation (set by Electron main process)
+  deviceId = process.env.MINDVAULT_DEVICE_ID || null;
+  if (!deviceId) {
+    // Fallback: try reading from user.json
+    try {
+      const fs   = require('fs');
+      const path = require('path');
+      const dataDir    = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+      const configPath = path.join(dataDir, '..', 'user.json');
+      const config     = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      deviceId = config.deviceId || null;
+    } catch (_) {}
+  }
+
+  if (deviceId) {
+    console.log(`📡 Supabase poller started — device: ${deviceId.slice(0,8)}…`);
+  } else {
+    console.log('📡 Supabase poller started — no device ID (legacy mode, no user isolation)');
+  }
+
   supabase = createClient(url, key);
-  console.log('📡 Supabase poller started — checking every 10s for new shared links');
   poll(); // immediate first check
   pollTimer = setInterval(poll, POLL_INTERVAL_MS);
 }
@@ -48,12 +68,18 @@ async function poll() {
   if (!supabase) return;
 
   try {
-    // Fetch all unprocessed entries
-    const { data, error } = await supabase
+    // Fetch all unprocessed entries — filter by device_id if available
+    let query = supabase
       .from('share_queue')
       .select('*')
       .eq('processed', false)
       .order('created_at', { ascending: true });
+
+    if (deviceId) {
+      query = query.eq('user_id', deviceId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.warn('⚠️  Supabase poll error:', error.message);
