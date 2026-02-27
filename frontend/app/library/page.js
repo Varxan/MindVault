@@ -35,6 +35,7 @@ export default function LibraryPage() {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(null);
   const [search, setSearch]       = useState('');
+  const [activeTag, setActiveTag] = useState(null);
   const [updatedAt, setUpdatedAt] = useState(null);
 
   useEffect(() => {
