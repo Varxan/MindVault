@@ -72,11 +72,18 @@ function isClipEnabled() {
   return setting?.value === 'true' || setting?.value === true;
 }
 
+// Resolve the Python executable to use for CLIP.
+// Priority: venv inside backend/ > system python3
+function getClipPython() {
+  const venvPython = path.join(__dirname, '..', 'clip-env', 'bin', 'python3');
+  if (fs.existsSync(venvPython)) return venvPython;
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
+
 // Check if Python + CLIP are available on this system
 function checkClipAvailable() {
   return new Promise((resolve) => {
-    const { execFile } = require('child_process');
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const pythonCmd = getClipPython();
     execFile(pythonCmd, ['-c', 'import clip; print("ok")'], { timeout: 8000 }, (err, stdout) => {
       resolve(!err && stdout.trim() === 'ok');
     });
@@ -381,7 +388,7 @@ async function analyzeWithCLIP(imagePath, context = {}) {
   });
 
   return new Promise((resolve) => {
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+    const pythonCmd = getClipPython();
     const scriptPath = path.join(__dirname, 'clip_tagger.py');
 
     execFile(pythonCmd, [scriptPath, input], { timeout: 30000 }, (err, stdout, stderr) => {
