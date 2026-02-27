@@ -29,6 +29,7 @@ const {
   getSetting,
   setSetting,
   getAllSettings,
+  db,
 } = require('./database');
 const { detectSource, fetchMetadata, fetchSmartMetadata } = require('./metadata');
 const { analyzeContent } = require('./ai');
@@ -1984,17 +1985,19 @@ router.post('/share', async (req, res) => {
 // Scans all links, finds missing local thumbnails, re-downloads them.
 router.post('/repair-thumbnails', async (req, res) => {
   try {
-    const { getAllLinks } = require('./database');
+    const fs   = require('fs');
+    const path = require('path');
     const allLinks = getAllLinks.all();
+    const updateThumb = db.prepare('UPDATE links SET local_thumbnail = ? WHERE id = ?');
 
     const results = { checked: 0, missing: 0, fixed: 0, failed: 0, details: [] };
 
     for (const link of allLinks) {
       results.checked++;
 
-      // Check if local thumbnail file is missing
+      // Check if local thumbnail file exists on disk
       const hasFile = link.local_thumbnail &&
-        require('fs').existsSync(require('path').join(THUMB_DIR, link.local_thumbnail));
+        fs.existsSync(path.join(THUMB_DIR, link.local_thumbnail));
 
       if (hasFile) continue; // all good
 
@@ -2002,7 +2005,6 @@ router.post('/repair-thumbnails', async (req, res) => {
       const fallbackUrl = link.thumbnail_url;
 
       if (!fallbackUrl || !fallbackUrl.startsWith('http')) {
-        // No remote URL to fall back to — try re-fetching metadata
         results.failed++;
         results.details.push({ id: link.id, url: link.url, status: 'no_fallback' });
         continue;
@@ -2011,8 +2013,7 @@ router.post('/repair-thumbnails', async (req, res) => {
       try {
         const newFile = await downloadThumbnail(fallbackUrl);
         if (newFile) {
-          db.prepare('UPDATE links SET local_thumbnail = ? WHERE id = ?')
-            .run(newFile, link.id);
+          updateThumb.run(newFile, link.id);
           results.fixed++;
           results.details.push({ id: link.id, url: link.url, status: 'fixed', file: newFile });
           console.log(`🔧 Repaired thumbnail [${link.id}]: ${link.url}`);
@@ -2028,10 +2029,7 @@ router.post('/repair-thumbnails', async (req, res) => {
 
     // Re-sync library cache so PWA gets updated thumbnails too
     if (results.fixed > 0) {
-      try {
-        const librarySync = require('./library-sync');
-        await librarySync.sync();
-      } catch (_) {}
+      try { await require('./library-sync').sync(); } catch (_) {}
     }
 
     console.log(`🔧 Thumbnail repair: ${results.fixed} fixed, ${results.failed} failed of ${results.missing} missing`);
