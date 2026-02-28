@@ -100,6 +100,29 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📡 Local network access: http://${localIP}:${PORT}`);
   console.log(`🔗 Share endpoint: POST http://${localIP}:${PORT}/api/share\n`);
 
+  // One-time migration: remove deleted movement tags from custom_preferred_tags
+  setImmediate(() => {
+    try {
+      const { getSetting, setSetting } = require('./database');
+      const REMOVED_TAGS = [
+        'Static / Locked Off','Handheld','Steadicam','Gimbal','Dolly',
+        'Crane / Jib','Drone','Whip Pan','Push In','Pull Out',
+        'Tracking (Lateral)','Circular / Orbit','Zoom','Long Take / Oner',
+      ];
+      const row = getSetting.get('custom_preferred_tags');
+      if (row && row.value) {
+        const before = row.value.split(',').map(t => t.trim()).filter(Boolean);
+        const after  = before.filter(t => !REMOVED_TAGS.includes(t));
+        if (after.length !== before.length) {
+          setSetting.run({ key: 'custom_preferred_tags', value: after.join(',') });
+          console.log(`[Migration] Removed ${before.length - after.length} movement tags from preferred tags (${after.length} remaining)`);
+        }
+      }
+    } catch (e) {
+      console.warn('[Migration] preferred-tags cleanup skipped:', e.message);
+    }
+  });
+
   // Auto-backup on startup (non-blocking)
   setImmediate(() => runAutoBackup());
 
