@@ -218,7 +218,7 @@ router.post('/links', async (req, res) => {
     const aiImageSource = localThumb
       ? path.join(THUMB_DIR, localThumb)
       : finalThumbUrl;
-    if (aiImageSource && (!tags || tags.length === 0)) {
+    if (aiImageSource) { // always run AI — mergeAITags() preserves user tags
       analyzeContent(aiImageSource, {
         title: title || meta.title,
         description: description || meta.description,
@@ -2062,6 +2062,17 @@ router.post('/repair-thumbnails', async (req, res) => {
   }
 });
 
+
+
+// POST /api/sync-now — force immediate library sync + return result
+router.post('/sync-now', async (req, res) => {
+  try {
+    await librarySync.sync();
+    res.json({ ok: true, message: 'Sync triggered' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 // GET /api/ai-status
 // Returns current AI provider health — used by frontend to show warning banner.
