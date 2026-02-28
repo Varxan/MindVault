@@ -203,9 +203,14 @@ router.post('/links', async (req, res) => {
         url,
       }).then((aiResult) => {
         if (aiResult.tags.length > 0) {
+          // Merge AI tags with any tags the user may have added since creation
+          // (user tags take priority — they appear first in the array)
+          const current = db.prepare('SELECT tags FROM links WHERE id = ?').get(linkId);
+          const userTags = JSON.parse(current?.tags || '[]');
+          const merged = [...new Set([...userTags, ...aiResult.tags])];
           db.prepare('UPDATE links SET tags = ? WHERE id = ?')
-            .run(JSON.stringify(aiResult.tags), linkId);
-          console.log(`[AI] Tags für Link ${linkId}: ${aiResult.tags.join(', ')}`);
+            .run(JSON.stringify(merged), linkId);
+          console.log(`[AI] Tags für Link ${linkId}: ${merged.join(', ')}`);
         }
         if (aiResult.description && !description && !meta.description) {
           db.prepare('UPDATE links SET description = ? WHERE id = ?')
