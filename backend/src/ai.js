@@ -73,10 +73,29 @@ function isClipEnabled() {
 }
 
 // Resolve the Python executable to use for CLIP.
-// Priority: venv inside backend/ > system python3
+// Priority order:
+//   1. userData clip-env  → production DMG (~/Library/Application Support/MindVault/clip-env)
+//   2. backend/ clip-env  → dev mode (project folder / bundled in app)
+//   3. system python3     → fallback if user has CLIP in global env
 function getClipPython() {
-  const venvPython = path.join(__dirname, '..', 'clip-env', 'bin', 'python3');
-  if (fs.existsSync(venvPython)) return venvPython;
+  const os = require('os');
+
+  const candidates = [
+    // 1. Preferred: venv installed by setup-clip.sh into userData (works in both dev + DMG)
+    path.join(os.homedir(), 'Library', 'Application Support', 'MindVault', 'clip-env', 'bin', 'python3'),
+    // 2. DATA_PATH sibling (set by Electron, same dir)
+    process.env.DATA_PATH
+      ? path.join(process.env.DATA_PATH, '..', 'clip-env', 'bin', 'python3')
+      : null,
+    // 3. Dev mode: clip-env inside backend/ project folder (legacy)
+    path.join(__dirname, '..', 'clip-env', 'bin', 'python3'),
+    // 4. Homebrew Python as last resort
+    '/opt/homebrew/bin/python3',
+  ].filter(Boolean);
+
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
   return process.platform === 'win32' ? 'python' : 'python3';
 }
 
