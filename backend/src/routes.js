@@ -34,6 +34,18 @@ const { detectSource, fetchMetadata, fetchSmartMetadata } = require('./metadata'
 const { analyzeContent, getAIStatus, checkClipAvailable } = require('./ai');
 const { downloadThumbnail, generateVideoThumbnail, THUMB_DIR } = require('./thumbnails');
 const { downloadMedia, getDownloadedFiles, isYtdlpInstalled, getMediaInfo, MEDIA_DIR } = require('./downloader');
+const librarySync = require('./library-sync');
+
+// Debounced sync: waits 5s after last change before pushing to Supabase
+// so rapid imports don't hammer the API
+let _syncTimer = null;
+function scheduleSync() {
+  if (_syncTimer) clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => {
+    librarySync.sync().catch(() => {});
+    _syncTimer = null;
+  }, 5000);
+}
 const { createGif, createClip, createScreenshot, getVideoDuration, getGifsForLink, deleteGif, deleteClip, deleteScreenshot, GIF_DIR, CLIP_DIR, SCREENSHOT_DIR } = require('./gif-creator');
 
 const router = express.Router();
@@ -228,6 +240,7 @@ router.post('/links', async (req, res) => {
 
     const newLink = getLinkById.get({ id: linkId });
     res.status(201).json(newLink);
+    scheduleSync(); // push to PWA
   } catch (err) {
     console.error('Error creating link:', err);
     res.status(500).json({ error: 'Fehler beim Erstellen des Links' });
@@ -267,6 +280,7 @@ router.delete('/links/:id', (req, res) => {
 
     deleteLink.run({ id: req.params.id });
     res.json({ message: 'Link gelöscht', id: req.params.id });
+    scheduleSync(); // push to PWA
   } catch (err) {
     console.error('Error deleting link:', err);
     res.status(500).json({ error: 'Fehler beim Löschen des Links' });
@@ -371,6 +385,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     const newLink = getLinkById.get({ id: linkId });
     res.status(201).json(newLink);
+    scheduleSync(); // push to PWA
   } catch (err) {
     console.error('Error uploading file:', err);
     res.status(500).json({ error: 'Fehler beim Hochladen' });
