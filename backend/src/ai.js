@@ -402,8 +402,8 @@ async function analyzeWithCLIP(imagePath, context = {}) {
   const input = JSON.stringify({
     imagePath,
     tags,
-    topK: 12,
-    threshold: 0.006,
+    topK: 15,
+    threshold: 0.003,
   });
 
   return new Promise((resolve) => {

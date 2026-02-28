@@ -69,6 +69,17 @@ const upload = multer({
 
 // === Static file serving ===
 router.use('/files/thumbnails', express.static(THUMB_DIR));
+
+// ── Helper: merge AI tags with existing user tags (never overwrite) ──────────
+function mergeAITags(linkId, aiTags) {
+  if (!aiTags || aiTags.length === 0) return;
+  const current = db.prepare('SELECT tags FROM links WHERE id = ?').get(linkId);
+  const existing = JSON.parse(current?.tags || '[]');
+  const merged = [...new Set([...existing, ...aiTags])];
+  db.prepare('UPDATE links SET tags = ? WHERE id = ?').run(JSON.stringify(merged), linkId);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 router.use('/files/uploads', express.static(UPLOAD_DIR));
 router.use('/files/media', express.static(MEDIA_DIR));
 router.use('/files/gifs', express.static(GIF_DIR));
@@ -203,14 +214,8 @@ router.post('/links', async (req, res) => {
         url,
       }).then((aiResult) => {
         if (aiResult.tags.length > 0) {
-          // Merge AI tags with any tags the user may have added since creation
-          // (user tags take priority — they appear first in the array)
-          const current = db.prepare('SELECT tags FROM links WHERE id = ?').get(linkId);
-          const userTags = JSON.parse(current?.tags || '[]');
-          const merged = [...new Set([...userTags, ...aiResult.tags])];
-          db.prepare('UPDATE links SET tags = ? WHERE id = ?')
-            .run(JSON.stringify(merged), linkId);
-          console.log(`[AI] Tags für Link ${linkId}: ${merged.join(', ')}`);
+          mergeAITags(linkId, aiResult.tags);
+          console.log(`[AI] Tags für Link ${linkId}: ${aiResult.tags.join(', ')}`);
         }
         if (aiResult.description && !description && !meta.description) {
           db.prepare('UPDATE links SET description = ? WHERE id = ?')
@@ -352,8 +357,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         source: 'upload',
       }).then((aiResult) => {
         if (aiResult.tags.length > 0) {
-          db.prepare('UPDATE links SET tags = ? WHERE id = ?')
-            .run(JSON.stringify(aiResult.tags), linkId);
+          mergeAITags(linkId, aiResult.tags);
           console.log(`[AI] Tags für Upload ${linkId}: ${aiResult.tags.join(', ')}`);
         }
         if (aiResult.description) {
@@ -444,8 +448,7 @@ router.post('/links/:id/download', async (req, res) => {
           source: link.source, url: link.url,
         }).then((aiResult) => {
           if (aiResult.tags.length > 0) {
-            db.prepare('UPDATE links SET tags = ? WHERE id = ?')
-              .run(JSON.stringify(aiResult.tags), link.id);
+            mergeAITags(link.id, aiResult.tags);
           }
           if (aiResult.description) {
             db.prepare('UPDATE links SET description = ? WHERE id = ?')
@@ -510,8 +513,7 @@ router.post('/links/:id/download', async (req, res) => {
         url: link.url,
       }).then((aiResult) => {
         if (aiResult.tags.length > 0) {
-          db.prepare('UPDATE links SET tags = ? WHERE id = ?')
-            .run(JSON.stringify(aiResult.tags), link.id);
+          mergeAITags(link.id, aiResult.tags);
           console.log(`[AI] ${result.type}-Tags für Link ${link.id}: ${aiResult.tags.join(', ')}`);
         }
         if (aiResult.description) {
@@ -708,8 +710,7 @@ router.post('/links/:id/analyze', async (req, res) => {
 
     // Update tags and description
     if (aiResult.tags.length > 0) {
-      db.prepare('UPDATE links SET tags = ? WHERE id = ?')
-        .run(JSON.stringify(aiResult.tags), link.id);
+      mergeAITags(link.id, aiResult.tags);
     }
     if (aiResult.description) {
       db.prepare('UPDATE links SET description = ? WHERE id = ?')
