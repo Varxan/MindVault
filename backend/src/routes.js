@@ -29,7 +29,6 @@ const {
   getSetting,
   setSetting,
   getAllSettings,
-  db,
 } = require('./database');
 const { detectSource, fetchMetadata, fetchSmartMetadata } = require('./metadata');
 const { analyzeContent, getAIStatus, checkClipAvailable } = require('./ai');
