@@ -73,18 +73,13 @@ async function sync() {
       created_at:    link.created_at,
     })));
 
-    // Delete existing row then insert fresh (avoids needing UNIQUE constraint for ON CONFLICT)
-    if (deviceId) {
-      await supabase.from('library_cache').delete().eq('user_id', deviceId);
-      var { error } = await supabase
-        .from('library_cache')
-        .insert({ user_id: deviceId, links, updated_at: new Date().toISOString() });
-    } else {
-      await supabase.from('library_cache').delete().eq('singleton_id', 1);
-      var { error } = await supabase
-        .from('library_cache')
-        .insert({ singleton_id: 1, links, updated_at: new Date().toISOString() });
-    }
+    // Delete-then-insert using singleton_id=1 as the stable primary key.
+    // user_id is stored as extra metadata but is NOT the PK.
+    const row = { singleton_id: 1, links, updated_at: new Date().toISOString() };
+    if (deviceId) row.user_id = deviceId;
+
+    await supabase.from('library_cache').delete().eq('singleton_id', 1);
+    var { error } = await supabase.from('library_cache').insert(row);
 
     if (error) {
       console.error('[Library Sync] ❌ Error:', error.message);
