@@ -105,19 +105,9 @@ def main():
         print(json.dumps({"error": f"CLIP inference failed: {e}"}))
         sys.exit(1)
 
-    # ── Rank and filter ───────────────────────────────────────────────────────
+    # ── Rank — always return exactly top_k, no threshold cutoff ─────────────
     tag_scores = sorted(zip(tags, scores), key=lambda x: x[1], reverse=True)
-
-    # Apply threshold, take top_k
-    selected = [
-        (tag, score)
-        for tag, score in tag_scores[:top_k * 2]   # scan wider, then filter
-        if score >= threshold
-    ][:top_k]
-
-    # If threshold filtered too aggressively, fall back to raw top_k
-    if len(selected) < max(3, top_k // 2):
-        selected = tag_scores[:top_k]
+    selected   = tag_scores[:top_k]
 
     result_tags   = [tag for tag, _ in selected]
     result_scores = {tag: round(score, 6) for tag, score in selected}
