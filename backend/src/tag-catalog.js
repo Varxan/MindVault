@@ -57,28 +57,6 @@ const TAG_CATALOG = {
     ]
   },
 
-  movement: {
-    label: 'Camera Movement (Video)',
-    multi: true,
-    maxSelect: 2,
-    tags: [
-      { id: 'static_locked', label: 'Static / Locked Off' },
-      { id: 'handheld', label: 'Handheld' },
-      { id: 'steadicam', label: 'Steadicam' },
-      { id: 'gimbal', label: 'Gimbal' },
-      { id: 'dolly', label: 'Dolly' },
-      { id: 'crane_jib', label: 'Crane / Jib' },
-      { id: 'drone', label: 'Drone' },
-      { id: 'whip_pan', label: 'Whip Pan' },
-      { id: 'push_in', label: 'Push In' },
-      { id: 'pull_out', label: 'Pull Out' },
-      { id: 'tracking_lateral', label: 'Tracking (Lateral)' },
-      { id: 'circular_orbit', label: 'Circular / Orbit' },
-      { id: 'zoom', label: 'Zoom' },
-      { id: 'long_take_oner', label: 'Long Take / Oner' }
-    ]
-  },
-
   color: {
     label: 'Color Palette',
     multi: true,
