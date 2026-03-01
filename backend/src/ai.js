@@ -68,6 +68,10 @@ function getOpenAIKey() {
 
 // Check if local CLIP is enabled by user
 function isClipEnabled() {
+  // Check if preferred provider is local_clip OR legacy use_local_clip flag
+  const preferredProvider = getSetting.get('preferred_ai_provider');
+  if (preferredProvider?.value === 'local_clip') return true;
+
   const setting = getSetting.get('use_local_clip');
   return setting?.value === 'true' || setting?.value === true;
 }
@@ -112,12 +116,14 @@ function checkClipAvailable() {
 // Determine which AI provider to use based on availability and user preference
 function getPreferredProvider() {
   const preferredSetting = getSetting.get('preferred_ai_provider');
-  const preferred = preferredSetting?.value || 'anthropic'; // Default to Anthropic
+  const preferred = preferredSetting?.value || 'local_clip'; // Default to Local CLIP
 
   const anthropicKey = getAnthropicKey();
   const openaiKey = getOpenAIKey();
 
-  // CLIP is checked separately before this function is called
+  // Local CLIP is handled separately before this function is called
+  if (preferred === 'local_clip') return null;
+
   if (preferred === 'openai' && openaiKey) return 'openai';
   if (preferred === 'anthropic' && anthropicKey) return 'anthropic';
 

@@ -81,7 +81,7 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { url, title, text, tags, device_id } = body;
+    const { url, title, text, tags, device_id, space } = body;
 
     if (!url) {
       return NextResponse.json({ error: 'url is required' }, { status: 400 });
@@ -94,6 +94,7 @@ export async function POST(request) {
       tags:       tags  || null,
       tags_ready: false,
       processed:  false,
+      space:      (space === 'mind' ? 'mind' : 'eye'),  // eye | mind, default eye
       ...(device_id ? { user_id: device_id } : {}),
     };
 
@@ -121,7 +122,7 @@ export async function PATCH(request) {
 
   try {
     const body = await request.json();
-    const { id, tags, tags_ready, processed } = body;
+    const { id, tags, tags_ready, processed, space } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 });
@@ -132,6 +133,7 @@ export async function PATCH(request) {
     if (processed !== undefined)  update.processed  = processed;
     if (tags      !== undefined)  update.tags        = tags || null;
     if (tags_ready !== undefined) update.tags_ready  = tags_ready;
+    if (space     !== undefined)  update.space       = (space === 'mind' ? 'mind' : 'eye');
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });

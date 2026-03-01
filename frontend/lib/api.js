@@ -1,10 +1,11 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
-export async function fetchLinks({ search, source, collection } = {}) {
+export async function fetchLinks({ search, source, collection, space } = {}) {
   const params = new URLSearchParams();
   if (search) params.set('search', search);
   if (source) params.set('source', source);
   if (collection) params.set('collection', collection);
+  if (space) params.set('space', space);
 
   const url = `${API_BASE}/links${params.toString() ? '?' + params.toString() : ''}`;
   const res = await fetch(url, { cache: 'no-store' });

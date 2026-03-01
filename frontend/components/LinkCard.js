@@ -8,7 +8,7 @@ import { fetchCollectionsForLink, addLinksToCollection, removeLinkFromCollection
 import { getApiBase } from '../lib/config';
 
 
-export default function LinkCard({ link, onDelete, onRefresh }) {
+export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
   const [downloading, setDownloading] = useState(false);
   const [carouselFiles, setCarouselFiles] = useState([]);
   const [carouselMediaPath, setCarouselMediaPath] = useState(null);
@@ -195,7 +195,10 @@ export default function LinkCard({ link, onDelete, onRefresh }) {
     : link.url;
 
   return (
-    <div className="card">
+    <div
+      className="card"
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu?.(e, link); }}
+    >
       {/* Action Buttons */}
       <div className="card-actions">
         {/* Download (only shown before media is downloaded) */}
@@ -408,6 +411,11 @@ export default function LinkCard({ link, onDelete, onRefresh }) {
             <SourceLogo source={link.source} size={14} />
           </span>
           <span className="card-domain">{domain}</span>
+          {link.space === 'mind' && (
+            <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#7b9ea8', letterSpacing: '0.06em', opacity: 0.75, fontWeight: 500 }}>
+              mind
+            </span>
+          )}
         </div>
 
         {(() => {
@@ -559,6 +567,7 @@ export default function LinkCard({ link, onDelete, onRefresh }) {
 
         <div className="card-date">{dateStr}</div>
       </div>
+
 
       {videoPlayerOpen && (
         <VideoPlayerModal

@@ -54,10 +54,11 @@ function PulsingDots() {
 export default function SharePage() {
   // phases: input → saving → queued → saved
   //                              └──→ offline (on error)
-  const [phase, setPhase]       = useState('input');
-  const [tagInput, setTagInput] = useState('');
-  const [savedId, setSavedId]   = useState(null);
+  const [phase, setPhase]         = useState('input');
+  const [tagInput, setTagInput]   = useState('');
+  const [savedId, setSavedId]     = useState(null);
   const [shareData, setShareData] = useState(null);
+  const [selectedSpace, setSelectedSpace] = useState('eye');
   const tagRef   = useRef(null);
   const pollRef  = useRef(null);  // interval handle for status polling
 
@@ -107,7 +108,7 @@ export default function SharePage() {
       return;
     }
 
-    // Insert in background immediately
+    // Insert in background immediately (space chosen later in UI, will be updated on send)
     const deviceId = localStorage.getItem('mindvault_device_id');
     fetch('/api/share-queue', {
       method: 'POST',
@@ -117,6 +118,7 @@ export default function SharePage() {
         title:     share.title || null,
         text:      share.text  || null,
         device_id: deviceId   || null,
+        space:     'eye',      // default; updated with real choice on handleSend
       }),
     })
       .then(r => r.json())
@@ -141,7 +143,7 @@ export default function SharePage() {
         await fetch('/api/share-queue', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, tags: tagInput.trim() || null, tags_ready: true }),
+          body: JSON.stringify({ id, tags: tagInput.trim() || null, tags_ready: true, space: selectedSpace }),
         });
       } else {
         const deviceId = localStorage.getItem('mindvault_device_id');
@@ -154,6 +156,7 @@ export default function SharePage() {
             tags:       tagInput.trim() || null,
             tags_ready: true,
             device_id:  deviceId || null,
+            space:      selectedSpace,
           }),
         });
         const data = await r.json();
@@ -164,11 +167,11 @@ export default function SharePage() {
       startPolling(id);
     } catch {
       const q = loadQueue();
-      q.push({ ...shareData, tags: tagInput.trim() || null });
+      q.push({ ...shareData, tags: tagInput.trim() || null, space: selectedSpace });
       saveQueue(q);
       setPhase('offline');
     }
-  }, [shareData, savedId, tagInput, startPolling]);
+  }, [shareData, savedId, tagInput, selectedSpace, startPolling]);
 
   const handleSkip = useCallback(async () => {
     if (!shareData) return;
@@ -226,6 +229,10 @@ export default function SharePage() {
         .card {
           width:100%; max-width:320px;
           animation: fadeUp 0.35s ease both;
+          padding: 32px 24px;
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 20px;
         }
         .tag-field {
           width:100%; box-sizing:border-box;
@@ -246,7 +253,7 @@ export default function SharePage() {
           background:#e8e8e8; color:#0d0d0d;
           border:none; border-radius:14px;
           font-size:15px; font-weight:600;
-          cursor:pointer; margin-top:10px;
+          cursor:pointer; margin-top:16px;
           transition: opacity 0.15s;
           -webkit-tap-highlight-color: transparent;
         }
@@ -274,10 +281,36 @@ export default function SharePage() {
         {/* ── Input ──────────────────────────────────────── */}
         {phase === 'input' && (
           <>
+            {/* Eye / Mind Selector */}
+            <div style={{ display:'flex', gap:'8px', marginBottom:'20px' }}>
+              {[{ label: 'Eye', value: 'eye' }, { label: 'Mind', value: 'mind' }].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSelectedSpace(opt.value)}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: selectedSpace === opt.value ? 'rgba(200,168,75,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: selectedSpace === opt.value ? '1px solid rgba(200,168,75,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '12px',
+                    color: selectedSpace === opt.value ? '#c8a84b' : '#555',
+                    fontSize: '13px',
+                    fontWeight: selectedSpace === opt.value ? 600 : 400,
+                    cursor: 'pointer',
+                    letterSpacing: '0.05em',
+                    transition: 'all 0.15s',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
             <p style={{
               color:'#666', fontSize:'12px', fontWeight:600,
               letterSpacing:'0.08em', textTransform:'uppercase',
-              marginBottom:'14px', marginTop:0,
+              marginBottom:'18px', marginTop:0,
             }}>
               Add tags
             </p>

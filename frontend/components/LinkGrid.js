@@ -47,6 +47,33 @@ export default function LinkGrid() {
   // New SettingsPanel state
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
+  // Eye // Mind space filter
+  const [activeSpace, setActiveSpace] = useState(null); // null = all, 'eye', 'mind'
+
+  // Right-click context menu (global — outside card stacking contexts)
+  const [cardContextMenu, setCardContextMenu] = useState(null); // { x, y, link } | null
+
+  const handleCardContextMenu = (e, link) => {
+    setCardContextMenu({ x: e.clientX, y: e.clientY, link });
+  };
+
+  const handleMoveSpace = async (space) => {
+    if (!cardContextMenu) return;
+    const { link } = cardContextMenu;
+    setCardContextMenu(null);
+    try {
+      const res = await fetch(`${getApiBase()}/links/${link.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ space }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      refresh();
+    } catch (err) {
+      alert('Error moving link: ' + err.message);
+    }
+  };
+
   // QR modal
   const [showQRModal, setShowQRModal] = useState(false);
 
@@ -192,6 +219,7 @@ export default function LinkGrid() {
         search: search || undefined,
         source: activeSource || undefined,
         collection: activeCollection || undefined,
+        space: activeSpace || undefined,
       });
       setLinks(data.links);
       setTotal(data.total);
@@ -200,7 +228,7 @@ export default function LinkGrid() {
     } finally {
       setLoading(false);
     }
-  }, [search, activeSource, activeCollection]);
+  }, [search, activeSource, activeCollection, activeSpace]);
 
   const loadSources = useCallback(async () => {
     try {
@@ -381,10 +409,47 @@ export default function LinkGrid() {
       )}
 
       <div className="sticky-top">
-      <header className="header">
+      <header className="header" style={{ position: 'relative' }}>
         <div className="header-left">
           <h1>MindVault</h1>
         </div>
+
+        {/* Eye // Mind — centered in header row */}
+        <div style={{
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          gap: '0',
+          alignItems: 'flex-end',
+        }}>
+          {[
+            { label: 'Eye', value: 'eye' },
+            { label: 'Mind', value: 'mind' },
+          ].map(tab => (
+            <button
+              key={tab.label}
+              onClick={() => { setActiveSpace(tab.value === activeSpace ? null : tab.value); setActiveSource(null); setActiveCollection(null); }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                borderBottom: activeSpace === tab.value ? '2px solid #c8a84b' : '2px solid transparent',
+                color: activeSpace === tab.value ? '#c8a84b' : '#555',
+                padding: '4px 20px',
+                fontSize: '11px',
+                fontWeight: activeSpace === tab.value ? 600 : 400,
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         <div className="header-right">
           <button
             className={`header-btn ${bulkMode ? 'active' : ''}`}
@@ -423,6 +488,11 @@ export default function LinkGrid() {
                       Connect phone
                       <span className="settings-item-sub">Scan QR code to install app</span>
                     </button>
+                    <div className="settings-divider" />
+                    <button className="settings-item" onClick={() => { setSettingsPage('tokens'); setSettingsActioned(false); }}>
+                      Telegram
+                      <span className="settings-item-sub">{settingsStatus.telegram_bot_token ? '● Connected' : '○ Not set'}</span>
+                    </button>
 
                     <div className="settings-section-label">Settings</div>
                     <button className="settings-item" onClick={() => { setShowSettingsPanel(true); setSettingsActioned(true); }}>
@@ -430,11 +500,6 @@ export default function LinkGrid() {
                       <span className="settings-item-sub">
                         {settingsStatus.anthropic_api_key || settingsStatus.openai_api_key ? '● Connected' : '○ No key set'}
                       </span>
-                    </button>
-                    <div className="settings-divider" />
-                    <button className="settings-item" onClick={() => { setSettingsPage('tokens'); setSettingsActioned(false); }}>
-                      Telegram
-                      <span className="settings-item-sub">{settingsStatus.telegram_bot_token ? '● Connected' : '○ Not set'}</span>
                     </button>
                     <div className="settings-divider" />
                     <button className="settings-item" onClick={() => { setSettingsPage('downloads'); setSettingsActioned(false); }}>
@@ -746,48 +811,6 @@ export default function LinkGrid() {
                         </div>
                       )}
                     </div>
-                    <div className="settings-divider" />
-
-                    {/* Local AI — CLIP */}
-                    <div className="settings-field">
-                      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>Local AI <span style={{ fontSize: '10px', background: 'rgba(100,220,100,0.15)', color: '#6ada6a', padding: '1px 5px', borderRadius: '3px', marginLeft: '6px', verticalAlign: 'middle' }}>Free · Offline</span></span>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 'normal', fontSize: '12px' }}>
-                          <input
-                            type="checkbox"
-                            checked={settingsStatus.use_local_clip === 'true'}
-                            onChange={async (e) => {
-                              const enable = e.target.checked;
-                              if (enable) {
-                                // Check if CLIP is installed before enabling
-                                try {
-                                  const r = await fetch('/api/clip-status');
-                                  const data = await r.json();
-                                  if (!data.available) {
-                                    alert('CLIP is not installed yet.\n\nRun this command in Terminal:\n  bash backend/scripts/setup-clip.sh\n\nThen come back to enable it.');
-                                    e.target.checked = false;
-                                    return;
-                                  }
-                                } catch (_) {}
-                              }
-                              await handleSaveToken('use_local_clip', enable ? 'true' : 'false');
-                            }}
-                            style={{ accentColor: '#6ada6a' }}
-                          />
-                          {settingsStatus.use_local_clip === 'true' ? 'Enabled' : 'Disabled'}
-                        </label>
-                      </label>
-                      <span className="settings-field-hint" style={{ marginTop: '6px' }}>
-                        Uses OpenAI CLIP running locally on your Mac — no API key or internet needed.
-                        Tags are selected by matching your image directly against the catalog.
-                        Falls back to cloud AI for videos and complex cases.
-                      </span>
-                      {settingsStatus.use_local_clip !== 'true' && (
-                        <span className="settings-field-hint" style={{ marginTop: '4px', color: 'rgba(106,218,106,0.7)' }}>
-                          First time? Run <code style={{ background: 'rgba(255,255,255,0.05)', padding: '1px 5px', borderRadius: '3px' }}>bash backend/scripts/setup-clip.sh</code> in Terminal to install (~350 MB, once).
-                        </span>
-                      )}
-                    </div>
                   </>
                 )}
 
@@ -998,6 +1021,7 @@ export default function LinkGrid() {
                     link={link}
                     onDelete={handleDelete}
                     onRefresh={refresh}
+                    onContextMenu={handleCardContextMenu}
                   />
                 )}
               </div>
@@ -1200,6 +1224,35 @@ export default function LinkGrid() {
             <MobileQRSection />
           </div>
         </div>
+      )}
+      {/* Right-click context menu — rendered at LinkGrid level, outside any card stacking context */}
+      {cardContextMenu && (
+        <>
+          {/* Backdrop */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+            onClick={() => setCardContextMenu(null)}
+          />
+          {/* Menu */}
+          <div
+            className="card-context-menu"
+            style={{ position: 'fixed', top: cardContextMenu.y, left: cardContextMenu.x, zIndex: 9999 }}
+          >
+            {cardContextMenu.link.space !== 'mind' && (
+              <button className="card-context-item" onClick={() => handleMoveSpace('mind')}>
+                Move to Mind
+              </button>
+            )}
+            {cardContextMenu.link.space !== 'eye' && (
+              <button className="card-context-item" onClick={() => handleMoveSpace('eye')}>
+                Move to Eye
+              </button>
+            )}
+            <button className="card-context-item card-context-cancel" onClick={() => setCardContextMenu(null)}>
+              Cancel
+            </button>
+          </div>
+        </>
       )}
     </>
   );

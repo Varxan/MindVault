@@ -105,13 +105,15 @@ router.use('/files/screenshots', express.static(SCREENSHOT_DIR));
 // GET /api/links – Alle Links
 router.get('/links', (req, res) => {
   try {
-    const { page, limit: queryLimit, search, source, collection } = req.query;
+    const { page, limit: queryLimit, search, source, collection, space } = req.query;
+    const spaceFilter = space && ['eye', 'mind'].includes(space) ? space : null;
 
     if (search) {
       // Split search into individual words – every word must match somewhere
       const words = search.toLowerCase().split(/\s+/).filter(w => w.length > 0);
       if (words.length === 0) {
-        const links = getAllLinks.all();
+        const spaceClause = spaceFilter ? `AND space = '${spaceFilter}'` : '';
+        const links = db.prepare(`SELECT * FROM links WHERE 1=1 ${spaceClause} ORDER BY created_at DESC`).all();
         return res.json({ links, total: links.length });
       }
 
@@ -124,7 +126,8 @@ router.get('/links', (req, res) => {
         OR LOWER(COALESCE(source,'')) LIKE @w${i}
       )`);
 
-      const sql = `SELECT * FROM links WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`;
+      const spaceClause = spaceFilter ? ` AND space = '${spaceFilter}'` : '';
+      const sql = `SELECT * FROM links WHERE ${conditions.join(' AND ')}${spaceClause} ORDER BY created_at DESC`;
       const params = {};
       words.forEach((w, i) => { params[`w${i}`] = `%${w}%`; });
 
@@ -134,11 +137,13 @@ router.get('/links', (req, res) => {
 
     if (collection) {
       const links = filterByCollection.all({ collection_id: parseInt(collection, 10) });
-      return res.json({ links, total: links.length });
+      const filtered = spaceFilter ? links.filter(l => l.space === spaceFilter) : links;
+      return res.json({ links: filtered, total: filtered.length });
     }
 
     if (source) {
-      const links = filterBySource.all({ source });
+      const spaceClause = spaceFilter ? ` AND space = '${spaceFilter}'` : '';
+      const links = db.prepare(`SELECT * FROM links WHERE source = ?${spaceClause} ORDER BY sort_position ASC, created_at DESC`).all(source);
       return res.json({ links, total: links.length });
     }
 
@@ -150,7 +155,8 @@ router.get('/links', (req, res) => {
       return res.json({ links, total, page: parseInt(page, 10), limit: limitNum });
     }
 
-    const links = getAllLinks.all();
+    const spaceClause = spaceFilter ? `WHERE space = '${spaceFilter}'` : '';
+    const links = db.prepare(`SELECT * FROM links ${spaceClause} ORDER BY sort_position ASC, created_at DESC`).all();
     return res.json({ links, total: links.length });
   } catch (err) {
     console.error('Error fetching links:', err);
@@ -173,7 +179,7 @@ router.get('/links/:id', (req, res) => {
 // POST /api/links – Neuen Link erstellen (mit auto-metadata + AI tagging)
 router.post('/links', async (req, res) => {
   try {
-    const { url, title, description, thumbnail_url, tags, source, note } = req.body;
+    const { url, title, description, thumbnail_url, tags, source, note, space } = req.body;
 
     if (!url) return res.status(400).json({ error: 'URL ist erforderlich' });
 
@@ -201,6 +207,7 @@ router.post('/links', async (req, res) => {
       thumbnail_url: finalThumbUrl,
       tags: JSON.stringify(tags || []),
       note: note || null,
+      space: space || 'eye',
     });
 
     const linkId = result.lastInsertRowid;
@@ -253,7 +260,7 @@ router.patch('/links/:id', (req, res) => {
     const link = getLinkById.get({ id: req.params.id });
     if (!link) return res.status(404).json({ error: 'Link nicht gefunden' });
 
-    const { title, description, thumbnail_url, tags, note } = req.body;
+    const { title, description, thumbnail_url, tags, note, space } = req.body;
 
     updateLink.run({
       id: req.params.id,
@@ -263,6 +270,11 @@ router.patch('/links/:id', (req, res) => {
       tags: tags !== undefined ? JSON.stringify(tags) : null,
       note: note !== undefined ? (note || '') : null,
     });
+
+    // Update space separately if provided
+    if (space && ['eye', 'mind'].includes(space)) {
+      db.prepare('UPDATE links SET space = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(space, req.params.id);
+    }
 
     const updated = getLinkById.get({ id: req.params.id });
     res.json(updated);

@@ -72,6 +72,10 @@ if (!columns.includes('sort_position')) {
     )
   `);
 }
+if (!columns.includes('space')) {
+  db.exec("ALTER TABLE links ADD COLUMN space TEXT DEFAULT 'eye'");
+  db.exec("UPDATE links SET space = 'eye' WHERE space IS NULL");
+}
 
 // Cleanup: remove "Watch..." notes that were accidentally saved from Vimeo link previews
 db.exec(`UPDATE links SET note = NULL WHERE source = 'vimeo' AND note LIKE 'Watch%'`);
@@ -124,8 +128,8 @@ const getAllSettings = db.prepare('SELECT key, value FROM settings');
 
 // Prepared statements
 const insertLink = db.prepare(`
-  INSERT INTO links (url, source, title, description, thumbnail_url, tags, note)
-  VALUES (@url, @source, @title, @description, @thumbnail_url, @tags, @note)
+  INSERT INTO links (url, source, title, description, thumbnail_url, tags, note, space)
+  VALUES (@url, @source, @title, @description, @thumbnail_url, @tags, @note, COALESCE(@space, 'eye'))
   ON CONFLICT(url) DO UPDATE SET
     title = COALESCE(@title, links.title),
     description = COALESCE(@description, links.description),

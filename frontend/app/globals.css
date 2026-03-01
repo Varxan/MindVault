@@ -127,8 +127,8 @@ code {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2rem 2rem 0;
-  margin: 2rem 2rem 0;
+  padding: 1rem 2rem 0;
+  margin: 1rem 2rem 0;
 }
 
 .header-left {
@@ -159,7 +159,7 @@ code {
 
 /* Row 2: search bar, filter, view toggles */
 .toolbar {
-  padding: 0.8rem 2rem;
+  padding: 0.4rem 2rem 0.8rem;
 }
 
 .toolbar-row {
@@ -1967,6 +1967,42 @@ code {
 
 .card-carousel-close:hover {
   background: var(--accent-bg);
+}
+
+/* ========== Context Menu (Right-click) ========== */
+.card-context-menu {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-width: 150px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  animation: fadeIn 0.1s ease;
+}
+
+.card-context-item {
+  display: block;
+  width: 100%;
+  padding: 0.55rem 0.9rem;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: background 0.12s;
+  letter-spacing: 0.02em;
+}
+
+.card-context-item:hover {
+  background: var(--surface-hover);
+}
+
+.card-context-cancel {
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
 }
 
 /* ========== Bulk Selection ========== */

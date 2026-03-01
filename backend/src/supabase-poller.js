@@ -108,6 +108,11 @@ async function importEntry(entry) {
 
     const body = { url: entry.url };
 
+    // Pass space through (eye | mind), default to eye for old rows without space
+    if (entry.space && ['eye', 'mind'].includes(entry.space)) {
+      body.space = entry.space;
+    }
+
     // If user added tags, pass them — this skips AI auto-tagging
     if (userTags.length > 0) {
       body.tags = userTags;
