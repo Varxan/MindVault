@@ -49,7 +49,7 @@ export default function LinkGrid() {
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
   // Eye // Mind space filter
-  const [activeSpace, setActiveSpace] = useState(null); // null = all, 'eye', 'mind'
+  const [activeSpace, setActiveSpace] = useState('eye'); // default to Eye on start
 
   // Right-click context menu (global — outside card stacking contexts)
   const [cardContextMenu, setCardContextMenu] = useState(null); // { x, y, link } | null
@@ -277,15 +277,39 @@ export default function LinkGrid() {
 
   useEffect(() => {
     refresh();
-    const interval = setInterval(refresh, 10000);
-    return () => clearInterval(interval);
-  }, [refresh]);
 
-  // Poll AI status every 30s to catch silent API failures
+    // ── SSE: listen for backend push events — no more polling ────────────────
+    const apiBase = getApiBase();
+    const es = new EventSource(`${apiBase}/events`);
+
+    es.onmessage = (e) => {
+      try {
+        const { type } = JSON.parse(e.data);
+        if (type === 'link-added' || type === 'link-updated' || type === 'link-deleted') {
+          loadLinks();
+        }
+      } catch {}
+    };
+
+    // SSE auto-reconnects natively on error — no action needed
+    es.onerror = () => {};
+
+    // Fallback: 120s poll if SSE never connects (e.g. very old browser)
+    const fallbackInterval = setInterval(() => {
+      if (es.readyState === EventSource.CLOSED && !document.hidden) refresh();
+    }, 120000);
+
+    return () => {
+      es.close();
+      clearInterval(fallbackInterval);
+    };
+  }, [refresh, loadLinks]);
+
+  // Check AI status once on mount + every 60s (lightweight)
   useEffect(() => {
     const checkAIStatus = async () => {
       try {
-        const res = await fetch('/api/ai-status');
+        const res = await fetch(`${getApiBase()}/ai-status`);
         if (res.ok) {
           const data = await res.json();
           setAiStatus(data);
@@ -293,7 +317,9 @@ export default function LinkGrid() {
       } catch (_) {}
     };
     checkAIStatus();
-    const interval = setInterval(checkAIStatus, 30000);
+    const interval = setInterval(() => {
+      if (!document.hidden) checkAIStatus();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
 

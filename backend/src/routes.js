@@ -52,6 +52,41 @@ const { createGif, createClip, createScreenshot, getVideoDuration, getGifsForLin
 
 const router = express.Router();
 
+// ── Server-Sent Events (SSE) broadcaster ─────────────────────────────────────
+// All connected frontend clients are stored here.
+// Call pushEvent(type, data) from anywhere in backend to instantly notify UI.
+const _sseClients = new Set();
+
+function pushEvent(type, data = {}) {
+  const payload = `data: ${JSON.stringify({ type, ...data })}\n\n`;
+  for (const res of _sseClients) {
+    try { res.write(payload); } catch {}
+  }
+}
+
+// GET /api/events – Frontend connects once, receives push notifications forever
+router.get('/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Send a heartbeat every 30s to keep the connection alive through proxies
+  const heartbeat = setInterval(() => {
+    try { res.write(': heartbeat\n\n'); } catch {}
+  }, 30_000);
+
+  _sseClients.add(res);
+  console.log(`[SSE] Client connected (${_sseClients.size} total)`);
+
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    _sseClients.delete(res);
+    console.log(`[SSE] Client disconnected (${_sseClients.size} remaining)`);
+  });
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 // === File Upload Setup ===
 const DATA_ROOT = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
 const UPLOAD_DIR = path.join(DATA_ROOT, 'uploads');
@@ -85,12 +120,22 @@ const upload = multer({
 router.use('/files/thumbnails', express.static(THUMB_DIR));
 
 // ── Helper: merge AI tags with existing user tags (never overwrite) ──────────
+// Merge: adds AI tags to existing ones — used on first creation to preserve user-supplied tags
 function mergeAITags(linkId, aiTags) {
   if (!aiTags || aiTags.length === 0) return;
   const current = db.prepare('SELECT tags FROM links WHERE id = ?').get(linkId);
   const existing = JSON.parse(current?.tags || '[]');
-  const merged = [...new Set([...existing, ...aiTags])];
+  // AI tags take priority (listed first), user tags appended after, cap at 15
+  const merged = [...new Set([...aiTags, ...existing])].slice(0, 15);
   db.prepare('UPDATE links SET tags = ? WHERE id = ?').run(JSON.stringify(merged), linkId);
+  pushEvent('link-updated', { id: linkId });
+}
+
+// Replace: overwrites tags entirely with fresh AI analysis — used after download (better source)
+function replaceAITags(linkId, aiTags) {
+  if (!aiTags || aiTags.length === 0) return;
+  db.prepare('UPDATE links SET tags = ? WHERE id = ?').run(JSON.stringify(aiTags.slice(0, 15)), linkId);
+  pushEvent('link-updated', { id: linkId });
 }
 
 // ── Helper: generate + store semantic embedding for a link (async, fire-and-forget) ──
@@ -278,6 +323,7 @@ router.post('/links', async (req, res) => {
     const newLink = getLinkById.get({ id: linkId });
     res.status(201).json(newLink);
     scheduleSync(); // push to PWA
+    pushEvent('link-added', { id: linkId });
   } catch (err) {
     console.error('Error creating link:', err);
     res.status(500).json({ error: 'Fehler beim Erstellen des Links' });
@@ -323,6 +369,7 @@ router.delete('/links/:id', (req, res) => {
     deleteLink.run({ id: req.params.id });
     res.json({ message: 'Link gelöscht', id: req.params.id });
     scheduleSync(); // push to PWA
+    pushEvent('link-deleted', { id: req.params.id });
   } catch (err) {
     console.error('Error deleting link:', err);
     res.status(500).json({ error: 'Fehler beim Löschen des Links' });
@@ -511,6 +558,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const newLink = getLinkById.get({ id: linkId });
     res.status(201).json(newLink);
     scheduleSync(); // push to PWA
+    pushEvent('link-added', { id: linkId });
   } catch (err) {
     console.error('Error uploading file:', err);
     res.status(500).json({ error: 'Fehler beim Hochladen' });
@@ -671,6 +719,7 @@ router.post('/links/:id/download', async (req, res) => {
               if (!currentNote) {
                 db.prepare('UPDATE links SET note = ? WHERE id = ?').run(transcript, link.id);
                 console.log(`[Whisper] 📝 Transcript saved for link ${link.id} (${transcript.split(/\s+/).length} words)`);
+                pushEvent('link-updated', { id: link.id }); // transcript now in note
                 // Re-embed now that transcript is stored (richer vector)
                 generateAndStoreEmbedding(link.id);
               }
@@ -686,7 +735,7 @@ router.post('/links/:id/download', async (req, res) => {
         }).then(aiResult => {
           if (!aiResult) return;
           if (aiResult.tags.length > 0) {
-            mergeAITags(link.id, aiResult.tags);
+            replaceAITags(link.id, aiResult.tags); // replace — better source than thumbnail
             console.log(`[AI] Mind video tags für Link ${link.id}: ${aiResult.tags.join(', ')}`);
           }
           if (aiResult.description) {
@@ -697,7 +746,7 @@ router.post('/links/:id/download', async (req, res) => {
         });
 
       } else {
-        // Eye links or non-video: regular AI tagging
+        // Eye links or non-video: replace tags after download (full media > thumbnail)
         analyzeContent(result.filepath, {
           title: link.title,
           description: link.description,
@@ -705,7 +754,7 @@ router.post('/links/:id/download', async (req, res) => {
           url: link.url,
         }).then((aiResult) => {
           if (aiResult.tags.length > 0) {
-            mergeAITags(link.id, aiResult.tags);
+            replaceAITags(link.id, aiResult.tags); // replace — full media analysis
             console.log(`[AI] ${result.type}-Tags für Link ${link.id}: ${aiResult.tags.join(', ')}`);
           }
           if (aiResult.description) {
