@@ -91,7 +91,7 @@ Note: Only use preferred tags if they genuinely match the content. Do not force 
 
   prompt += `
 TAGGING RULES (${catalogRatio}/${100 - catalogRatio} Strategy):
-- Select ${totalTags} tags TOTAL
+- Select EXACTLY ${totalTags} tags TOTAL — never fewer, never more
 - AT LEAST ${catalogCount} tags MUST come from the catalog above (${catalogRatio}% rule)
 ${customTagsInstruction}
 - Prioritize: aesthetic, lighting, color, mood, movement (for video)

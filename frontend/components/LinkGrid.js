@@ -10,7 +10,7 @@ import CollectionForm from './CollectionForm';
 import PreviewModal from './PreviewModal';
 import SettingsPanel from './SettingsPanel';
 import MobileQRSection from './MobileQRSection';
-import { fetchLinks, fetchSources, fetchCollections, deleteLink, addLinksToCollection } from '../lib/api';
+import { fetchLinks, fetchSources, fetchCollections, deleteLink, addLinksToCollection, fetchSemanticSearch } from '../lib/api';
 import { getApiBase } from '../lib/config';
 
 
@@ -25,6 +25,7 @@ export default function LinkGrid() {
   const [activeCollection, setActiveCollection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isSemanticSearch, setIsSemanticSearch] = useState(false);
 
   // Bulk selection
   const [bulkMode, setBulkMode] = useState(false);
@@ -215,14 +216,34 @@ export default function LinkGrid() {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchLinks({
-        search: search || undefined,
-        source: activeSource || undefined,
-        collection: activeCollection || undefined,
-        space: activeSpace || undefined,
-      });
-      setLinks(data.links);
-      setTotal(data.total);
+
+      // Use semantic search when: there's a query AND we're in Mind space
+      const useSemantic = search && activeSpace === 'mind';
+
+      if (useSemantic) {
+        const data = await fetchSemanticSearch({ q: search, space: 'mind', limit: 50 });
+        if (data.fallback) {
+          // Semantic not installed — silently fall back to keyword search
+          setIsSemanticSearch(false);
+          const kw = await fetchLinks({ search, space: 'mind' });
+          setLinks(kw.links);
+          setTotal(kw.total);
+        } else {
+          setIsSemanticSearch(true);
+          setLinks(data.links);
+          setTotal(data.total);
+        }
+      } else {
+        setIsSemanticSearch(false);
+        const data = await fetchLinks({
+          search: search || undefined,
+          source: activeSource || undefined,
+          collection: activeCollection || undefined,
+          space: activeSpace || undefined,
+        });
+        setLinks(data.links);
+        setTotal(data.total);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -414,7 +435,7 @@ export default function LinkGrid() {
           <h1>MindVault</h1>
         </div>
 
-        {/* Eye // Mind — centered in header row */}
+        {/* Eye // Mind — centered in header row, no-drag so Electron doesn't intercept clicks */}
         <div style={{
           position: 'absolute',
           left: '50%',
@@ -422,6 +443,7 @@ export default function LinkGrid() {
           display: 'flex',
           gap: '0',
           alignItems: 'flex-end',
+          WebkitAppRegion: 'no-drag',
         }}>
           {[
             { label: 'Eye', value: 'eye' },
@@ -443,6 +465,7 @@ export default function LinkGrid() {
                 textTransform: 'uppercase',
                 cursor: 'pointer',
                 transition: 'all 0.15s',
+                WebkitAppRegion: 'no-drag',
               }}
             >
               {tab.label}
@@ -845,6 +868,19 @@ export default function LinkGrid() {
                 setActiveCollection(null);
               }}
             />
+            {search && isSemanticSearch && (
+              <span style={{
+                fontSize: '10px',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: '#7b9ea8',
+                fontFamily: 'var(--font-display)',
+                padding: '2px 6px',
+                border: '1px solid #7b9ea830',
+                borderRadius: '4px',
+                whiteSpace: 'nowrap',
+              }}>semantic</span>
+            )}
             {search && (
               <button className="search-clear" onClick={() => setSearch('')}>✕</button>
             )}

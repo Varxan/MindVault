@@ -409,7 +409,7 @@ async function analyzeWithCLIP(imagePath, context = {}) {
     imagePath,
     tags,
     topK: 15,
-    threshold: 0.003,
+    threshold: 0.001,
   });
 
   return new Promise((resolve) => {

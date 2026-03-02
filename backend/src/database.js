@@ -76,6 +76,9 @@ if (!columns.includes('space')) {
   db.exec("ALTER TABLE links ADD COLUMN space TEXT DEFAULT 'eye'");
   db.exec("UPDATE links SET space = 'eye' WHERE space IS NULL");
 }
+if (!columns.includes('embedding')) {
+  db.exec('ALTER TABLE links ADD COLUMN embedding BLOB');
+}
 
 // Cleanup: remove "Watch..." notes that were accidentally saved from Vimeo link previews
 db.exec(`UPDATE links SET note = NULL WHERE source = 'vimeo' AND note LIKE 'Watch%'`);

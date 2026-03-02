@@ -108,6 +108,9 @@ app.listen(PORT, '0.0.0.0', () => {
         'Static / Locked Off','Handheld','Steadicam','Gimbal','Dolly',
         'Crane / Jib','Drone','Whip Pan','Push In','Pull Out',
         'Tracking (Lateral)','Circular / Orbit','Zoom','Long Take / Oner',
+        // Genre tags removed
+        'Drama','Thriller','Horror','Sci-Fi','Action','Comedy',
+        'Romance','Fantasy','Documentary','Commercial','Music Video','Period',
       ];
       const row = getSetting.get('custom_preferred_tags');
       if (row && row.value) {
@@ -115,7 +118,7 @@ app.listen(PORT, '0.0.0.0', () => {
         const after  = before.filter(t => !REMOVED_TAGS.includes(t));
         if (after.length !== before.length) {
           setSetting.run({ key: 'custom_preferred_tags', value: after.join(',') });
-          console.log(`[Migration] Removed ${before.length - after.length} movement tags from preferred tags (${after.length} remaining)`);
+          console.log(`[Migration] Removed ${before.length - after.length} tags from preferred tags (${after.length} remaining)`);
         }
       }
     } catch (e) {

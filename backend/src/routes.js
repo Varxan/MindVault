@@ -34,6 +34,8 @@ const { detectSource, fetchMetadata, fetchSmartMetadata } = require('./metadata'
 const { analyzeContent, getAIStatus, checkClipAvailable } = require('./ai');
 const { downloadThumbnail, generateVideoThumbnail, THUMB_DIR } = require('./thumbnails');
 const { downloadMedia, getDownloadedFiles, isYtdlpInstalled, getMediaInfo, MEDIA_DIR } = require('./downloader');
+const { transcribeMedia, isWhisperAvailable, isWhisperCompatible } = require('./whisper');
+const { embedText, isEmbeddingAvailable, cosineSimilarity, vecToBuffer, bufferToVec, buildEmbedText } = require('./embeddings');
 const librarySync = require('./library-sync');
 
 // Debounced sync: waits 5s after last change before pushing to Supabase
@@ -89,6 +91,28 @@ function mergeAITags(linkId, aiTags) {
   const existing = JSON.parse(current?.tags || '[]');
   const merged = [...new Set([...existing, ...aiTags])];
   db.prepare('UPDATE links SET tags = ? WHERE id = ?').run(JSON.stringify(merged), linkId);
+}
+
+// ── Helper: generate + store semantic embedding for a link (async, fire-and-forget) ──
+async function generateAndStoreEmbedding(linkId) {
+  try {
+    const available = await isEmbeddingAvailable();
+    if (!available) return; // sentence-transformers not installed — skip silently
+
+    const link = db.prepare('SELECT * FROM links WHERE id = ?').get(linkId);
+    if (!link) return;
+
+    const text = buildEmbedText(link);
+    if (!text) return;
+
+    const vec = await embedText(text);
+    if (!vec) return;
+
+    db.prepare('UPDATE links SET embedding = ? WHERE id = ?').run(vecToBuffer(vec), linkId);
+    console.log(`[Embed] ✅ Embedding stored for link ${linkId}`);
+  } catch (err) {
+    console.log(`[Embed] ⚠️  Failed for link ${linkId}: ${err.message}`);
+  }
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -242,7 +266,13 @@ router.post('/links', async (req, res) => {
         }
       }).catch(err => {
         console.log(`[AI] Analyse fehlgeschlagen für Link ${linkId}: ${err.message}`);
+      }).finally(() => {
+        // Generate semantic embedding after AI (so description/tags are already set)
+        generateAndStoreEmbedding(linkId);
       });
+    } else {
+      // No image source — embed from metadata alone
+      generateAndStoreEmbedding(linkId);
     }
 
     const newLink = getLinkById.get({ id: linkId });
@@ -296,6 +326,89 @@ router.delete('/links/:id', (req, res) => {
   } catch (err) {
     console.error('Error deleting link:', err);
     res.status(500).json({ error: 'Fehler beim Löschen des Links' });
+  }
+});
+
+// =============================================
+// SEMANTIC SEARCH
+// =============================================
+
+// GET /api/search/semantic?q=...&space=eye|mind&limit=20
+// Returns links sorted by semantic similarity to the query.
+// Falls back gracefully if sentence-transformers is not installed.
+router.get('/search/semantic', async (req, res) => {
+  try {
+    const query      = (req.query.q || '').trim();
+    const spaceFilter = req.query.space && ['eye', 'mind'].includes(req.query.space)
+      ? req.query.space : null;
+    const limit      = Math.min(parseInt(req.query.limit) || 20, 100);
+
+    if (!query) return res.status(400).json({ error: 'Query parameter ?q= is required' });
+
+    // Check availability
+    const available = await isEmbeddingAvailable();
+    if (!available) {
+      return res.status(503).json({
+        error: 'Semantic search not available — run setup-whisper.sh to install sentence-transformers',
+        fallback: true,
+      });
+    }
+
+    // Embed the query
+    const queryVec = await embedText(query);
+    if (!queryVec) return res.status(500).json({ error: 'Failed to embed query' });
+
+    // Load all links that have an embedding stored
+    const clause = spaceFilter ? `WHERE embedding IS NOT NULL AND space = '${spaceFilter}'` : 'WHERE embedding IS NOT NULL';
+    const rows = db.prepare(`SELECT * FROM links ${clause}`).all();
+
+    if (rows.length === 0) {
+      return res.json({ links: [], total: 0, message: 'No embeddings found — save some links first' });
+    }
+
+    // Score each link
+    const scored = rows.map(link => {
+      const vec = bufferToVec(link.embedding);
+      const score = vec ? cosineSimilarity(queryVec, vec) : 0;
+      return { ...link, embedding: undefined, _score: score }; // strip blob from response
+    });
+
+    // Sort by score descending, return top N
+    scored.sort((a, b) => b._score - a._score);
+    const top = scored.slice(0, limit);
+
+    console.log(`[Embed] 🔍 Semantic search "${query}" → top score: ${top[0]?._score?.toFixed(3)}, ${top.length} results`);
+
+    res.json({ links: top, total: top.length, query });
+  } catch (err) {
+    console.error('[Embed] Semantic search error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/backfill-embeddings – Generate embeddings for all links that don't have one
+router.post('/backfill-embeddings', async (req, res) => {
+  try {
+    const available = await isEmbeddingAvailable();
+    if (!available) {
+      return res.status(503).json({ error: 'sentence-transformers not installed' });
+    }
+
+    const links = db.prepare('SELECT id FROM links WHERE embedding IS NULL').all();
+    res.json({ message: `Backfilling ${links.length} links in background…`, count: links.length });
+
+    // Process sequentially in background (avoid hammering CPU)
+    (async () => {
+      let done = 0;
+      for (const { id } of links) {
+        await generateAndStoreEmbedding(id);
+        done++;
+        if (done % 10 === 0) console.log(`[Embed] Backfill progress: ${done}/${links.length}`);
+      }
+      console.log(`[Embed] ✅ Backfill complete — ${done} links embedded`);
+    })();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -533,23 +646,76 @@ router.post('/links/:id/download', async (req, res) => {
 
     // Re-analyze with AI after download (async, non-blocking)
     if (result.type === 'video' || result.type === 'image') {
-      analyzeContent(result.filepath, {
-        title: link.title,
-        description: link.description,
-        source: link.source,
-        url: link.url,
-      }).then((aiResult) => {
-        if (aiResult.tags.length > 0) {
-          mergeAITags(link.id, aiResult.tags);
-          console.log(`[AI] ${result.type}-Tags für Link ${link.id}: ${aiResult.tags.join(', ')}`);
-        }
-        if (aiResult.description) {
-          db.prepare('UPDATE links SET description = ? WHERE id = ?')
-            .run(aiResult.description, link.id);
-        }
-      }).catch(err => {
-        console.log(`[AI] Video-Analyse fehlgeschlagen für Link ${link.id}: ${err.message}`);
-      });
+      // For Mind-space videos: run Whisper first, then AI tagging with transcript as context
+      const isMindVideo = link.space === 'mind' && result.type === 'video' && isWhisperCompatible(result.filepath);
+
+      if (isMindVideo) {
+        // Whisper → store transcript → AI tagging with transcript context (sequential, non-blocking)
+        isWhisperAvailable().then(available => {
+          if (!available) {
+            console.log(`[Whisper] ⚠️  Not installed — skipping transcription for Mind link ${link.id}`);
+            // Fall back to regular AI tagging without transcript
+            return analyzeContent(result.filepath, {
+              title: link.title, description: link.description,
+              source: link.source, url: link.url,
+            });
+          }
+
+          console.log(`[Whisper] 🧠 Mind link — transcribing video ${link.id}`);
+          return transcribeMedia(result.filepath).then(whisperResult => {
+            const transcript = whisperResult.transcript || '';
+
+            // Store transcript as the link's note (only if note is empty)
+            if (transcript) {
+              const currentNote = db.prepare('SELECT note FROM links WHERE id = ?').get(link.id)?.note;
+              if (!currentNote) {
+                db.prepare('UPDATE links SET note = ? WHERE id = ?').run(transcript, link.id);
+                console.log(`[Whisper] 📝 Transcript saved for link ${link.id} (${transcript.split(/\s+/).length} words)`);
+                // Re-embed now that transcript is stored (richer vector)
+                generateAndStoreEmbedding(link.id);
+              }
+            }
+
+            // AI tagging with transcript as extra context
+            return analyzeContent(result.filepath, {
+              title: link.title, description: link.description,
+              source: link.source, url: link.url,
+              note: transcript,  // pass transcript so AI can use it for better tags
+            });
+          });
+        }).then(aiResult => {
+          if (!aiResult) return;
+          if (aiResult.tags.length > 0) {
+            mergeAITags(link.id, aiResult.tags);
+            console.log(`[AI] Mind video tags für Link ${link.id}: ${aiResult.tags.join(', ')}`);
+          }
+          if (aiResult.description) {
+            db.prepare('UPDATE links SET description = ? WHERE id = ?').run(aiResult.description, link.id);
+          }
+        }).catch(err => {
+          console.log(`[Whisper/AI] Fehlgeschlagen für Link ${link.id}: ${err.message}`);
+        });
+
+      } else {
+        // Eye links or non-video: regular AI tagging
+        analyzeContent(result.filepath, {
+          title: link.title,
+          description: link.description,
+          source: link.source,
+          url: link.url,
+        }).then((aiResult) => {
+          if (aiResult.tags.length > 0) {
+            mergeAITags(link.id, aiResult.tags);
+            console.log(`[AI] ${result.type}-Tags für Link ${link.id}: ${aiResult.tags.join(', ')}`);
+          }
+          if (aiResult.description) {
+            db.prepare('UPDATE links SET description = ? WHERE id = ?')
+              .run(aiResult.description, link.id);
+          }
+        }).catch(err => {
+          console.log(`[AI] Video-Analyse fehlgeschlagen für Link ${link.id}: ${err.message}`);
+        });
+      }
     }
 
     const allMediaFiles = (result.allFiles || []).filter(f => f.type !== 'thumbnail');

@@ -62,28 +62,47 @@ echo "📦 Installing OpenAI CLIP…"
   tqdm \
   --quiet 2>&1 | tail -5
 
+# ── Install sentence-transformers (semantic search) ───────────────────────────
+echo ""
+echo "📦 Installing sentence-transformers (~90 MB, for semantic search)…"
+"$VENV_PYTHON" -m pip install \
+  sentence-transformers \
+  --quiet 2>&1 | tail -5
+
 # ── Verify ────────────────────────────────────────────────────────────────────
 echo ""
 echo "🔍 Verifying installation…"
 "$VENV_PYTHON" - << 'PYCHECK'
 import clip, torch
 from PIL import Image
-print(f"  clip:  ✅")
+from sentence_transformers import SentenceTransformer
+print(f"  clip:                ✅")
+print(f"  sentence-transformers: ✅")
 print(f"  torch: {torch.__version__}")
 mps = torch.backends.mps.is_available()
 print(f"  Apple Silicon (MPS): {'✅ enabled — fast!' if mps else '⚠️  not available (CPU mode)'}")
 PYCHECK
 
-# ── Pre-download model ────────────────────────────────────────────────────────
+# ── Pre-download models ───────────────────────────────────────────────────────
 echo ""
 echo "📥 Pre-loading CLIP model ViT-B/32 (~350 MB, cached after this)…"
 "$VENV_PYTHON" - << 'PYDOWNLOAD'
 import clip, torch
 device = "mps" if torch.backends.mps.is_available() else "cpu"
 model, _ = clip.load("ViT-B/32", device=device)
-print(f"  Model ready on: {device}")
+print(f"  CLIP ready on: {device}")
 print(f"  Cached at: ~/.cache/clip/")
 PYDOWNLOAD
+
+echo ""
+echo "📥 Pre-loading sentence-transformers model all-MiniLM-L6-v2 (~90 MB)…"
+"$VENV_PYTHON" - << 'PYEMBED'
+from sentence_transformers import SentenceTransformer
+model = SentenceTransformer("all-MiniLM-L6-v2")
+test = model.encode("test", normalize_embeddings=True)
+print(f"  Embedding model ready (dims: {len(test)})")
+print(f"  Cached at: ~/.cache/huggingface/")
+PYEMBED
 
 echo ""
 echo "────────────────────────────────────────────────────────────"

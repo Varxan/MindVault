@@ -136,24 +136,6 @@ const TAG_CATALOG = {
     ]
   },
 
-  genre: {
-    label: 'Genre / Context',
-    multi: false,
-    tags: [
-      { id: 'drama', label: 'Drama' },
-      { id: 'thriller', label: 'Thriller' },
-      { id: 'horror', label: 'Horror' },
-      { id: 'scifi', label: 'Sci-Fi' },
-      { id: 'action', label: 'Action' },
-      { id: 'comedy', label: 'Comedy' },
-      { id: 'romance', label: 'Romance' },
-      { id: 'fantasy', label: 'Fantasy' },
-      { id: 'documentary_genre', label: 'Documentary' },
-      { id: 'commercial', label: 'Commercial' },
-      { id: 'music_video', label: 'Music Video' },
-      { id: 'period', label: 'Period' }
-    ]
-  }
 };
 
 /**

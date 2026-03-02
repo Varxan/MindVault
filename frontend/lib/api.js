@@ -122,3 +122,19 @@ export async function fetchCollectionsForLink(linkId) {
   if (!res.ok) throw new Error('Failed to load collections');
   return res.json();
 }
+
+// ── Semantic Search ──
+
+export async function fetchSemanticSearch({ q, space, limit = 30 } = {}) {
+  const params = new URLSearchParams();
+  if (q)     params.set('q', q);
+  if (space) params.set('space', space);
+  if (limit) params.set('limit', limit);
+
+  const res = await fetch(`${API_BASE}/search/semantic?${params.toString()}`, { cache: 'no-store' });
+  const data = await res.json();
+
+  // If embeddings not installed, return fallback flag
+  if (!res.ok) return { links: [], total: 0, fallback: data.fallback || false };
+  return data;
+}
