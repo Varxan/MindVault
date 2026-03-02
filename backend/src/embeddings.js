@@ -19,6 +19,7 @@ const { execFile } = require('child_process');
 function getEmbedPython() {
   const os = require('os');
   const candidates = [
+    path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'clip-env', 'bin', 'python3'),
     path.join(os.homedir(), 'Library', 'Application Support', 'MindVault', 'clip-env', 'bin', 'python3'),
     process.env.DATA_PATH
       ? path.join(process.env.DATA_PATH, '..', 'clip-env', 'bin', 'python3')
@@ -38,7 +39,7 @@ function isEmbeddingAvailable() {
   return new Promise((resolve) => {
     const py = getEmbedPython();
     execFile(py, ['-c', 'from sentence_transformers import SentenceTransformer; print("ok")'],
-      { timeout: 8000 }, (err, stdout) => resolve(!err && stdout.trim() === 'ok'));
+      { timeout: 60000 }, (err, stdout) => resolve(!err && stdout.trim() === 'ok'));
   });
 }
 

@@ -86,6 +86,7 @@ function getClipPython() {
 
   const candidates = [
     // 1. Preferred: venv installed by setup-clip.sh into userData (works in both dev + DMG)
+    path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'clip-env', 'bin', 'python3'),
     path.join(os.homedir(), 'Library', 'Application Support', 'MindVault', 'clip-env', 'bin', 'python3'),
     // 2. DATA_PATH sibling (set by Electron, same dir)
     process.env.DATA_PATH
