@@ -48,6 +48,23 @@ function recordAISuccess(provider) {
 }
 
 function getAIStatus() {
+  const preferred = getSetting.get('preferred_ai_provider')?.value || 'local_clip';
+
+  // If user switched to local CLIP, always report OK — no API errors apply
+  if (preferred === 'local_clip') {
+    return { ok: true, provider: 'clip', statusCode: null, errorType: null, message: null, failedAt: null, lastSuccess: _aiStatus.lastSuccess };
+  }
+
+  // If the preferred API provider has no key configured, report that clearly
+  const anthropicKey = getAnthropicKey();
+  const openaiKey    = getOpenAIKey();
+  if (preferred === 'anthropic' && !anthropicKey) {
+    return { ok: false, provider: 'anthropic', statusCode: null, errorType: 'no_key', message: 'No Anthropic API key configured', failedAt: null, lastSuccess: _aiStatus.lastSuccess };
+  }
+  if (preferred === 'openai' && !openaiKey) {
+    return { ok: false, provider: 'openai', statusCode: null, errorType: 'no_key', message: 'No OpenAI API key configured', failedAt: null, lastSuccess: _aiStatus.lastSuccess };
+  }
+
   return { ..._aiStatus };
 }
 // ─────────────────────────────────────────────────────────────────────────────

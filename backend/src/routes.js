@@ -446,11 +446,12 @@ router.get('/search/semantic', async (req, res) => {
       return { ...link, embedding: undefined, _score: score }; // strip blob from response
     });
 
-    // Sort by score descending, return top N
+    // Sort by score descending, filter by minimum threshold, return top N
+    const SEMANTIC_THRESHOLD = 0.20; // below this = not semantically related
     scored.sort((a, b) => b._score - a._score);
-    const top = scored.slice(0, limit);
+    const top = scored.filter(l => l._score >= SEMANTIC_THRESHOLD).slice(0, limit);
 
-    console.log(`[Embed] 🔍 Semantic search "${query}" → top score: ${top[0]?._score?.toFixed(3)}, ${top.length} results`);
+    console.log(`[Embed] 🔍 Semantic search "${query}" → top score: ${scored[0]?._score?.toFixed(3)}, ${top.length}/${scored.length} above threshold`);
 
     res.json({ links: top, total: top.length, query });
   } catch (err) {

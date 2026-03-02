@@ -55,6 +55,7 @@ export default function SettingsPanel({ isOpen, onClose, settingsStatus, onSetti
   const deleteKey = async (key, setStatus) => {
     setStatus(null);
     try {
+      // 1. Clear the API key
       const res = await fetch(`${getApiBase()}/settings`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -62,6 +63,15 @@ export default function SettingsPanel({ isOpen, onClose, settingsStatus, onSetti
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
+
+      // 2. Auto-switch to Local CLIP so AI status resets immediately
+      await fetch(`${getApiBase()}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'preferred_ai_provider', value: 'local_clip' }),
+      });
+      setPreferredProvider('local_clip');
+
       if (onSettingsUpdate) onSettingsUpdate();
     } catch (err) {
       setStatus('error:' + err.message);
