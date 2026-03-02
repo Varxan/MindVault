@@ -52,6 +52,22 @@ export default function SettingsPanel({ isOpen, onClose, settingsStatus, onSetti
     }
   };
 
+  const deleteKey = async (key, setStatus) => {
+    setStatus(null);
+    try {
+      const res = await fetch(`${getApiBase()}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value: '' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Delete failed');
+      if (onSettingsUpdate) onSettingsUpdate();
+    } catch (err) {
+      setStatus('error:' + err.message);
+    }
+  };
+
   const saveProvider = async (provider) => {
     setPreferredProvider(provider);
     await fetch(`${getApiBase()}/settings`, {
@@ -114,7 +130,16 @@ export default function SettingsPanel({ isOpen, onClose, settingsStatus, onSetti
               <div className="settings-field">
                 <label>Anthropic API Key</label>
                 {settingsStatus?.anthropic_api_key && (
-                  <span className="settings-field-masked">{settingsStatus.anthropic_api_key}</span>
+                  <div className="settings-field-connected-row">
+                    <span className="settings-field-masked">{settingsStatus.anthropic_api_key}</span>
+                    <button
+                      className="sp-disconnect-btn"
+                      onClick={() => deleteKey('anthropic_api_key', setAnthropicStatus)}
+                      title="Disconnect API key"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
                 )}
                 <div className="settings-field-row">
                   <input
@@ -141,7 +166,16 @@ export default function SettingsPanel({ isOpen, onClose, settingsStatus, onSetti
               <div className="settings-field">
                 <label>OpenAI API Key</label>
                 {settingsStatus?.openai_api_key && (
-                  <span className="settings-field-masked">{settingsStatus.openai_api_key}</span>
+                  <div className="settings-field-connected-row">
+                    <span className="settings-field-masked">{settingsStatus.openai_api_key}</span>
+                    <button
+                      className="sp-disconnect-btn"
+                      onClick={() => deleteKey('openai_api_key', setOpenaiStatus)}
+                      title="Disconnect API key"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
                 )}
                 <div className="settings-field-row">
                   <input

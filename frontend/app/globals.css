@@ -1308,6 +1308,30 @@ code {
   letter-spacing: 0.03em;
 }
 
+.settings-field-connected-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.sp-disconnect-btn {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.sp-disconnect-btn:hover {
+  border-color: #e05555;
+  color: #e05555;
+  background: rgba(224, 85, 85, 0.08);
+}
+
 .settings-field-row {
   display: flex;
   gap: 0.4rem;
