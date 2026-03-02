@@ -694,75 +694,72 @@ router.post('/links/:id/download', async (req, res) => {
 
     // Re-analyze with AI after download (async, non-blocking)
     if (result.type === 'video' || result.type === 'image') {
-      // For Mind-space videos: run Whisper first, then AI tagging with transcript as context
-      const isMindVideo = link.space === 'mind' && result.type === 'video' && isWhisperCompatible(result.filepath);
+      // Capture link data immediately — prevents closure bugs if another request
+      // comes in before these async callbacks resolve
+      const capturedId    = link.id;
+      const capturedLink  = { ...link }; // snapshot of link at this moment
+      const isMindVideo   = link.space === 'mind' && result.type === 'video' && isWhisperCompatible(result.filepath);
 
       if (isMindVideo) {
-        // Whisper → store transcript → AI tagging with transcript context (sequential, non-blocking)
         isWhisperAvailable().then(available => {
           if (!available) {
-            console.log(`[Whisper] ⚠️  Not installed — skipping transcription for Mind link ${link.id}`);
-            // Fall back to regular AI tagging without transcript
+            console.log(`[Whisper] ⚠️  Not installed — skipping transcription for Mind link ${capturedId}`);
             return analyzeContent(result.filepath, {
-              title: link.title, description: link.description,
-              source: link.source, url: link.url,
+              title: capturedLink.title, description: capturedLink.description,
+              source: capturedLink.source, url: capturedLink.url,
             });
           }
 
-          console.log(`[Whisper] 🧠 Mind link — transcribing video ${link.id}`);
+          console.log(`[Whisper] 🧠 Mind link — transcribing video ${capturedId}`);
           return transcribeMedia(result.filepath).then(whisperResult => {
             const transcript = whisperResult.transcript || '';
 
-            // Store transcript as the link's note (only if note is empty)
             if (transcript) {
-              const currentNote = db.prepare('SELECT note FROM links WHERE id = ?').get(link.id)?.note;
+              const currentNote = db.prepare('SELECT note FROM links WHERE id = ?').get(capturedId)?.note;
               if (!currentNote) {
-                db.prepare('UPDATE links SET note = ? WHERE id = ?').run(transcript, link.id);
-                console.log(`[Whisper] 📝 Transcript saved for link ${link.id} (${transcript.split(/\s+/).length} words)`);
-                pushEvent('link-updated', { id: link.id }); // transcript now in note
-                // Re-embed now that transcript is stored (richer vector)
-                generateAndStoreEmbedding(link.id);
+                db.prepare('UPDATE links SET note = ? WHERE id = ?').run(transcript, capturedId);
+                console.log(`[Whisper] 📝 Transcript saved for link ${capturedId} (${transcript.split(/\s+/).length} words)`);
+                pushEvent('link-updated', { id: capturedId });
+                generateAndStoreEmbedding(capturedId);
               }
             }
 
-            // AI tagging with transcript as extra context
             return analyzeContent(result.filepath, {
-              title: link.title, description: link.description,
-              source: link.source, url: link.url,
-              note: transcript,  // pass transcript so AI can use it for better tags
+              title: capturedLink.title, description: capturedLink.description,
+              source: capturedLink.source, url: capturedLink.url,
+              note: transcript,
             });
           });
         }).then(aiResult => {
           if (!aiResult) return;
           if (aiResult.tags.length > 0) {
-            replaceAITags(link.id, aiResult.tags); // replace — better source than thumbnail
-            console.log(`[AI] Mind video tags für Link ${link.id}: ${aiResult.tags.join(', ')}`);
+            replaceAITags(capturedId, aiResult.tags);
+            console.log(`[AI] Mind video tags für Link ${capturedId}: ${aiResult.tags.join(', ')}`);
           }
           if (aiResult.description) {
-            db.prepare('UPDATE links SET description = ? WHERE id = ?').run(aiResult.description, link.id);
+            db.prepare('UPDATE links SET description = ? WHERE id = ?').run(aiResult.description, capturedId);
           }
         }).catch(err => {
-          console.log(`[Whisper/AI] Fehlgeschlagen für Link ${link.id}: ${err.message}`);
+          console.log(`[Whisper/AI] Fehlgeschlagen für Link ${capturedId}: ${err.message}`);
         });
 
       } else {
-        // Eye links or non-video: replace tags after download (full media > thumbnail)
         analyzeContent(result.filepath, {
-          title: link.title,
-          description: link.description,
-          source: link.source,
-          url: link.url,
+          title: capturedLink.title,
+          description: capturedLink.description,
+          source: capturedLink.source,
+          url: capturedLink.url,
         }).then((aiResult) => {
           if (aiResult.tags.length > 0) {
-            replaceAITags(link.id, aiResult.tags); // replace — full media analysis
-            console.log(`[AI] ${result.type}-Tags für Link ${link.id}: ${aiResult.tags.join(', ')}`);
+            replaceAITags(capturedId, aiResult.tags);
+            console.log(`[AI] ${result.type}-Tags für Link ${capturedId}: ${aiResult.tags.join(', ')}`);
           }
           if (aiResult.description) {
             db.prepare('UPDATE links SET description = ? WHERE id = ?')
-              .run(aiResult.description, link.id);
+              .run(aiResult.description, capturedId);
           }
         }).catch(err => {
-          console.log(`[AI] Video-Analyse fehlgeschlagen für Link ${link.id}: ${err.message}`);
+          console.log(`[AI] Video-Analyse fehlgeschlagen für Link ${capturedId}: ${err.message}`);
         });
       }
     }
