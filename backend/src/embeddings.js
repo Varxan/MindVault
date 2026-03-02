@@ -112,11 +112,13 @@ function cosineSimilarity(a, b) {
  * Combines title + description + note (transcript for Mind) into one string.
  */
 function buildEmbedText(link) {
-  return [link.title, link.description, link.note]
+  // Use hidden transcript column (not user-visible note) for Mind links.
+  // For Eye links, transcript is empty so it falls back to title + description.
+  return [link.title, link.description, link.transcript, link.note]
     .filter(Boolean)
     .map(s => s.trim())
     .join(' ')
-    .substring(0, 4000); // sentence-transformers handles up to ~512 tokens; truncate long transcripts
+    .substring(0, 4000);
 }
 
 module.exports = {

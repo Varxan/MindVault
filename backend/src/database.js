@@ -79,6 +79,9 @@ if (!columns.includes('space')) {
 if (!columns.includes('embedding')) {
   db.exec('ALTER TABLE links ADD COLUMN embedding BLOB');
 }
+if (!columns.includes('transcript')) {
+  db.exec('ALTER TABLE links ADD COLUMN transcript TEXT');
+}
 
 // Cleanup: remove "Watch..." notes that were accidentally saved from Vimeo link previews
 db.exec(`UPDATE links SET note = NULL WHERE source = 'vimeo' AND note LIKE 'Watch%'`);

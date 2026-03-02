@@ -125,4 +125,59 @@ function isWhisperCompatible(filePath) {
   return SUPPORTED_EXTS.has(path.extname(filePath).toLowerCase());
 }
 
-module.exports = { transcribeMedia, isWhisperAvailable, isWhisperCompatible };
+// ── Auto-transcribe from URL (audio-only, temp file, auto-deleted) ────────────
+/**
+ * Download audio-only from a URL via yt-dlp, transcribe with Whisper,
+ * delete the temp file, return the transcript.
+ *
+ * This is the "invisible" pipeline — no user-visible download, no note saved.
+ * Used when a Mind link is created to silently build a transcript for AI context.
+ *
+ * @param {string} url - Video/audio URL (YouTube, Vimeo, etc.)
+ * @param {string} tmpDir - Directory to use for temp audio file
+ * @returns {Promise<string>} transcript text, or '' on failure
+ */
+async function transcribeFromUrl(url, tmpDir) {
+  const os = require('os');
+  const { promisify } = require('util');
+  const execFileAsync = promisify(execFile);
+
+  const tmpPath = path.join(tmpDir || os.tmpdir(), `mv_audio_${Date.now()}.m4a`);
+
+  try {
+    // Download audio-only (much smaller than video — typically 2-10 MB)
+    console.log(`[Whisper] 📥 Downloading audio-only for transcription: ${url.substring(0, 60)}…`);
+    await execFileAsync('yt-dlp', [
+      '--no-playlist',
+      '--extract-audio',
+      '--audio-format', 'm4a',
+      '--audio-quality', '3',       // medium quality — enough for speech
+      '--max-filesize', '50m',      // safety cap: skip files > 50 MB
+      '--no-warnings',
+      '-o', tmpPath,
+      url,
+    ], { timeout: 120_000 }); // 2 min max for audio download
+
+    if (!fs.existsSync(tmpPath)) {
+      console.log('[Whisper] ⚠️  Audio download produced no file — skipping');
+      return '';
+    }
+
+    const fileSizeMB = (fs.statSync(tmpPath).size / 1024 / 1024).toFixed(1);
+    console.log(`[Whisper] 🎵 Audio downloaded: ${fileSizeMB} MB`);
+
+    // Transcribe
+    const result = await transcribeMedia(tmpPath);
+    return result.transcript || '';
+
+  } catch (err) {
+    console.log(`[Whisper] ⚠️  Auto-transcription failed: ${err.message}`);
+    return '';
+  } finally {
+    // Always delete temp file
+    try { if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath); } catch {}
+    console.log('[Whisper] 🗑️  Temp audio file deleted');
+  }
+}
+
+module.exports = { transcribeMedia, transcribeFromUrl, isWhisperAvailable, isWhisperCompatible };

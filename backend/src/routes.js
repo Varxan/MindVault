@@ -34,7 +34,7 @@ const { detectSource, fetchMetadata, fetchSmartMetadata } = require('./metadata'
 const { analyzeContent, getAIStatus, checkClipAvailable } = require('./ai');
 const { downloadThumbnail, generateVideoThumbnail, THUMB_DIR } = require('./thumbnails');
 const { downloadMedia, getDownloadedFiles, isYtdlpInstalled, getMediaInfo, MEDIA_DIR } = require('./downloader');
-const { transcribeMedia, isWhisperAvailable, isWhisperCompatible } = require('./whisper');
+const { transcribeMedia, transcribeFromUrl, isWhisperAvailable, isWhisperCompatible } = require('./whisper');
 const { embedText, isEmbeddingAvailable, cosineSimilarity, vecToBuffer, bufferToVec, buildEmbedText } = require('./embeddings');
 const librarySync = require('./library-sync');
 
@@ -324,6 +324,32 @@ router.post('/links', async (req, res) => {
     res.status(201).json(newLink);
     scheduleSync(); // push to PWA
     pushEvent('link-added', { id: linkId });
+
+    // ── Auto-transcription for Mind links (background, invisible to user) ──────
+    // Downloads audio-only, transcribes, deletes audio, stores in hidden
+    // `transcript` column (NOT in note). Used for AI tagging + semantic search.
+    if ((space || 'eye') === 'mind') {
+      const capturedLinkId = linkId;
+      const capturedUrl    = url;
+      setImmediate(async () => {
+        try {
+          const available = await isWhisperAvailable();
+          if (!available) return;
+
+          const transcript = await transcribeFromUrl(capturedUrl, null);
+          if (!transcript) return;
+
+          db.prepare('UPDATE links SET transcript = ? WHERE id = ?').run(transcript, capturedLinkId);
+          console.log(`[Whisper] 💾 Hidden transcript stored for Mind link ${capturedLinkId}`);
+
+          // Re-embed with transcript for richer semantic search
+          generateAndStoreEmbedding(capturedLinkId);
+          pushEvent('link-updated', { id: capturedLinkId });
+        } catch (err) {
+          console.log(`[Whisper] ⚠️  Background transcription failed for ${capturedLinkId}: ${err.message}`);
+        }
+      });
+    }
   } catch (err) {
     console.error('Error creating link:', err);
     res.status(500).json({ error: 'Fehler beim Erstellen des Links' });
@@ -710,24 +736,21 @@ router.post('/links/:id/download', async (req, res) => {
             });
           }
 
-          console.log(`[Whisper] 🧠 Mind link — transcribing video ${capturedId}`);
+          console.log(`[Whisper] 🧠 Mind link — transcribing downloaded video ${capturedId}`);
           return transcribeMedia(result.filepath).then(whisperResult => {
             const transcript = whisperResult.transcript || '';
 
             if (transcript) {
-              const currentNote = db.prepare('SELECT note FROM links WHERE id = ?').get(capturedId)?.note;
-              if (!currentNote) {
-                db.prepare('UPDATE links SET note = ? WHERE id = ?').run(transcript, capturedId);
-                console.log(`[Whisper] 📝 Transcript saved for link ${capturedId} (${transcript.split(/\s+/).length} words)`);
-                pushEvent('link-updated', { id: capturedId });
-                generateAndStoreEmbedding(capturedId);
-              }
+              // Store in hidden `transcript` column — NOT in user-visible note
+              db.prepare('UPDATE links SET transcript = ? WHERE id = ?').run(transcript, capturedId);
+              console.log(`[Whisper] 💾 Transcript stored (hidden) for link ${capturedId} (${transcript.split(/\s+/).length} words)`);
+              generateAndStoreEmbedding(capturedId);
             }
 
             return analyzeContent(result.filepath, {
               title: capturedLink.title, description: capturedLink.description,
               source: capturedLink.source, url: capturedLink.url,
-              note: transcript,
+              note: transcript, // still passed as AI context, never shown in UI
             });
           });
         }).then(aiResult => {
