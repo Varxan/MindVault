@@ -221,17 +221,23 @@ export default function LinkGrid() {
       const useSemantic = search && activeSpace === 'mind';
 
       if (useSemantic) {
-        const data = await fetchSemanticSearch({ q: search, space: 'mind', limit: 50 });
-        if (data.fallback) {
-          // Semantic not installed — silently fall back to keyword search
+        let usedSemantic = false;
+        try {
+          const data = await fetchSemanticSearch({ q: search, space: 'mind', limit: 50 });
+          if (!data.fallback && data.links && data.links.length >= 0) {
+            usedSemantic = true;
+            setIsSemanticSearch(true);
+            setLinks(data.links);
+            setTotal(data.total);
+          }
+        } catch {}
+
+        if (!usedSemantic) {
+          // Semantic not available — fall back to keyword search
           setIsSemanticSearch(false);
           const kw = await fetchLinks({ search, space: 'mind' });
           setLinks(kw.links);
           setTotal(kw.total);
-        } else {
-          setIsSemanticSearch(true);
-          setLinks(data.links);
-          setTotal(data.total);
         }
       } else {
         setIsSemanticSearch(false);
@@ -477,7 +483,13 @@ export default function LinkGrid() {
           ].map(tab => (
             <button
               key={tab.label}
-              onClick={() => { setActiveSpace(tab.value === activeSpace ? null : tab.value); setActiveSource(null); setActiveCollection(null); }}
+              onClick={() => {
+                if (tab.value === activeSpace) return; // already active — do nothing (no "all" view)
+                setActiveSpace(tab.value);
+                setActiveSource(null);
+                setActiveCollection(null);
+                setSearch(''); // clear search when switching spaces
+              }}
               style={{
                 background: 'transparent',
                 border: 'none',

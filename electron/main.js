@@ -1,11 +1,12 @@
 'use strict';
 
-const { app, BrowserWindow, shell, Menu, dialog, ipcMain } = require('electron');
-const { fork, execSync } = require('child_process');
+const { app, BrowserWindow, shell, Menu, dialog, ipcMain, Notification } = require('electron');
+const { fork, execSync, spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
+const os = require('os');
 
 // Kill any process occupying our ports before starting servers
 // Prevents EADDRINUSE crashes when a previous MindVault instance didn't exit cleanly
@@ -563,6 +564,77 @@ app.whenReady().then(async () => {
   await launchMainApp();
 });
 
+// ── Auto-install CLIP on first launch ────────────────────────────────────────
+// Runs setup-clip.sh silently in the background the first time the app
+// starts without CLIP installed. User sees a macOS notification.
+
+function isClipInstalled() {
+  const candidates = [
+    path.join(os.homedir(), 'Library', 'Application Support', 'MindVault', 'clip-env', 'bin', 'python3'),
+    path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'clip-env', 'bin', 'python3'),
+  ];
+  return candidates.some(p => fs.existsSync(p));
+}
+
+function runClipSetupIfNeeded() {
+  if (isClipInstalled()) return; // already installed — nothing to do
+
+  const setupScript = isDev
+    ? path.join(__dirname, '..', 'backend', 'scripts', 'setup-clip.sh')
+    : path.join(process.resourcesPath, 'backend', 'scripts', 'setup-clip.sh');
+
+  if (!fs.existsSync(setupScript)) {
+    log('[CLIP Setup] setup-clip.sh not found — skipping auto-install');
+    return;
+  }
+
+  log('[CLIP Setup] CLIP not installed — running setup-clip.sh in background…');
+
+  // Show macOS notification: setup is starting
+  if (Notification.isSupported()) {
+    new Notification({
+      title: 'MindVault — AI Engine',
+      body: 'Installing AI engine for the first time. This takes a few minutes…',
+      silent: true,
+    }).show();
+  }
+
+  const proc = spawn('bash', [setupScript], {
+    env: { ...process.env, PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${process.env.PATH || ''}` },
+    stdio: ['ignore', 'pipe', 'pipe'],
+    detached: false,
+  });
+
+  proc.stdout?.on('data', d => log('[CLIP Setup] ' + d.toString().trim()));
+  proc.stderr?.on('data', d => log('[CLIP Setup ERR] ' + d.toString().trim()));
+
+  proc.on('close', (code) => {
+    if (code === 0) {
+      log('[CLIP Setup] ✅ CLIP installed successfully.');
+      if (Notification.isSupported()) {
+        new Notification({
+          title: 'MindVault — AI Engine Ready',
+          body: 'AI engine installed. New links will now be analysed with CLIP.',
+          silent: false,
+        }).show();
+      }
+    } else {
+      log(`[CLIP Setup] ❌ setup-clip.sh exited with code ${code}`);
+      if (Notification.isSupported()) {
+        new Notification({
+          title: 'MindVault — AI Setup Failed',
+          body: 'Could not install AI engine. Open Terminal and run: bash backend/scripts/setup-clip.sh',
+          silent: false,
+        }).show();
+      }
+    }
+  });
+
+  proc.on('error', (err) => {
+    log(`[CLIP Setup] ❌ Failed to start setup: ${err.message}`);
+  });
+}
+
 // ── Launch main app (called after activation or directly on startup) ──────────
 
 async function launchMainApp() {
@@ -609,6 +681,7 @@ async function launchMainApp() {
     log('[Electron] All servers ready — opening window.');
     isStartingUp = false;
     createWindow();
+    runClipSetupIfNeeded(); // Auto-install CLIP on first launch if not present
 
   } catch (err) {
     log('[Electron] STARTUP FAILED: ' + err.message);
