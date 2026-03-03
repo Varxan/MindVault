@@ -289,24 +289,93 @@ function isVideoFile(filePath) {
 }
 
 /**
+ * Like extractVideoFrames but returns file PATHS instead of base64 objects.
+ * Caller is responsible for deleting the returned files after use.
+ * Used by the CLIP path so Python can open the files directly.
+ */
+function extractFrameFiles(videoPath, numFrames = 4) {
+  return new Promise((resolve, reject) => {
+    const tmpDir = path.join(os.tmpdir(), `mv_frames_${Date.now()}`);
+    fs.mkdirSync(tmpDir, { recursive: true });
+
+    const basename = path.basename(videoPath, path.extname(videoPath));
+    const outputPattern = path.join(tmpDir, `${basename}_%02d.jpg`);
+
+    execFile('ffprobe', [
+      '-v', 'quiet',
+      '-show_entries', 'format=duration',
+      '-of', 'csv=p=0',
+      videoPath,
+    ], { timeout: 10000 }, (err, stdout) => {
+      const duration = parseFloat(stdout) || 10;
+      const interval = Math.max(1, Math.floor(duration / (numFrames + 1)));
+
+      execFile('ffmpeg', [
+        '-i', videoPath,
+        '-vf', `fps=1/${interval}`,
+        '-frames:v', String(numFrames),
+        '-q:v', '3',
+        '-y',
+        outputPattern,
+      ], { timeout: 30000 }, (ffErr) => {
+        if (ffErr) {
+          try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+          return reject(ffErr);
+        }
+
+        const framePaths = [];
+        for (let i = 1; i <= numFrames; i++) {
+          const p = path.join(tmpDir, `${basename}_${String(i).padStart(2, '0')}.jpg`);
+          if (fs.existsSync(p)) framePaths.push(p);
+        }
+
+        if (framePaths.length === 0) {
+          try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+          return reject(new Error('No frames extracted'));
+        }
+
+        console.log(`[CLIP] 🎬 Extracted ${framePaths.length} frame files from video (${duration.toFixed(1)}s)`);
+        resolve({ framePaths, tmpDir });
+      });
+    });
+  });
+}
+
+/**
  * Analyze an image or video with Claude Vision.
  * For videos: extracts frames via ffmpeg and sends multiple images.
  * Returns: { tags: string[], description: string }
  */
 async function analyzeContent(imageSource, context = {}) {
-  // ── CLIP local provider (runs before API check) ───────────────────────────
+  // ── CLIP local provider ───────────────────────────────────────────────────
+  // Mirrors the API path exactly:
+  //   video file  → extract N frames (ffmpeg) → average embeddings in CLIP
+  //   local image → single image → CLIP
+  //   HTTP URL    → download to temp → CLIP
   if (isClipEnabled() && imageSource) {
-    let clipImagePath = null;
-    let tempFile = null;
+    const clipPaths   = [];   // image file paths to send to CLIP
+    const cleanupDirs = [];   // temp dirs to delete after
+    const cleanupFiles = [];  // temp files to delete after
 
-    if (!imageSource.startsWith('http')) {
-      // Local file — use directly if it exists and is not a video
-      if (fs.existsSync(imageSource) && !isVideoFile(imageSource)) {
-        clipImagePath = imageSource;
+    if (!imageSource.startsWith('http') && fs.existsSync(imageSource)) {
+      if (isVideoFile(imageSource)) {
+        // ── Video: extract frames just like the API path ──────────────────
+        try {
+          const duration   = await getVideoDuration(imageSource);
+          const numFrames  = getOptimalFrameCount(duration);
+          console.log(`[CLIP] 🎬 Video detected — extracting ${numFrames} frames for CLIP analysis`);
+          const { framePaths, tmpDir } = await extractFrameFiles(imageSource, numFrames);
+          clipPaths.push(...framePaths);
+          cleanupDirs.push(tmpDir);
+        } catch (e) {
+          console.log(`[CLIP] ⚠️  Frame extraction failed: ${e.message}`);
+        }
+      } else {
+        // ── Local image: use directly ─────────────────────────────────────
+        clipPaths.push(imageSource);
       }
-    } else {
-      // HTTP URL — Instagram and other platforms often block thumbnail requests,
-      // so download to a temp file here so CLIP can analyse the image locally.
+    } else if (imageSource.startsWith('http')) {
+      // ── HTTP URL: download to temp (platforms often block direct download) ─
       try {
         const tmpPath = path.join(os.tmpdir(), `mv_clip_${Date.now()}.jpg`);
         const imgRes = await fetch(imageSource, {
@@ -318,23 +387,24 @@ async function analyzeContent(imageSource, context = {}) {
           const buf = await imgRes.buffer();
           if (buf.length > 1000) {
             fs.writeFileSync(tmpPath, buf);
-            clipImagePath = tmpPath;
-            tempFile = tmpPath;
-            console.log(`[CLIP] 📥 Temp-downloaded thumbnail for CLIP (${(buf.length / 1024).toFixed(1)}KB)`);
+            clipPaths.push(tmpPath);
+            cleanupFiles.push(tmpPath);
+            console.log(`[CLIP] 📥 Downloaded thumbnail for CLIP (${(buf.length / 1024).toFixed(1)}KB)`);
           }
         } else {
-          console.log(`[CLIP] ⚠️  Could not download thumbnail for CLIP (${imgRes.status})`);
+          console.log(`[CLIP] ⚠️  Thumbnail download failed (${imgRes.status})`);
         }
       } catch (dlErr) {
-        console.log(`[CLIP] ⚠️  Thumbnail download failed: ${dlErr.message}`);
+        console.log(`[CLIP] ⚠️  Thumbnail download error: ${dlErr.message}`);
       }
     }
 
-    if (clipImagePath) {
-      console.log('[AI] 🖥️  CLIP local mode — skipping API call');
-      const clipResult = await analyzeWithCLIP(clipImagePath, context);
-      // Clean up temp file if we created one
-      if (tempFile) { try { fs.unlinkSync(tempFile); } catch {} }
+    if (clipPaths.length > 0) {
+      console.log(`[AI] 🖥️  CLIP local mode — ${clipPaths.length} image(s)`);
+      const clipResult = await analyzeWithCLIP(clipPaths, context);
+      // Clean up any temp files / dirs we created
+      for (const f of cleanupFiles) { try { fs.unlinkSync(f); } catch {} }
+      for (const d of cleanupDirs)  { try { fs.rmSync(d, { recursive: true, force: true }); } catch {} }
       if (clipResult && clipResult.tags.length > 0) {
         recordAISuccess('clip');
         return clipResult;
@@ -456,12 +526,20 @@ async function analyzeContent(imageSource, context = {}) {
  * Analyze a local image using CLIP (runs Python script via child_process).
  * Returns { tags, description } or null on failure.
  */
-async function analyzeWithCLIP(imagePath, context = {}) {
+/**
+ * Run CLIP on one or more image files.
+ * When multiple paths are given (e.g. video frames), their embeddings
+ * are averaged in Python before tag scoring — same holistic view the API gets.
+ */
+async function analyzeWithCLIP(imagePaths, context = {}) {
   const { getAllTags } = require('./tag-catalog');
   const tags = getAllTags();
 
+  // Accept both a single path (legacy) and an array
+  const paths = Array.isArray(imagePaths) ? imagePaths : [imagePaths];
+
   const input = JSON.stringify({
-    imagePath,
+    imagePaths: paths,
     tags,
     topK: 15,
     threshold: 0.001,
@@ -489,7 +567,7 @@ async function analyzeWithCLIP(imagePath, context = {}) {
           return;
         }
 
-        console.log(`[CLIP] ✅ ${result.tags.length} tags on ${result.device} — ${result.tags.slice(0, 5).join(', ')}…`);
+        console.log(`[CLIP] ✅ ${result.tags.length} tags from ${result.frames || 1} frame(s) on ${result.device} — ${result.tags.slice(0, 5).join(', ')}…`);
         resolve({
           tags: result.tags,
           description: null, // CLIP doesn't generate descriptions

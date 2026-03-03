@@ -2,22 +2,25 @@
 """
 MindVault CLIP Tagger
 ─────────────────────
-Scores a thumbnail image against the MindVault tag catalog using
-OpenAI CLIP (ViT-B/32). Returns ranked tags as JSON.
+Scores one or more images against the MindVault tag catalog using
+OpenAI CLIP (ViT-B/32). When multiple images are given (e.g. video
+frames), their embeddings are averaged before scoring — giving CLIP
+a holistic view of the whole video rather than a single frame.
 
 Usage (called by ai.js via child_process):
   python3 clip_tagger.py '<json_input>'
 
 JSON input:
   {
-    "imagePath": "/abs/path/to/thumb.jpg",
-    "tags": ["Natural Light", "Handheld", ...],   // full catalog
-    "topK": 12,                                    // how many tags to return
-    "threshold": 0.008                             // min similarity to include
+    "imagePaths": ["/abs/frame1.jpg", "/abs/frame2.jpg"],   // multi-frame
+    "imagePath":  "/abs/path/to/thumb.jpg",                 // legacy single
+    "tags": ["Natural Light", "Handheld", ...],
+    "topK": 15,
+    "threshold": 0.001
   }
 
 JSON output:
-  { "tags": ["tag1", "tag2", ...], "scores": { "tag1": 0.045, ... } }
+  { "tags": [...], "scores": {...}, "device": "mps", "frames": 3 }
 
 On error:
   { "error": "description" }
@@ -28,7 +31,6 @@ import json
 import os
 
 def main():
-    # ── Parse input ──────────────────────────────────────────────────────────
     if len(sys.argv) < 2:
         print(json.dumps({"error": "No input JSON provided"}))
         sys.exit(1)
@@ -39,20 +41,28 @@ def main():
         print(json.dumps({"error": f"Invalid JSON input: {e}"}))
         sys.exit(1)
 
-    image_path = data.get("imagePath", "")
-    tags       = data.get("tags", [])
-    top_k      = int(data.get("topK", 12))
-    threshold  = float(data.get("threshold", 0.008))
+    # Accept both imagePaths (array) and imagePath (legacy single string)
+    image_paths = data.get("imagePaths", None)
+    if not image_paths:
+        single = data.get("imagePath", "")
+        image_paths = [single] if single else []
 
-    if not image_path or not os.path.exists(image_path):
-        print(json.dumps({"error": f"Image not found: {image_path}"}))
+    tags      = data.get("tags", [])
+    top_k     = int(data.get("topK", 15))
+    threshold = float(data.get("threshold", 0.001))
+
+    # Validate all paths exist
+    valid_paths = [p for p in image_paths if p and os.path.exists(p)]
+    if not valid_paths:
+        missing = [p for p in image_paths if not os.path.exists(p)]
+        print(json.dumps({"error": f"No valid image paths. Missing: {missing[:3]}"}))
         sys.exit(1)
 
     if not tags:
         print(json.dumps({"error": "No tags provided"}))
         sys.exit(1)
 
-    # ── Load CLIP (lazy import so startup errors are readable) ───────────────
+    # ── Load CLIP ─────────────────────────────────────────────────────────────
     try:
         import torch
         import clip
@@ -61,7 +71,7 @@ def main():
         print(json.dumps({"error": f"Missing dependency: {e}. Run setup-clip.sh first."}))
         sys.exit(1)
 
-    # ── Device selection: MPS (Apple Silicon) > CUDA > CPU ──────────────────
+    # Device: MPS (Apple Silicon) > CUDA > CPU
     if torch.backends.mps.is_available():
         device = "mps"
     elif torch.cuda.is_available():
@@ -69,7 +79,6 @@ def main():
     else:
         device = "cpu"
 
-    # ── Load model (cached in ~/.cache/clip/ after first download) ───────────
     try:
         model, preprocess = clip.load("ViT-B/32", device=device)
         model.eval()
@@ -77,35 +86,46 @@ def main():
         print(json.dumps({"error": f"CLIP model load failed: {e}"}))
         sys.exit(1)
 
-    # ── Load and preprocess image ─────────────────────────────────────────────
-    try:
-        img = Image.open(image_path).convert("RGB")
-        image_tensor = preprocess(img).unsqueeze(0).to(device)
-    except Exception as e:
-        print(json.dumps({"error": f"Image load failed: {e}"}))
-        sys.exit(1)
-
-    # ── Encode image and tags ─────────────────────────────────────────────────
+    # ── Encode all images, then average embeddings ────────────────────────────
     try:
         with torch.no_grad():
-            image_features = model.encode_image(image_tensor)
-            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+            image_embeddings = []
+            for img_path in valid_paths:
+                try:
+                    img = Image.open(img_path).convert("RGB")
+                    tensor = preprocess(img).unsqueeze(0).to(device)
+                    feat = model.encode_image(tensor)
+                    feat = feat / feat.norm(dim=-1, keepdim=True)
+                    image_embeddings.append(feat)
+                except Exception as e:
+                    # Skip unreadable frames, continue with others
+                    pass
 
-            # CLIP tokenizer has a max of 77 tokens — long tags are fine
+            if not image_embeddings:
+                print(json.dumps({"error": "All image frames failed to load"}))
+                sys.exit(1)
+
+            # Average all frame embeddings → holistic video representation
+            if len(image_embeddings) > 1:
+                avg_features = torch.stack(image_embeddings).mean(dim=0)
+                avg_features = avg_features / avg_features.norm(dim=-1, keepdim=True)
+            else:
+                avg_features = image_embeddings[0]
+
+            # Encode tags
             text_inputs = clip.tokenize(tags, truncate=True).to(device)
             text_features = model.encode_text(text_inputs)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
-            # Cosine similarity scaled to [0, 1]
-            similarity = (image_features @ text_features.T).squeeze(0)
-            # Softmax so scores sum to 1 (makes threshold meaningful)
+            # Cosine similarity → softmax
+            similarity = (avg_features @ text_features.T).squeeze(0)
             scores = similarity.softmax(dim=-1).cpu().tolist()
 
     except Exception as e:
         print(json.dumps({"error": f"CLIP inference failed: {e}"}))
         sys.exit(1)
 
-    # ── Rank — always return exactly top_k, no threshold cutoff ─────────────
+    # ── Rank and return top-k ─────────────────────────────────────────────────
     tag_scores = sorted(zip(tags, scores), key=lambda x: x[1], reverse=True)
     selected   = tag_scores[:top_k]
 
@@ -116,6 +136,7 @@ def main():
         "tags":   result_tags,
         "scores": result_scores,
         "device": device,
+        "frames": len(valid_paths),
     }))
 
 
