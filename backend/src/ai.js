@@ -1,6 +1,7 @@
 const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { execFile } = require('child_process');
 const { buildPrompt } = require('./tagging-config');
 
@@ -294,10 +295,46 @@ function isVideoFile(filePath) {
  */
 async function analyzeContent(imageSource, context = {}) {
   // ── CLIP local provider (runs before API check) ───────────────────────────
-  if (isClipEnabled() && imageSource && !imageSource.startsWith('http')) {
-    if (fs.existsSync(imageSource) && !isVideoFile(imageSource)) {
+  if (isClipEnabled() && imageSource) {
+    let clipImagePath = null;
+    let tempFile = null;
+
+    if (!imageSource.startsWith('http')) {
+      // Local file — use directly if it exists and is not a video
+      if (fs.existsSync(imageSource) && !isVideoFile(imageSource)) {
+        clipImagePath = imageSource;
+      }
+    } else {
+      // HTTP URL — Instagram and other platforms often block thumbnail requests,
+      // so download to a temp file here so CLIP can analyse the image locally.
+      try {
+        const tmpPath = path.join(os.tmpdir(), `mv_clip_${Date.now()}.jpg`);
+        const imgRes = await fetch(imageSource, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
+          timeout: 12000,
+          redirect: 'follow',
+        });
+        if (imgRes.ok) {
+          const buf = await imgRes.buffer();
+          if (buf.length > 1000) {
+            fs.writeFileSync(tmpPath, buf);
+            clipImagePath = tmpPath;
+            tempFile = tmpPath;
+            console.log(`[CLIP] 📥 Temp-downloaded thumbnail for CLIP (${(buf.length / 1024).toFixed(1)}KB)`);
+          }
+        } else {
+          console.log(`[CLIP] ⚠️  Could not download thumbnail for CLIP (${imgRes.status})`);
+        }
+      } catch (dlErr) {
+        console.log(`[CLIP] ⚠️  Thumbnail download failed: ${dlErr.message}`);
+      }
+    }
+
+    if (clipImagePath) {
       console.log('[AI] 🖥️  CLIP local mode — skipping API call');
-      const clipResult = await analyzeWithCLIP(imageSource, context);
+      const clipResult = await analyzeWithCLIP(clipImagePath, context);
+      // Clean up temp file if we created one
+      if (tempFile) { try { fs.unlinkSync(tempFile); } catch {} }
       if (clipResult && clipResult.tags.length > 0) {
         recordAISuccess('clip');
         return clipResult;
@@ -420,14 +457,14 @@ async function analyzeContent(imageSource, context = {}) {
  * Returns { tags, description } or null on failure.
  */
 async function analyzeWithCLIP(imagePath, context = {}) {
-  const { getAllTagsWithPrompts } = require('./tag-catalog');
-  const tagDefs = getAllTagsWithPrompts(); // [{ label, prompt }]
+  const { getAllTags } = require('./tag-catalog');
+  const tags = getAllTags();
 
   const input = JSON.stringify({
     imagePath,
-    tagDefs,           // pass { label, prompt } pairs
+    tags,
     topK: 15,
-    threshold: 0.008,  // min softmax score — filters irrelevant matches
+    threshold: 0.001,
   });
 
   return new Promise((resolve) => {
@@ -452,7 +489,7 @@ async function analyzeWithCLIP(imagePath, context = {}) {
           return;
         }
 
-        console.log(`[CLIP] ✅ ${result.tags.length}/${result.total_candidates || '?'} tags above threshold ${result.threshold || '?'} on ${result.device} — ${result.tags.slice(0, 5).join(', ')}…`);
+        console.log(`[CLIP] ✅ ${result.tags.length} tags on ${result.device} — ${result.tags.slice(0, 5).join(', ')}…`);
         resolve({
           tags: result.tags,
           description: null, // CLIP doesn't generate descriptions
