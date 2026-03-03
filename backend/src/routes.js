@@ -2339,6 +2339,100 @@ router.get('/clip-status', async (req, res) => {
   }
 });
 
+// GET /api/clip-debug
+// Full diagnostic: checks every step of the CLIP pipeline and reports exactly what fails.
+router.get('/clip-debug', async (req, res) => {
+  const { execFile } = require('child_process');
+  const os = require('os');
+  const report = {};
+
+  // 1. DB settings
+  try {
+    const provider = getSetting.get('preferred_ai_provider');
+    const legacyClip = getSetting.get('use_local_clip');
+    report.preferred_ai_provider = provider?.value || '(not set)';
+    report.use_local_clip = legacyClip?.value || '(not set)';
+    report.clip_enabled = provider?.value === 'local_clip' || legacyClip?.value === 'true';
+  } catch (e) {
+    report.settings_error = e.message;
+  }
+
+  // 2. Python path resolution
+  const candidates = [
+    path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'clip-env', 'bin', 'python3'),
+    path.join(os.homedir(), 'Library', 'Application Support', 'MindVault', 'clip-env', 'bin', 'python3'),
+    process.env.DATA_PATH ? path.join(process.env.DATA_PATH, '..', 'clip-env', 'bin', 'python3') : null,
+    path.join(__dirname, '..', 'clip-env', 'bin', 'python3'),
+    '/opt/homebrew/bin/python3',
+  ].filter(Boolean);
+  report.python_candidates = candidates.map(p => ({ path: p, exists: require('fs').existsSync(p) }));
+  const pythonCmd = candidates.find(p => require('fs').existsSync(p)) || 'python3';
+  report.python_resolved = pythonCmd;
+
+  // 3. Can Python run at all?
+  await new Promise(resolve => {
+    execFile(pythonCmd, ['--version'], { timeout: 5000 }, (err, stdout, stderr) => {
+      report.python_version = err ? `ERROR: ${err.message}` : (stdout || stderr).trim();
+      resolve();
+    });
+  });
+
+  // 4. Is 'clip' importable?
+  await new Promise(resolve => {
+    execFile(pythonCmd, ['-c', 'import clip; print("clip ok")'], { timeout: 10000 }, (err, stdout) => {
+      report.clip_import = err ? `FAIL: ${err.message}` : stdout.trim();
+      resolve();
+    });
+  });
+
+  // 5. Is 'torch' importable?
+  await new Promise(resolve => {
+    execFile(pythonCmd, ['-c', 'import torch; print(torch.__version__)'], { timeout: 10000 }, (err, stdout) => {
+      report.torch_version = err ? `FAIL: ${err.message}` : stdout.trim();
+      resolve();
+    });
+  });
+
+  // 6. Check a recent thumbnail exists
+  try {
+    const thumbDir = require('./thumbnails').THUMB_DIR;
+    const files = require('fs').readdirSync(thumbDir).filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f));
+    report.thumbnails_dir = thumbDir;
+    report.thumbnail_count = files.length;
+    report.latest_thumbnail = files.length > 0
+      ? path.join(thumbDir, files.sort().slice(-1)[0])
+      : null;
+  } catch (e) {
+    report.thumbnails_error = e.message;
+  }
+
+  // 7. Try running clip_tagger.py on the latest thumbnail (if any)
+  if (report.latest_thumbnail && report.clip_import === 'clip ok') {
+    const { getAllTags } = require('./tag-catalog');
+    const input = JSON.stringify({ imagePaths: [report.latest_thumbnail], tags: getAllTags(), topK: 5, threshold: 0.001 });
+    const scriptPath = path.join(__dirname, 'clip_tagger.py');
+    await new Promise(resolve => {
+      execFile(pythonCmd, [scriptPath, input], { timeout: 60000 }, (err, stdout, stderr) => {
+        if (err) {
+          report.clip_tagger_result = `ERROR: ${err.message}`;
+          if (stderr) report.clip_tagger_stderr = stderr.substring(0, 300);
+        } else {
+          try {
+            report.clip_tagger_result = JSON.parse(stdout.trim());
+          } catch {
+            report.clip_tagger_result = `BAD JSON: ${stdout.substring(0, 200)}`;
+          }
+        }
+        resolve();
+      });
+    });
+  } else if (!report.latest_thumbnail) {
+    report.clip_tagger_result = 'SKIPPED — no thumbnail found to test with';
+  }
+
+  res.json(report);
+});
+
 // Global Express error handler — catches errors thrown/rejected in any route
 // (Express 4 doesn't auto-handle async rejections, so this is the safety net)
 router.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
