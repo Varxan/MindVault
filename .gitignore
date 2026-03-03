@@ -18,6 +18,11 @@ backend/data/
 dist/
 out/
 
+# CLIP bundle — build artifacts, nicht in git
+# Erstellen mit: bash backend/scripts/build-clip-bundle.sh
+backend/clip-env/
+backend/clip-models/
+
 # macOS
 .DS_Store
 .vercel

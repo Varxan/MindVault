@@ -10,13 +10,20 @@ Output (stdout):  JSON string { embedding: [float, ...] (384 dims) }
 
 import sys
 import json
+import os
+
+# ── Bundled model path ────────────────────────────────────────────────────────
+_SCRIPT_DIR     = os.path.dirname(os.path.abspath(__file__))
+_BUNDLED_MODELS = os.path.join(_SCRIPT_DIR, '..', 'clip-models')
+_MODELS_CACHE   = _BUNDLED_MODELS if os.path.isdir(_BUNDLED_MODELS) else None
 
 
 def embed(text: str) -> list[float]:
     from sentence_transformers import SentenceTransformer
     import numpy as np
 
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+    # Use bundled model dir if present (DMG), otherwise fall back to HuggingFace cache
+    model = SentenceTransformer("all-MiniLM-L6-v2", cache_folder=_MODELS_CACHE)
     vec = model.encode(text, normalize_embeddings=True)
     return vec.tolist()
 

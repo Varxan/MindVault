@@ -30,6 +30,14 @@ import sys
 import json
 import os
 
+# ── Bundled model path ────────────────────────────────────────────────────────
+# When running from a DMG, models are pre-downloaded to backend/clip-models/
+# (sibling of this script's parent directory). Using download_root for CLIP
+# and cache_folder for sentence-transformers ensures offline operation.
+_SCRIPT_DIR    = os.path.dirname(os.path.abspath(__file__))
+_BUNDLED_MODELS = os.path.join(_SCRIPT_DIR, '..', 'clip-models')
+_CLIP_MODELS_DIR = _BUNDLED_MODELS if os.path.isdir(_BUNDLED_MODELS) else None
+
 def main():
     if len(sys.argv) < 2:
         print(json.dumps({"error": "No input JSON provided"}))
@@ -80,7 +88,9 @@ def main():
         device = "cpu"
 
     try:
-        model, preprocess = clip.load("ViT-B/32", device=device)
+        # Use bundled models directory if available (DMG / dev with build-clip-bundle.sh)
+        # Falls back to ~/.cache/clip/ when running without a bundle (setup-clip.sh path)
+        model, preprocess = clip.load("ViT-B/32", device=device, download_root=_CLIP_MODELS_DIR)
         model.eval()
     except Exception as e:
         print(json.dumps({"error": f"CLIP model load failed: {e}"}))

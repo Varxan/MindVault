@@ -11,7 +11,6 @@
     "dev": "concurrently \"npm run backend:dev\" \"npm run frontend\"",
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
     "setup": "npm run install:all",
-
     "build": "cd frontend && npm run build",
     "build:frontend": "cd frontend && npm run build",
     "rebuild:native": "node scripts/rebuild-native.js",
@@ -19,7 +18,9 @@
     "electron:build": "npm run build:frontend && electron-builder",
     "dist": "npm run build:frontend && npm run rebuild:native && electron-builder --mac --arm64",
     "licenses:generate": "node scripts/generate-licenses.js",
-    "licenses:beta": "node scripts/generate-licenses.js 20 \"Beta\""
+    "licenses:beta": "node scripts/generate-licenses.js 20 \"Beta\"",
+    "clip:bundle": "bash backend/scripts/build-clip-bundle.sh",
+    "dist:full": "npm run clip:bundle && npm run dist"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.6.0",
@@ -42,7 +43,12 @@
       {
         "from": "backend",
         "to": "backend",
-        "filter": ["**/*", "!node_modules/**", "!data/**", "!.git/**"]
+        "filter": [
+          "**/*",
+          "!node_modules/**",
+          "!data/**",
+          "!.git/**"
+        ]
       },
       {
         "from": "backend/node_modules",
@@ -63,7 +69,12 @@
     ],
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
       ],
       "icon": "electron/icons/icon.icns",
       "category": "public.app-category.productivity"
