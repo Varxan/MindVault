@@ -3,21 +3,22 @@
 MindVault CLIP Tagger
 ─────────────────────
 Scores a thumbnail image against the MindVault tag catalog using
-OpenAI CLIP (ViT-B/32). Returns ranked tags as JSON.
+OpenAI CLIP (ViT-B/32). Uses descriptive prompts for better zero-shot
+accuracy, but returns human-readable tag labels.
 
 Usage (called by ai.js via child_process):
   python3 clip_tagger.py '<json_input>'
 
-JSON input:
+JSON input (new format with prompts):
   {
     "imagePath": "/abs/path/to/thumb.jpg",
-    "tags": ["Natural Light", "Handheld", ...],   // full catalog
-    "topK": 12,                                    // how many tags to return
-    "threshold": 0.008                             // min similarity to include
+    "tagDefs": [{ "label": "Natural Light", "prompt": "a scene lit by natural sunlight" }, ...],
+    "topK": 15,
+    "threshold": 0.008    // min softmax score to include (filters irrelevant tags)
   }
 
 JSON output:
-  { "tags": ["tag1", "tag2", ...], "scores": { "tag1": 0.045, ... } }
+  { "tags": ["tag1", "tag2", ...], "scores": { "tag1": 0.045, ... }, "device": "mps" }
 
 On error:
   { "error": "description" }
@@ -40,15 +41,25 @@ def main():
         sys.exit(1)
 
     image_path = data.get("imagePath", "")
-    tags       = data.get("tags", [])
     top_k      = int(data.get("topK", 12))
     threshold  = float(data.get("threshold", 0.008))
+
+    # Support both new { tagDefs: [{label, prompt}] } and legacy { tags: [...] } format
+    tag_defs = data.get("tagDefs", None)
+    if tag_defs and isinstance(tag_defs, list) and len(tag_defs) > 0 and isinstance(tag_defs[0], dict):
+        labels  = [t["label"]  for t in tag_defs]
+        prompts = [t.get("prompt", t["label"]) for t in tag_defs]
+    else:
+        # Fallback: legacy plain string array
+        legacy_tags = data.get("tags", [])
+        labels  = legacy_tags
+        prompts = legacy_tags
 
     if not image_path or not os.path.exists(image_path):
         print(json.dumps({"error": f"Image not found: {image_path}"}))
         sys.exit(1)
 
-    if not tags:
+    if not labels:
         print(json.dumps({"error": "No tags provided"}))
         sys.exit(1)
 
@@ -85,37 +96,51 @@ def main():
         print(json.dumps({"error": f"Image load failed: {e}"}))
         sys.exit(1)
 
-    # ── Encode image and tags ─────────────────────────────────────────────────
+    # ── Encode image and prompts ──────────────────────────────────────────────
+    # Use descriptive prompts for CLIP inference (much better zero-shot accuracy
+    # than short labels). Return original labels in output.
     try:
         with torch.no_grad():
             image_features = model.encode_image(image_tensor)
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
-            # CLIP tokenizer has a max of 77 tokens — long tags are fine
-            text_inputs = clip.tokenize(tags, truncate=True).to(device)
+            # CLIP tokenizer has a max of 77 tokens — truncate long prompts
+            text_inputs = clip.tokenize(prompts, truncate=True).to(device)
             text_features = model.encode_text(text_inputs)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
-            # Cosine similarity scaled to [0, 1]
+            # Cosine similarity, then softmax so all scores sum to 1
             similarity = (image_features @ text_features.T).squeeze(0)
-            # Softmax so scores sum to 1 (makes threshold meaningful)
             scores = similarity.softmax(dim=-1).cpu().tolist()
 
     except Exception as e:
         print(json.dumps({"error": f"CLIP inference failed: {e}"}))
         sys.exit(1)
 
-    # ── Rank — always return exactly top_k, no threshold cutoff ─────────────
-    tag_scores = sorted(zip(tags, scores), key=lambda x: x[1], reverse=True)
-    selected   = tag_scores[:top_k]
+    # ── Rank and filter by threshold ──────────────────────────────────────────
+    # Pair labels (not prompts) with scores, sort descending
+    tag_scores = sorted(zip(labels, scores), key=lambda x: x[1], reverse=True)
+
+    # Apply threshold — only include tags with meaningful confidence
+    # Uniform distribution across N tags ≈ 1/N, so threshold > 1/N means
+    # "better than random guessing"
+    uniform_baseline = 1.0 / len(labels)
+    effective_threshold = max(threshold, uniform_baseline * 1.2)  # at least 20% above baseline
+
+    above_threshold = [(tag, score) for tag, score in tag_scores if score >= effective_threshold]
+
+    # Return up to top_k; if fewer pass threshold, return those (could be 0)
+    selected = above_threshold[:top_k]
 
     result_tags   = [tag for tag, _ in selected]
     result_scores = {tag: round(score, 6) for tag, score in selected}
 
     print(json.dumps({
-        "tags":   result_tags,
-        "scores": result_scores,
-        "device": device,
+        "tags":      result_tags,
+        "scores":    result_scores,
+        "device":    device,
+        "threshold": round(effective_threshold, 6),
+        "total_candidates": len(labels),
     }))
 
 

@@ -420,14 +420,14 @@ async function analyzeContent(imageSource, context = {}) {
  * Returns { tags, description } or null on failure.
  */
 async function analyzeWithCLIP(imagePath, context = {}) {
-  const { getAllTags } = require('./tag-catalog');
-  const tags = getAllTags();
+  const { getAllTagsWithPrompts } = require('./tag-catalog');
+  const tagDefs = getAllTagsWithPrompts(); // [{ label, prompt }]
 
   const input = JSON.stringify({
     imagePath,
-    tags,
+    tagDefs,           // pass { label, prompt } pairs
     topK: 15,
-    threshold: 0.001,
+    threshold: 0.008,  // min softmax score — filters irrelevant matches
   });
 
   return new Promise((resolve) => {
@@ -452,7 +452,7 @@ async function analyzeWithCLIP(imagePath, context = {}) {
           return;
         }
 
-        console.log(`[CLIP] ✅ ${result.tags.length} tags on ${result.device} — ${result.tags.slice(0, 5).join(', ')}…`);
+        console.log(`[CLIP] ✅ ${result.tags.length}/${result.total_candidates || '?'} tags above threshold ${result.threshold || '?'} on ${result.device} — ${result.tags.slice(0, 5).join(', ')}…`);
         resolve({
           tags: result.tags,
           description: null, // CLIP doesn't generate descriptions
