@@ -126,7 +126,7 @@ function getClipPython() {
 function checkClipAvailable() {
   return new Promise((resolve) => {
     const pythonCmd = getClipPython();
-    execFile(pythonCmd, ['-c', 'import clip; print("ok")'], { timeout: 8000 }, (err, stdout) => {
+    execFile(pythonCmd, ['-c', 'import clip; print("ok")'], { timeout: 60000 }, (err, stdout) => {
       resolve(!err && stdout.trim() === 'ok');
     });
   });
