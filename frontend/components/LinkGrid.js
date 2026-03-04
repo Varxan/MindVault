@@ -20,7 +20,9 @@ export default function LinkGrid() {
   const [total, setTotal] = useState(0);
   const [sources, setSources] = useState([]);
   const [collections, setCollections] = useState([]);
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');   // controlled input (immediate)
+  const [search, setSearch] = useState('');             // debounced query (triggers loadLinks)
+  const searchDebounceRef = useRef(null);
   const [activeSource, setActiveSource] = useState(null);
   const [activeCollection, setActiveCollection] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -281,10 +283,18 @@ export default function LinkGrid() {
     loadCollections();
   }, [loadLinks, loadSources, loadCollections]);
 
-  useEffect(() => {
-    refresh();
+  // Always-current ref so SSE can call the latest loadLinks without re-subscribing
+  const loadLinksRef = useRef(loadLinks);
+  useEffect(() => { loadLinksRef.current = loadLinks; }, [loadLinks]);
 
-    // ── SSE: listen for backend push events — no more polling ────────────────
+  // ── ONE-TIME: initial load + SSE setup ───────────────────────────────────
+  // SSE must NOT depend on search/loadLinks — otherwise it tears down and
+  // rebuilds on every keystroke, corrupting the UI state and blocking tabs.
+  useEffect(() => {
+    loadLinksRef.current();
+    loadSources();
+    loadCollections();
+
     const apiBase = getApiBase();
     const es = new EventSource(`${apiBase}/events`);
 
@@ -292,24 +302,27 @@ export default function LinkGrid() {
       try {
         const { type } = JSON.parse(e.data);
         if (type === 'link-added' || type === 'link-updated' || type === 'link-deleted') {
-          loadLinks();
+          loadLinksRef.current();
         }
       } catch {}
     };
 
-    // SSE auto-reconnects natively on error — no action needed
     es.onerror = () => {};
 
-    // Fallback: 120s poll if SSE never connects (e.g. very old browser)
     const fallbackInterval = setInterval(() => {
-      if (es.readyState === EventSource.CLOSED && !document.hidden) refresh();
+      if (es.readyState === EventSource.CLOSED && !document.hidden) loadLinksRef.current();
     }, 120000);
 
     return () => {
       es.close();
       clearInterval(fallbackInterval);
     };
-  }, [refresh, loadLinks]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Re-run loadLinks when search/filters/space change ───────────────────
+  useEffect(() => {
+    loadLinks();
+  }, [loadLinks]);
 
   // Check AI status once on mount + every 60s (lightweight)
   useEffect(() => {
@@ -488,7 +501,9 @@ export default function LinkGrid() {
                 setActiveSpace(tab.value);
                 setActiveSource(null);
                 setActiveCollection(null);
-                setSearch(''); // clear search when switching spaces
+                clearTimeout(searchDebounceRef.current);
+                setSearchInput('');
+                setSearch('');
               }}
               style={{
                 background: 'transparent',
@@ -899,14 +914,18 @@ export default function LinkGrid() {
               className="search-input"
               type="text"
               placeholder="Search..."
-              value={search}
+              value={searchInput}
               onChange={(e) => {
-                setSearch(e.target.value);
+                const val = e.target.value;
+                setSearchInput(val);           // immediate — keeps input responsive
                 setActiveSource(null);
                 setActiveCollection(null);
+                // Debounce the actual query: wait 350ms after last keystroke
+                clearTimeout(searchDebounceRef.current);
+                searchDebounceRef.current = setTimeout(() => setSearch(val), 350);
               }}
             />
-            {search && isSemanticSearch && (
+            {searchInput && isSemanticSearch && (
               <span style={{
                 fontSize: '10px',
                 letterSpacing: '0.08em',
@@ -919,8 +938,8 @@ export default function LinkGrid() {
                 whiteSpace: 'nowrap',
               }}>semantic</span>
             )}
-            {search && (
-              <button className="search-clear" onClick={() => setSearch('')}>✕</button>
+            {searchInput && (
+              <button className="search-clear" onClick={() => { clearTimeout(searchDebounceRef.current); setSearchInput(''); setSearch(''); }}>✕</button>
             )}
           </div>
 

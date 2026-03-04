@@ -131,10 +131,22 @@ export async function fetchSemanticSearch({ q, space, limit = 30 } = {}) {
   if (space) params.set('space', space);
   if (limit) params.set('limit', limit);
 
-  const res = await fetch(`${API_BASE}/search/semantic?${params.toString()}`, { cache: 'no-store' });
-  const data = await res.json();
+  // Abort after 8 s — embedder cold-start can be slow; fall back to keyword search
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-  // If embeddings not installed, return fallback flag
-  if (!res.ok) return { links: [], total: 0, fallback: data.fallback || false };
-  return data;
+  try {
+    const res = await fetch(`${API_BASE}/search/semantic?${params.toString()}`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    const data = await res.json();
+    if (!res.ok) return { links: [], total: 0, fallback: data.fallback || false };
+    return data;
+  } catch (err) {
+    if (err.name === 'AbortError') return { links: [], total: 0, fallback: true };
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
