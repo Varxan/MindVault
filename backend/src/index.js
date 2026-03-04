@@ -7,6 +7,7 @@ const { createBot } = require('./bot');
 const { runAutoBackup } = require('./backup');
 const supabasePoller = require('./supabase-poller');
 const librarySync    = require('./library-sync');
+const { runStartupAnalysis } = require('./startup-analyzer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -128,6 +129,10 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // Auto-backup on startup (non-blocking)
   setImmediate(() => runAutoBackup());
+
+  // Auto-analyze any links that arrived while the app was offline
+  // Runs in background after a short delay so the app is fully ready first
+  setTimeout(() => runStartupAnalysis(), 5000);
 
   // Start Supabase share-queue poller (only if env vars are set)
   supabasePoller.init();
