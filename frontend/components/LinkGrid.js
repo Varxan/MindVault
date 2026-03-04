@@ -767,7 +767,7 @@ export default function LinkGrid() {
                     <div className="settings-field">
                       <label>Catalog / Custom Ratio</label>
                       <span className="settings-field-hint" style={{ marginBottom: '6px' }}>
-                        How many of the 15 tags come from the predefined catalog vs. AI-generated custom tags.
+                        How many of the ~15 tags come from the predefined catalog vs. AI-generated custom tags.
                       </span>
                       <style>{`
                         .mv-ratio-slider {
@@ -811,7 +811,7 @@ export default function LinkGrid() {
                                 if (wrapper) {
                                   wrapper.querySelector('[data-left]').textContent = `${val}% Catalog`;
                                   wrapper.querySelector('[data-right]').textContent = `${100 - val}% Custom`;
-                                  wrapper.querySelector('[data-summary]').textContent = `= ${cCount} catalog tags + ${cuCount} custom tags per item`;
+                                  wrapper.querySelector('[data-summary]').textContent = `≈ ${cCount} catalog tags + ${cuCount} custom tags per item`;
                                 }
                               }}
                               onMouseUp={(e) => handleSaveToken('tag_catalog_ratio', e.target.value)}
@@ -822,7 +822,7 @@ export default function LinkGrid() {
                               <span data-right="">{100 - ratio}% Custom</span>
                             </div>
                             <div data-summary="" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                              = {catalogCount} catalog tags + {customCount} custom tags per item
+                              ≈ {catalogCount} catalog tags + {customCount} custom tags per item
                             </div>
                           </div>
                         );
