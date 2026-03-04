@@ -75,6 +75,41 @@ function isActivated(config) {
   return config && config.isLicensed === true;
 }
 
+// ── Supabase Auth API (email + password) ─────────────────────────────────────
+// Uses /auth/v1/ endpoints with the ANON key (not service role).
+function supabaseAuthRequest(path, body) {
+  return new Promise((resolve, reject) => {
+    const supabaseUrl  = process.env.SUPABASE_URL      || loadEnvVar('SUPABASE_URL');
+    const supabaseAnon = process.env.SUPABASE_ANON_KEY || loadEnvVar('SUPABASE_ANON_KEY');
+    if (!supabaseUrl || !supabaseAnon) {
+      return reject(new Error('Supabase credentials not found'));
+    }
+    const bodyStr = JSON.stringify(body);
+    const options = {
+      hostname: new URL(supabaseUrl).hostname,
+      port: 443,
+      path: `/auth/v1/${path}`,
+      method: 'POST',
+      headers: {
+        'apikey': supabaseAnon,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(bodyStr),
+      },
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, data: JSON.parse(data) }); }
+        catch (_) { resolve({ status: res.statusCode, data }); }
+      });
+    });
+    req.on('error', reject);
+    req.write(bodyStr);
+    req.end();
+  });
+}
+
 // Make a simple HTTPS POST to Supabase REST API (no npm module needed here)
 function supabaseRequest(method, table, body, matchParams) {
   return new Promise((resolve, reject) => {
@@ -151,44 +186,96 @@ function registerActivationHandlers() {
     return { screen: 'register' }; // still in trial
   });
 
-  // Start 30-day trial
-  ipcMain.handle('activation:startTrial', async (_, email) => {
+  // Start 30-day trial (now with password → creates Supabase Auth account)
+  ipcMain.handle('activation:startTrial', async (_, email, password) => {
     try {
-      const crypto = require('crypto');
+      const crypto   = require('crypto');
       const deviceId = crypto.randomUUID();
 
-      // Register in Supabase (upsert by email — reinstall won't reset trial)
+      // 1. Create or sign-in via Supabase Auth
+      let authUserId = null;
+      const signUpRes = await supabaseAuthRequest('signup', { email, password });
+      if (signUpRes.status === 200 && signUpRes.data?.user?.id) {
+        authUserId = signUpRes.data.user.id;
+        log(`[Activation] Supabase Auth account created: ${authUserId}`);
+      } else if (signUpRes.data?.code === 'user_already_exists' || signUpRes.status === 422) {
+        // Account already exists — try signing in to get the auth ID
+        const signInRes = await supabaseAuthRequest('token?grant_type=password', { email, password });
+        if (signInRes.status === 200 && signInRes.data?.user?.id) {
+          authUserId = signInRes.data.user.id;
+          log(`[Activation] Existing Supabase Auth account: ${authUserId}`);
+        } else {
+          return { success: false, error: 'An account with this email already exists. Please sign in instead.' };
+        }
+      } else if (signUpRes.data?.message) {
+        return { success: false, error: signUpRes.data.message };
+      }
+
+      // 2. Upsert into our users table (keeps original trial date on reinstall)
       const existing = await supabaseRequest('GET', 'users', {}, `email=eq.${encodeURIComponent(email)}&select=*`);
       let trialStartedAt;
 
       if (existing.status === 200 && Array.isArray(existing.data) && existing.data.length > 0) {
-        // User already exists — keep original trial date, update device_id
         trialStartedAt = existing.data[0].trial_started_at;
-        await supabaseRequest('PATCH', 'users', { device_id: deviceId }, `email=eq.${encodeURIComponent(email)}`);
         log(`[Activation] Existing user found, trial started ${trialStartedAt}`);
       } else {
-        // New user
         trialStartedAt = new Date().toISOString();
         await supabaseRequest('POST', 'users', {
           email,
-          device_id: deviceId,
+          device_id:        deviceId,
           trial_started_at: trialStartedAt,
-          is_licensed: false,
+          is_licensed:      false,
         });
         log(`[Activation] New trial started for ${email}`);
       }
 
-      // Save locally
+      // 3. Save locally
+      saveUserConfig({ email, deviceId, trialStartedAt, isLicensed: false, authUserId });
+      return { success: true };
+    } catch (err) {
+      log('[Activation] startTrial error: ' + err.message);
+      return { success: false, error: 'Connection error. Please check your internet connection.' };
+    }
+  });
+
+  // Sign in with email + password (returning user / second device)
+  ipcMain.handle('activation:signIn', async (_, email, password) => {
+    try {
+      const crypto = require('crypto');
+
+      // 1. Authenticate via Supabase Auth
+      const signInRes = await supabaseAuthRequest('token?grant_type=password', { email, password });
+      if (signInRes.status !== 200 || !signInRes.data?.user?.id) {
+        const msg = signInRes.data?.error_description || signInRes.data?.message || 'Invalid email or password.';
+        return { success: false, error: msg };
+      }
+      const authUserId = signInRes.data.user.id;
+      log(`[Activation] Sign in successful: ${authUserId}`);
+
+      // 2. Load user record from Supabase (get trial/license status)
+      const userRes = await supabaseRequest('GET', 'users', {}, `email=eq.${encodeURIComponent(email)}&select=*`);
+      if (userRes.status !== 200 || !Array.isArray(userRes.data) || userRes.data.length === 0) {
+        return { success: false, error: 'Account not found. Please start a new trial.' };
+      }
+      const user = userRes.data[0];
+
+      // 3. This device gets its own deviceId (each Mac is independent)
+      const existingConfig = loadUserConfig();
+      const deviceId = existingConfig?.deviceId || crypto.randomUUID();
+
+      // 4. Save locally — restores their trial/license state
       saveUserConfig({
         email,
         deviceId,
-        trialStartedAt,
-        isLicensed: false,
+        authUserId,
+        trialStartedAt: user.trial_started_at,
+        isLicensed:     user.is_licensed === true,
+        licenseKey:     user.license_key || null,
       });
 
       return { success: true };
     } catch (err) {
-      log('[Activation] startTrial error: ' + err.message);
+      log('[Activation] signIn error: ' + err.message);
       return { success: false, error: 'Connection error. Please check your internet connection.' };
     }
   });

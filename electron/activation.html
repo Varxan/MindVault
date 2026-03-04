@@ -80,6 +80,7 @@
     }
 
     input[type="email"],
+    input[type="password"],
     input[type="text"] {
       width: 100%;
       background: #111;
@@ -222,6 +223,10 @@
       <label>Email address</label>
       <input id="input-email" type="email" placeholder="you@example.com" autocomplete="off" />
     </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="input-password" type="password" placeholder="Create a password" autocomplete="new-password" />
+    </div>
 
     <button id="btn-start-trial" class="btn btn-primary">
       Start for free
@@ -231,9 +236,34 @@
 
     <div class="divider">or</div>
 
-    <button id="btn-show-license" class="btn btn-ghost">
+    <button id="btn-show-login" class="btn btn-ghost">
+      Sign in to existing account
+    </button>
+    <button id="btn-show-license" class="btn btn-ghost" style="margin-top:8px">
       Enter license key
     </button>
+  </div>
+
+  <!-- ────────── SCREEN 1b: Sign in (returning user / second device) ────────── -->
+  <div id="screen-login" class="screen">
+    <p class="subtitle" style="margin-bottom: 24px">Welcome back.<br>Sign in to restore your account.</p>
+
+    <div class="field">
+      <label>Email address</label>
+      <input id="login-email" type="email" placeholder="you@example.com" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="login-password" type="password" placeholder="Your password" autocomplete="current-password" />
+    </div>
+
+    <button id="btn-signin" class="btn btn-primary">
+      Sign in
+    </button>
+    <div id="spinner-login" class="spinner"></div>
+    <div id="msg-login" class="msg"></div>
+
+    <a class="footer-link" id="btn-back-to-register">← New to MindVault? Start free trial</a>
   </div>
 
   <!-- ────────── SCREEN 2: License key input ────────── -->
@@ -325,16 +355,21 @@
 
   // ── Screen: Register / Trial ──────────────────────────────────────────────
   document.getElementById('btn-start-trial').addEventListener('click', async () => {
-    const email = document.getElementById('input-email').value.trim();
+    const email    = document.getElementById('input-email').value.trim();
+    const password = document.getElementById('input-password').value;
     if (!email || !email.includes('@')) {
       showMsg('msg-register', 'Please enter a valid email address.', 'error');
+      return;
+    }
+    if (!password || password.length < 8) {
+      showMsg('msg-register', 'Password must be at least 8 characters.', 'error');
       return;
     }
     hideMsg('msg-register');
     setSpinner('spinner-register', true);
     document.getElementById('btn-start-trial').disabled = true;
 
-    const result = await api.startTrial(email);
+    const result = await api.startTrial(email, password);
 
     setSpinner('spinner-register', false);
     document.getElementById('btn-start-trial').disabled = false;
@@ -346,11 +381,52 @@
     }
   });
 
+  document.getElementById('btn-show-login').addEventListener('click', () => {
+    showScreen('screen-login');
+  });
+
   document.getElementById('btn-show-license').addEventListener('click', () => {
     showScreen('screen-license');
   });
 
   document.getElementById('btn-back-to-trial').addEventListener('click', () => {
+    showScreen('screen-register');
+  });
+
+  // ── Screen: Sign in (returning user / second device) ─────────────────────
+  document.getElementById('btn-signin').addEventListener('click', async () => {
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!email || !email.includes('@')) {
+      showMsg('msg-login', 'Please enter a valid email address.', 'error');
+      return;
+    }
+    if (!password) {
+      showMsg('msg-login', 'Please enter your password.', 'error');
+      return;
+    }
+    hideMsg('msg-login');
+    setSpinner('spinner-login', true);
+    document.getElementById('btn-signin').disabled = true;
+
+    const result = await api.signIn(email, password);
+
+    setSpinner('spinner-login', false);
+    document.getElementById('btn-signin').disabled = false;
+
+    if (result.success) {
+      api.launchApp();
+    } else {
+      showMsg('msg-login', result.error || 'Invalid email or password.', 'error');
+    }
+  });
+
+  // Allow Enter key on login password field
+  document.getElementById('login-password').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-signin').click();
+  });
+
+  document.getElementById('btn-back-to-register').addEventListener('click', () => {
     showScreen('screen-register');
   });
 

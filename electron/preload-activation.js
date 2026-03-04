@@ -7,8 +7,11 @@ contextBridge.exposeInMainWorld('activationAPI', {
   // Get which screen to show based on current state
   getActivationState: () => ipcRenderer.invoke('activation:getState'),
 
-  // Start 30-day trial with email
-  startTrial: (email) => ipcRenderer.invoke('activation:startTrial', email),
+  // Start 30-day trial with email + password (new user)
+  startTrial: (email, password) => ipcRenderer.invoke('activation:startTrial', email, password),
+
+  // Sign in with email + password (returning user / second device)
+  signIn: (email, password) => ipcRenderer.invoke('activation:signIn', email, password),
 
   // Activate with license key (from license screen)
   activateLicense: (email, key) => ipcRenderer.invoke('activation:activateLicense', email, key),
