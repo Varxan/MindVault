@@ -10,6 +10,7 @@ import CollectionForm from './CollectionForm';
 import PreviewModal from './PreviewModal';
 import SettingsPanel from './SettingsPanel';
 import MobileQRSection from './MobileQRSection';
+import Fuse from 'fuse.js';
 import { fetchLinks, fetchSources, fetchCollections, deleteLink, addLinksToCollection, fetchSemanticSearch } from '../lib/api';
 import { getApiBase } from '../lib/config';
 
@@ -20,14 +21,14 @@ export default function LinkGrid() {
   const [total, setTotal] = useState(0);
   const [sources, setSources] = useState([]);
   const [collections, setCollections] = useState([]);
-  const [searchInput, setSearchInput] = useState('');   // controlled input (immediate)
-  const [search, setSearch] = useState('');             // debounced query (triggers loadLinks)
-  const searchDebounceRef = useRef(null);
+  const [search, setSearch] = useState('');
   const [activeSource, setActiveSource] = useState(null);
   const [activeCollection, setActiveCollection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSemanticSearch, setIsSemanticSearch] = useState(false);
+  const [semanticMode, setSemanticMode] = useState(false); // user-toggled semantic search
+  const allMindLinksRef = useRef([]);                       // full unfiltered Mind links for Fuse
 
   // Bulk selection
   const [bulkMode, setBulkMode] = useState(false);
@@ -219,45 +220,77 @@ export default function LinkGrid() {
       setLoading(true);
       setError(null);
 
-      // Use semantic search when: there's a query AND we're in Mind space
-      const useSemantic = search && activeSpace === 'mind';
+      const isMindSearch = search && activeSpace === 'mind';
 
-      if (useSemantic) {
+      // ── Mind + Semantic mode ──────────────────────────────────────────────
+      if (isMindSearch && semanticMode) {
         let usedSemantic = false;
         try {
           const data = await fetchSemanticSearch({ q: search, space: 'mind', limit: 50 });
-          if (!data.fallback && data.links && data.links.length >= 0) {
+          if (!data.fallback && data.links) {
             usedSemantic = true;
             setIsSemanticSearch(true);
             setLinks(data.links);
             setTotal(data.total);
           }
         } catch {}
-
         if (!usedSemantic) {
-          // Semantic not available — fall back to keyword search
           setIsSemanticSearch(false);
-          const kw = await fetchLinks({ search, space: 'mind' });
-          setLinks(kw.links);
-          setTotal(kw.total);
+          setSemanticMode(false); // semantic unavailable — turn off toggle
         }
-      } else {
-        setIsSemanticSearch(false);
-        const data = await fetchLinks({
-          search: search || undefined,
-          source: activeSource || undefined,
-          collection: activeCollection || undefined,
-          space: activeSpace || undefined,
-        });
-        setLinks(data.links);
-        setTotal(data.total);
+        return;
       }
+
+      // ── Mind + Fuse.js (default) ──────────────────────────────────────────
+      if (isMindSearch && !semanticMode) {
+        setIsSemanticSearch(false);
+        const pool = allMindLinksRef.current;
+        if (pool.length === 0) return; // links not loaded yet
+
+        const fuse = new Fuse(pool.map(l => ({
+          ...l,
+          _tags: (() => { try { return JSON.parse(l.tags || '[]').join(' '); } catch { return ''; } })(),
+        })), {
+          keys: [
+            { name: 'title',       weight: 0.40 },
+            { name: 'description', weight: 0.20 },
+            { name: 'transcript',  weight: 0.20 },
+            { name: '_tags',       weight: 0.15 },
+            { name: 'note',        weight: 0.05 },
+          ],
+          threshold:        0.35,   // 0 = perfect match only, 1 = match anything
+          ignoreLocation:   true,   // search full text, not just beginning
+          minMatchCharLength: 2,
+        });
+
+        const results = fuse.search(search).map(r => r.item);
+        setLinks(results);
+        setTotal(results.length);
+        return;
+      }
+
+      // ── Eye / no search — fetch from backend ─────────────────────────────
+      setIsSemanticSearch(false);
+      const data = await fetchLinks({
+        search:     search || undefined,
+        source:     activeSource || undefined,
+        collection: activeCollection || undefined,
+        space:      activeSpace || undefined,
+      });
+      setLinks(data.links);
+      setTotal(data.total);
+
+      // Keep allMindLinksRef in sync when in Mind with no active search
+      if (activeSpace === 'mind' && !search) {
+        allMindLinksRef.current = data.links;
+      }
+
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [search, activeSource, activeCollection, activeSpace]);
+  }, [search, activeSource, activeCollection, activeSpace, semanticMode]);
 
   const loadSources = useCallback(async () => {
     try {
@@ -501,8 +534,6 @@ export default function LinkGrid() {
                 setActiveSpace(tab.value);
                 setActiveSource(null);
                 setActiveCollection(null);
-                clearTimeout(searchDebounceRef.current);
-                setSearchInput('');
                 setSearch('');
               }}
               style={{
@@ -914,18 +945,14 @@ export default function LinkGrid() {
               className="search-input"
               type="text"
               placeholder="Search..."
-              value={searchInput}
+              value={search}
               onChange={(e) => {
-                const val = e.target.value;
-                setSearchInput(val);           // immediate — keeps input responsive
+                setSearch(e.target.value);
                 setActiveSource(null);
                 setActiveCollection(null);
-                // Debounce the actual query: wait 350ms after last keystroke
-                clearTimeout(searchDebounceRef.current);
-                searchDebounceRef.current = setTimeout(() => setSearch(val), 350);
               }}
             />
-            {searchInput && isSemanticSearch && (
+            {search && isSemanticSearch && (
               <span style={{
                 fontSize: '10px',
                 letterSpacing: '0.08em',
@@ -938,10 +965,34 @@ export default function LinkGrid() {
                 whiteSpace: 'nowrap',
               }}>semantic</span>
             )}
-            {searchInput && (
-              <button className="search-clear" onClick={() => { clearTimeout(searchDebounceRef.current); setSearchInput(''); setSearch(''); }}>✕</button>
+            {search && (
+              <button className="search-clear" onClick={() => setSearch('')}>✕</button>
             )}
           </div>
+
+          {/* Semantic toggle — only visible in Mind space */}
+          {activeSpace === 'mind' && (
+            <button
+              onClick={() => setSemanticMode(m => !m)}
+              title={semanticMode ? 'Semantic search active — click for Fuse search' : 'Fuse search active — click for semantic search'}
+              style={{
+                background:   semanticMode ? 'rgba(123,158,168,0.15)' : 'transparent',
+                border:       `1px solid ${semanticMode ? '#7b9ea8' : 'rgba(255,255,255,0.1)'}`,
+                borderRadius: '4px',
+                color:        semanticMode ? '#7b9ea8' : 'var(--text-muted)',
+                fontSize:     '10px',
+                fontFamily:   'var(--font-display)',
+                letterSpacing:'0.08em',
+                textTransform:'uppercase',
+                padding:      '3px 8px',
+                cursor:       'pointer',
+                whiteSpace:   'nowrap',
+                flexShrink:    0,
+              }}
+            >
+              {semanticMode ? '⬡ semantic' : '⬡ fuse'}
+            </button>
+          )}
 
           {!search && sources.length > 0 && (
             <div className="filter-wrapper" onClick={e => e.stopPropagation()}>
