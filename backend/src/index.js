@@ -156,9 +156,10 @@ if (BOT_TOKEN && BOT_TOKEN !== 'YOUR_TELEGRAM_BOT_TOKEN_HERE') {
   bot.launch();
   console.log('🤖 Telegram Bot started!\n');
 
-  // Graceful shutdown
-  process.once('SIGINT', () => bot.stop('SIGINT'));
-  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+  // Graceful shutdown — call bot.stop() without re-emitting the signal,
+  // otherwise Telegraf kills the process a second time after cleanup.
+  process.once('SIGINT', () => bot.stop().catch(() => {}));
+  process.once('SIGTERM', () => bot.stop().catch(() => {}));
 } else {
   console.log('⚠️  No Telegram Bot Token set.');
   console.log('   Set your token in Settings or backend/.env to start the bot.\n');

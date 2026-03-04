@@ -73,13 +73,14 @@ async function sync() {
       created_at:    link.created_at,
     })));
 
-    // Delete-then-insert using singleton_id=1 as the stable primary key.
-    // user_id is stored as extra metadata but is NOT the PK.
-    const row = { singleton_id: 1, links, updated_at: new Date().toISOString() };
-    if (deviceId) row.user_id = deviceId;
+    // Upsert using device_id as Primary Key — each device has exactly one row.
+    // Multiple users can coexist without overwriting each other's data.
+    const id  = deviceId || 'default';
+    const row = { device_id: id, links, updated_at: new Date().toISOString() };
 
-    await supabase.from('library_cache').delete().eq('singleton_id', 1);
-    var { error } = await supabase.from('library_cache').insert(row);
+    var { error } = await supabase
+      .from('library_cache')
+      .upsert(row, { onConflict: 'device_id' });
 
     if (error) {
       console.error('[Library Sync] ❌ Error:', error.message);
