@@ -1,124 +1,182 @@
 /**
- * Supabase Share Queue Poller
+ * Supabase Share Queue — Realtime Listener
  *
- * Polls the Vercel API every 10 seconds to fetch unprocessed share_queue items.
- * Uses /api/share-queue (server-side, service role key) so no Supabase key
- * is needed on the desktop — RLS is bypassed server-side.
+ * Instead of polling Vercel every 10s (8,640 requests/day per user),
+ * we subscribe to Supabase Realtime: the desktop receives a push
+ * notification the instant the iPhone adds a link. 0 polling = 0 Vercel load.
+ *
+ * Flow:
+ *   iPhone  →  POST /api/share-queue (Vercel, 1 request per share)
+ *           →  INSERT into Supabase share_queue
+ *           →  Realtime push to desktop  ←  we listen here
+ *           →  desktop imports the link
+ *           →  PATCH processed=true directly to Supabase (anon key, no Vercel)
  *
  * A row is ready to import when:
- *   - tags_ready = true  (user submitted or skipped the tag step), OR
+ *   - tags_ready = true  (user submitted or skipped the tag step on iPhone), OR
  *   - created_at is older than TAG_TIMEOUT_MS (user never interacted — use AI tags)
  *
  * Requires env vars:
- *   VERCEL_URL  — e.g. https://mind-vault-chi.vercel.app
- *                 (falls back to SUPABASE_URL-based detection or hardcoded default)
+ *   SUPABASE_URL       — e.g. https://xxx.supabase.co
+ *   SUPABASE_ANON_KEY  — public anon key (safe on desktop, no secrets)
  */
 
-const POLL_INTERVAL_MS = 10_000;   // 10 seconds
-const TAG_TIMEOUT_MS   = 120_000;  // 2 minutes — import even if user never added tags
-const BACKEND_URL      = process.env.BACKEND_URL || 'http://localhost:3001';
+const { createClient } = require('@supabase/supabase-js');
 
-// Vercel deployment URL — where /api/share-queue lives
-const VERCEL_URL = process.env.VERCEL_URL || 'https://mind-vault-chi.vercel.app';
+const TAG_TIMEOUT_MS = 120_000;  // 2 min — import even if user never added tags
+const BACKEND_URL    = process.env.BACKEND_URL || 'http://localhost:3001';
+const VERCEL_URL     = process.env.VERCEL_URL  || 'https://mind-vault-chi.vercel.app';
 
-let pollTimer = null;
-let deviceId  = null;  // UUID that isolates this user's data
+let supabase   = null;
+let deviceId   = null;
+let channel    = null;
+// Track per-entry timeout timers so we don't double-import
+const pendingTimers = new Map();
 
 function getDeviceId() {
   if (process.env.MINDVAULT_DEVICE_ID) return process.env.MINDVAULT_DEVICE_ID;
   try {
-    const fs         = require('fs');
-    const path       = require('path');
-    const dataDir    = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
-    const configPath = path.join(dataDir, '..', 'user.json');
-    const config     = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    return config.deviceId || null;
-  } catch (_) {
-    return null;
-  }
+    const fs   = require('fs');
+    const path = require('path');
+    const dir  = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+    const cfg  = JSON.parse(fs.readFileSync(path.join(dir, '..', 'user.json'), 'utf8'));
+    return cfg.deviceId || null;
+  } catch { return null; }
 }
 
-function init() {
-  deviceId = getDeviceId();
+async function init() {
+  const url  = process.env.SUPABASE_URL;
+  const key  = process.env.SUPABASE_ANON_KEY;   // anon key — safe to use on desktop
 
-  if (deviceId) {
-    console.log(`📡 Supabase poller started — device: ${deviceId.slice(0,8)}… → ${VERCEL_URL}`);
-  } else {
-    console.log(`📡 Supabase poller started — no device ID → ${VERCEL_URL}`);
+  if (!url || !key) {
+    console.log('ℹ️  Share queue realtime disabled (no SUPABASE_URL / SUPABASE_ANON_KEY)');
+    return;
   }
 
-  poll(); // immediate first check
-  pollTimer = setInterval(poll, POLL_INTERVAL_MS);
+  deviceId = getDeviceId();
+  supabase = createClient(url, key, { auth: { persistSession: false } });
+
+  // ── Subscribe to INSERT + UPDATE on share_queue for this device ──────────
+  channel = supabase
+    .channel('share-queue')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'share_queue',
+        filter: deviceId ? `user_id=eq.${deviceId}` : undefined },
+      (payload) => handleRow(payload.new, 'INSERT'),
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'share_queue',
+        filter: deviceId ? `user_id=eq.${deviceId}` : undefined },
+      (payload) => handleRow(payload.new, 'UPDATE'),
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log(`📡 Realtime connected — device: ${deviceId ? deviceId.slice(0,8) + '…' : 'unknown'}`);
+      }
+    });
+
+  // ── Check for any unprocessed entries that arrived while offline ─────────
+  await checkExisting();
 }
 
 function stop() {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
-  }
+  if (channel)  { supabase.removeChannel(channel); channel = null; }
+  for (const t of pendingTimers.values()) clearTimeout(t);
+  pendingTimers.clear();
 }
 
-async function poll() {
+// ── Called for every INSERT or UPDATE event ──────────────────────────────────
+async function handleRow(entry, event) {
+  if (!entry || entry.processed) return;
+
+  // Already scheduled or being imported?
+  if (event === 'INSERT' && pendingTimers.has(entry.id)) return;
+
+  if (entry.tags_ready) {
+    // Tags confirmed by user — import immediately
+    pendingTimers.delete(entry.id);
+    await importEntry(entry);
+  } else if (event === 'INSERT') {
+    // Not ready yet — wait for user to confirm tags OR for 2-min timeout
+    const timer = setTimeout(async () => {
+      pendingTimers.delete(entry.id);
+      // Re-fetch to get latest state (user may have added tags in the meantime)
+      if (!supabase) return;
+      const { data } = await supabase
+        .from('share_queue')
+        .select('*')
+        .eq('id', entry.id)
+        .single();
+      if (data && !data.processed) await importEntry(data);
+    }, TAG_TIMEOUT_MS);
+    pendingTimers.set(entry.id, timer);
+    console.log(`⏳ Waiting for tags on entry ${entry.id} (timeout in 2 min)…`);
+  }
+  // UPDATE with tags_ready=false is ignored — we're already waiting via timer
+}
+
+// ── On startup: process anything that arrived while the app was closed ────────
+async function checkExisting() {
+  if (!supabase) return;
+
   try {
-    // Build URL — filter by device_id if available
-    const url = deviceId
-      ? `${VERCEL_URL}/api/share-queue?device_id=${encodeURIComponent(deviceId)}`
-      : `${VERCEL_URL}/api/share-queue`;
+    let query = supabase
+      .from('share_queue')
+      .select('*')
+      .eq('processed', false)
+      .order('created_at', { ascending: true });
 
-    const res = await fetch(url);
-    if (!res.ok) {
-      console.warn(`⚠️  Share queue fetch failed: ${res.status}`);
-      return;
-    }
+    if (deviceId) query = query.eq('user_id', deviceId);
 
-    const { items } = await res.json();
-    if (!items || items.length === 0) return;
+    const { data, error } = await query;
+    if (error || !data?.length) return;
 
     const cutoff = Date.now() - TAG_TIMEOUT_MS;
-
-    // Only import rows that are ready:
-    // - user clicked "Add" or "Skip" (tags_ready = true), OR
-    // - row is older than 2 minutes (timeout, import with AI tags)
-    const ready = items.filter(entry =>
-      entry.tags_ready === true ||
-      new Date(entry.created_at).getTime() < cutoff
+    const ready  = data.filter(e =>
+      e.tags_ready === true ||
+      new Date(e.created_at).getTime() < cutoff,
     );
 
-    if (ready.length === 0) return;
-
-    console.log(`📥 ${ready.length} shared link(s) ready to import…`);
-
-    for (const entry of ready) {
-      await importEntry(entry);
+    if (ready.length > 0) {
+      console.log(`📥 ${ready.length} queued link(s) from while offline…`);
+      for (const entry of ready) await importEntry(entry);
     }
 
+    // Schedule timers for rows that are still within the 2-min window
+    const waiting = data.filter(e =>
+      !e.tags_ready &&
+      new Date(e.created_at).getTime() >= cutoff,
+    );
+    for (const entry of waiting) {
+      const elapsed   = Date.now() - new Date(entry.created_at).getTime();
+      const remaining = TAG_TIMEOUT_MS - elapsed;
+      const timer     = setTimeout(async () => {
+        pendingTimers.delete(entry.id);
+        const { data: fresh } = await supabase
+          .from('share_queue').select('*').eq('id', entry.id).single();
+        if (fresh && !fresh.processed) await importEntry(fresh);
+      }, remaining);
+      pendingTimers.set(entry.id, timer);
+    }
   } catch (err) {
-    console.warn('⚠️  Supabase poller exception:', err.message);
+    console.warn('⚠️  checkExisting failed:', err.message);
   }
 }
 
+// ── Import one entry into MindVault ──────────────────────────────────────────
 async function importEntry(entry) {
   try {
     console.log(`🔄 Importing: ${entry.url}`);
 
-    // Parse user-supplied tags (comma-separated string → array)
     const userTags = entry.tags
-      ? entry.tags.split(',').map(t => t.trim()).filter(t => t.length > 0)
+      ? entry.tags.split(',').map(t => t.trim()).filter(Boolean)
       : [];
 
     const body = { url: entry.url };
-
-    // Pass space through (eye | mind), default to eye for old rows without space
-    if (entry.space && ['eye', 'mind'].includes(entry.space)) {
-      body.space = entry.space;
-    }
-
-    // If user added tags, pass them — this skips AI auto-tagging
-    if (userTags.length > 0) {
-      body.tags = userTags;
-      console.log(`🏷️  Using user tags: ${userTags.join(', ')}`);
-    }
-    // Otherwise omit tags → backend will run AI auto-tagging
+    if (entry.space && ['eye', 'mind'].includes(entry.space)) body.space = entry.space;
+    if (userTags.length > 0) { body.tags = userTags; console.log(`🏷️  Tags: ${userTags.join(', ')}`); }
 
     const res = await fetch(`${BACKEND_URL}/api/links`, {
       method:  'POST',
@@ -126,32 +184,28 @@ async function importEntry(entry) {
       body:    JSON.stringify(body),
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`${res.status} ${errText}`);
-    }
+    if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
 
     const result = await res.json();
     console.log(`✅ Imported [${result.id}]: ${result.title}`);
 
-    // Mark as processed via Vercel API
-    await fetch(`${VERCEL_URL}/api/share-queue`, {
-      method:  'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ id: entry.id, processed: true }),
-    });
+    // Mark as processed — directly via Supabase (no Vercel round-trip)
+    await supabase
+      .from('share_queue')
+      .update({ processed: true })
+      .eq('id', entry.id);
 
     // Sync library so new link appears in PWA immediately
     try {
-      const librarySync = require('./library-sync');
-      await librarySync.sync();
+      await require('./library-sync').sync();
     } catch (e) {
       console.log('⚠️  Library sync after import failed:', e.message);
     }
 
   } catch (err) {
     console.error(`❌ Failed to import ${entry.url}:`, err.message);
-    // Don't mark as processed — will retry on next poll
+    // Don't mark as processed — Realtime UPDATE will retry if tags_ready changes,
+    // or checkExisting() will catch it on next restart.
   }
 }
 
