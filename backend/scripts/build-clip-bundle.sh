@@ -77,16 +77,34 @@ echo "📦 Installing sentence-transformers (~90 MB)…"
 "$VENV_PYTHON" -m pip install sentence-transformers --quiet 2>&1 | tail -3
 echo "   ✅ sentence-transformers installed"
 
-# ── Pre-download model weights into backend/clip-models/ ─────────────────────
+# ── Prune unnecessary packages (not needed for inference) ─────────────────────
+# These get pulled in as transitive deps but are only needed for training/math.
+# Removing them reduces clip-env size by ~140 MB without breaking CLIP or embeddings.
 echo ""
-echo "📥 Pre-downloading model weights into clip-models/…"
+echo "🧹 Pruning unused packages to reduce bundle size…"
+"$VENV_PYTHON" -m pip uninstall -y sympy networkx 2>/dev/null || true
+echo "   ✅ Pruned: sympy, networkx"
+
+# Remove __pycache__, test dirs, and dist-info to further reduce size
+find "$VENV_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+find "$VENV_DIR" -type d -name "tests" -path "*/site-packages/*" -exec rm -rf {} + 2>/dev/null || true
+find "$VENV_DIR" -name "*.pyc" -delete 2>/dev/null || true
+echo "   ✅ Removed __pycache__ and .pyc files"
+
+# ── Pre-download model weights into clip-models/ (optional, skipped in CI) ───
+# Models are NOT bundled in the DMG (too large, ~425 MB) — they download to
+# ~/.cache/clip/ and ~/.cache/huggingface/ on first use automatically.
+# This step is kept here to verify the download works, but the models dir
+# is excluded from extraResources in package.json.
+echo ""
+echo "📥 Pre-downloading model weights (verify only — NOT included in DMG)…"
 mkdir -p "$MODELS_DIR"
 
 "$VENV_PYTHON" - <<PYDOWNLOAD
 import os, sys
 os.environ['TRANSFORMERS_OFFLINE'] = '0'
 
-models_dir = sys.argv[1] if len(sys.argv) > 1 else "$MODELS_DIR"
+models_dir = "$MODELS_DIR"
 
 # ── CLIP model (ViT-B/32, ~350 MB) ──
 import clip, torch
@@ -112,6 +130,7 @@ from sentence_transformers import SentenceTransformer
 from PIL import Image
 import os, sys
 
+# Verify against locally pre-downloaded models (same download_root as at runtime)
 models_dir = "$MODELS_DIR"
 
 device = "mps" if torch.backends.mps.is_available() else "cpu"
@@ -133,8 +152,10 @@ echo ""
 echo "────────────────────────────────────────────────────────────"
 echo "✅  CLIP bundle ready for distribution!"
 echo ""
-echo "   clip-env/    $VENV_SIZE  → $VENV_DIR"
-echo "   clip-models/ $MODEL_SIZE → $MODELS_DIR"
+echo "   clip-env/    $VENV_SIZE  → bundled in DMG (Python + PyTorch + CLIP)"
+echo "   clip-models/ $MODEL_SIZE → NOT in DMG (downloads to ~/.cache on first use)"
+echo ""
+echo "   App size estimate: clip-env + existing app (~500 MB total)"
 echo ""
 echo "   Next step: npm run dist"
 echo "────────────────────────────────────────────────────────────"

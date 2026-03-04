@@ -47,7 +47,8 @@
           "**/*",
           "!node_modules/**",
           "!data/**",
-          "!.git/**"
+          "!.git/**",
+          "!clip-models/**"
         ]
       },
       {
