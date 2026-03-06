@@ -1,8 +1,12 @@
 'use client';
+import { useState } from 'react';
 import { getApiBase } from '../lib/config';
 
 
-export default function CollectionCard({ collection, onDelete, onEdit, onClick }) {
+export default function CollectionCard({ collection, onDelete, onEdit, onClick, onRenamed }) {
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState(collection.name);
+
   const dateStr = new Date(collection.updated_at || collection.created_at).toLocaleDateString('en-US', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
@@ -17,6 +21,41 @@ export default function CollectionCard({ collection, onDelete, onEdit, onClick }
       return t.thumbnail_url;
     }
     return null;
+  };
+
+  const handleNameClick = (e) => {
+    e.stopPropagation();
+    setEditingName(true);
+  };
+
+  const handleNameSave = async () => {
+    const trimmed = nameValue.trim();
+    if (!trimmed) {
+      setNameValue(collection.name);
+      setEditingName(false);
+      return;
+    }
+    if (trimmed === collection.name) {
+      setEditingName(false);
+      return;
+    }
+    try {
+      await fetch(`${getApiBase()}/collections/${collection.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (onRenamed) onRenamed(collection.id, trimmed);
+    } catch (err) {
+      console.error('Rename failed:', err);
+      setNameValue(collection.name);
+    }
+    setEditingName(false);
+  };
+
+  const handleNameKeyDown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleNameSave(); }
+    if (e.key === 'Escape') { setNameValue(collection.name); setEditingName(false); }
   };
 
   return (
@@ -54,9 +93,26 @@ export default function CollectionCard({ collection, onDelete, onEdit, onClick }
       </div>
 
       <div className="collection-card-body">
-        <div className="collection-card-name">{collection.name}</div>
-        {collection.description && (
-          <div className="collection-card-desc">{collection.description}</div>
+        {editingName ? (
+          <form onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); handleNameSave(); }} onClick={(e) => e.stopPropagation()}>
+            <input
+              className="collection-card-name-input"
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onBlur={handleNameSave}
+              onKeyDown={handleNameKeyDown}
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+            />
+          </form>
+        ) : (
+          <div
+            className="collection-card-name"
+            onClick={handleNameClick}
+            title="Click to rename"
+          >
+            {nameValue}
+          </div>
         )}
         <div className="collection-card-meta">
           <span>{collection.link_count} {collection.link_count === 1 ? 'Link' : 'Links'}</span>

@@ -27,9 +27,11 @@ const TAG_TIMEOUT_MS = 120_000;  // 2 min — import even if user never added ta
 const BACKEND_URL    = process.env.BACKEND_URL || 'http://localhost:3001';
 const VERCEL_URL     = process.env.VERCEL_URL  || 'https://mind-vault-chi.vercel.app';
 
-let supabase   = null;
+let supabase      = null;  // anon key — Realtime subscription
+let supabaseAdmin = null;  // service_role key — SELECT/UPDATE (bypasses RLS)
 let deviceId   = null;
 let channel    = null;
+let pollTimer  = null;  // fallback polling interval handle
 // Track per-entry timeout timers so we don't double-import
 const pendingTimers = new Map();
 
@@ -45,16 +47,23 @@ function getDeviceId() {
 }
 
 async function init() {
-  const url  = process.env.SUPABASE_URL;
-  const key  = process.env.SUPABASE_ANON_KEY;   // anon key — safe to use on desktop
+  const url      = process.env.SUPABASE_URL;
+  const anonKey  = process.env.SUPABASE_ANON_KEY;
+  const adminKey = process.env.SUPABASE_KEY;     // service_role — bypasses RLS for SELECT
 
-  if (!url || !key) {
-    console.log('ℹ️  Share queue realtime disabled (no SUPABASE_URL / SUPABASE_ANON_KEY)');
+  if (!url || (!anonKey && !adminKey)) {
+    console.log('ℹ️  Share queue realtime disabled (no SUPABASE_URL / keys)');
     return;
   }
 
   deviceId = getDeviceId();
-  supabase = createClient(url, key, { auth: { persistSession: false } });
+  console.log(`📡 Supabase poller init — deviceId: ${deviceId ? deviceId.slice(0,8) + '…' : '⚠️ NOT FOUND'}`);
+
+  // Admin client (service_role) for polling — bypasses RLS, always sees all rows
+  supabaseAdmin = createClient(url, adminKey || anonKey, { auth: { persistSession: false } });
+
+  // Anon client for Realtime subscription (WebSocket)
+  supabase = createClient(url, anonKey || adminKey, { auth: { persistSession: false } });
 
   // ── Subscribe to INSERT + UPDATE on share_queue for this device ──────────
   channel = supabase
@@ -71,18 +80,34 @@ async function init() {
         filter: deviceId ? `user_id=eq.${deviceId}` : undefined },
       (payload) => handleRow(payload.new, 'UPDATE'),
     )
-    .subscribe((status) => {
+    .subscribe((status, err) => {
       if (status === 'SUBSCRIBED') {
         console.log(`📡 Realtime connected — device: ${deviceId ? deviceId.slice(0,8) + '…' : 'unknown'}`);
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error(`❌ Realtime channel error — device: ${deviceId?.slice(0,8)}`, err?.message || err);
+      } else if (status === 'TIMED_OUT') {
+        console.warn(`⏱️  Realtime timed out — device: ${deviceId?.slice(0,8)}`);
+      } else if (status === 'CLOSED') {
+        console.warn(`🔌 Realtime channel closed`);
+      } else {
+        console.log(`📡 Realtime status: ${status}`);
       }
     });
 
   // ── Check for any unprocessed entries that arrived while offline ─────────
   await checkExisting();
+
+  // ── Polling fallback: re-check every 30s in case Realtime is unreliable ──
+  // This ensures links always arrive even if the WebSocket subscription
+  // fails silently (e.g. table not in supabase_realtime publication).
+  const POLL_INTERVAL_MS = 30_000;
+  pollTimer = setInterval(() => checkExisting(true), POLL_INTERVAL_MS);
+  console.log(`🔄 Polling fallback active — checking every ${POLL_INTERVAL_MS / 1000}s`);
 }
 
 function stop() {
-  if (channel)  { supabase.removeChannel(channel); channel = null; }
+  if (channel)   { supabase.removeChannel(channel); channel = null; }
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   for (const t of pendingTimers.values()) clearTimeout(t);
   pendingTimers.clear();
 }
@@ -103,8 +128,8 @@ async function handleRow(entry, event) {
     const timer = setTimeout(async () => {
       pendingTimers.delete(entry.id);
       // Re-fetch to get latest state (user may have added tags in the meantime)
-      if (!supabase) return;
-      const { data } = await supabase
+      if (!supabaseAdmin) return;
+      const { data } = await supabaseAdmin
         .from('share_queue')
         .select('*')
         .eq('id', entry.id)
@@ -117,12 +142,13 @@ async function handleRow(entry, event) {
   // UPDATE with tags_ready=false is ignored — we're already waiting via timer
 }
 
-// ── On startup: process anything that arrived while the app was closed ────────
-async function checkExisting() {
-  if (!supabase) return;
+// ── On startup (and periodic poll): process anything unprocessed ─────────────
+// silent=true suppresses the "nothing to do" log line (used by 30s interval)
+async function checkExisting(silent = false) {
+  if (!supabaseAdmin) return;
 
   try {
-    let query = supabase
+    let query = supabaseAdmin
       .from('share_queue')
       .select('*')
       .eq('processed', false)
@@ -131,7 +157,14 @@ async function checkExisting() {
     if (deviceId) query = query.eq('user_id', deviceId);
 
     const { data, error } = await query;
-    if (error || !data?.length) return;
+    if (error) {
+      console.error('❌ checkExisting query failed:', error.message, error.code);
+      return;
+    }
+    if (!data?.length) {
+      if (!silent) console.log('📭 No pending share queue entries on startup.');
+      return;
+    }
 
     const cutoff = Date.now() - TAG_TIMEOUT_MS;
     const ready  = data.filter(e =>
@@ -154,7 +187,7 @@ async function checkExisting() {
       const remaining = TAG_TIMEOUT_MS - elapsed;
       const timer     = setTimeout(async () => {
         pendingTimers.delete(entry.id);
-        const { data: fresh } = await supabase
+        const { data: fresh } = await supabaseAdmin
           .from('share_queue').select('*').eq('id', entry.id).single();
         if (fresh && !fresh.processed) await importEntry(fresh);
       }, remaining);
@@ -190,7 +223,7 @@ async function importEntry(entry) {
     console.log(`✅ Imported [${result.id}]: ${result.title}`);
 
     // Mark as processed — directly via Supabase (no Vercel round-trip)
-    await supabase
+    await supabaseAdmin
       .from('share_queue')
       .update({ processed: true })
       .eq('id', entry.id);

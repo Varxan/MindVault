@@ -376,6 +376,32 @@ router.patch('/links/:id', (req, res) => {
     // Update space separately if provided
     if (space && ['eye', 'mind'].includes(space)) {
       db.prepare('UPDATE links SET space = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(space, req.params.id);
+
+      // ── Auto-transcription when moving to Mind (if no transcript yet) ──────
+      // Triggers the same Whisper pipeline as on initial Mind-save,
+      // so links moved from Eye to Mind are fully indexed for Fuse search.
+      if (space === 'mind' && !link.transcript && link.url) {
+        const capturedLinkId = req.params.id;
+        const capturedUrl    = link.url;
+        setImmediate(async () => {
+          try {
+            const available = await isWhisperAvailable();
+            if (!available) return;
+
+            const transcript = await transcribeFromUrl(capturedUrl, null);
+            if (!transcript) return;
+
+            db.prepare('UPDATE links SET transcript = ? WHERE id = ?').run(transcript, capturedLinkId);
+            console.log(`[Whisper] 💾 Hidden transcript stored for moved Mind link ${capturedLinkId}`);
+
+            // Re-embed with transcript for richer semantic search
+            generateAndStoreEmbedding(capturedLinkId);
+            pushEvent('link-updated', { id: capturedLinkId });
+          } catch (err) {
+            console.log(`[Whisper] ⚠️  Background transcription failed for moved link ${capturedLinkId}: ${err.message}`);
+          }
+        });
+      }
     }
 
     const updated = getLinkById.get({ id: req.params.id });
@@ -929,63 +955,85 @@ router.delete('/links/:id/media', (req, res) => {
 // =============================================
 
 // POST /api/links/:id/analyze – AI-Analyse manuell triggern
-router.post('/links/:id/analyze', async (req, res) => {
-  try {
-    const link = getLinkById.get({ id: req.params.id });
-    if (!link) return res.status(404).json({ error: 'Link nicht gefunden' });
+// Returns 202 immediately and runs analysis in background (CLIP can take 30-120s).
+router.post('/links/:id/analyze', (req, res) => {
+  const link = getLinkById.get({ id: req.params.id });
+  if (!link) return res.status(404).json({ error: 'Link nicht gefunden' });
 
-    // Prefer video file for analysis, then local thumbnail, then remote URL
-    let imageSource = null;
-
-    // Check for downloaded video
-    if (link.media_path) {
-      const videoPath = path.join(MEDIA_DIR, link.media_path);
-      if (fs.existsSync(videoPath)) imageSource = videoPath;
-    }
-
-    // Check for uploaded file
-    if (!imageSource && link.file_path) {
-      imageSource = path.join(UPLOAD_DIR, link.file_path);
-    }
-
-    // Fall back to local thumbnail
-    if (!imageSource && link.local_thumbnail) {
-      const thumbPath = path.join(THUMB_DIR, link.local_thumbnail);
-      if (fs.existsSync(thumbPath)) imageSource = thumbPath;
-    }
-
-    // Fall back to remote thumbnail URL
-    if (!imageSource && link.thumbnail_url) {
-      imageSource = link.thumbnail_url;
-    }
-
-    if (!imageSource) {
-      return res.status(400).json({ error: 'Kein Bild/Video zum Analysieren vorhanden' });
-    }
-
-    const aiResult = await analyzeContent(imageSource, {
-      title: link.title,
-      description: link.description,
-      source: link.source,
-      url: link.url,
-      note: link.note,
-    });
-
-    // Update tags and description
-    if (aiResult.tags.length > 0) {
-      mergeAITags(link.id, aiResult.tags);
-    }
-    if (aiResult.description) {
-      db.prepare('UPDATE links SET description = ? WHERE id = ?')
-        .run(aiResult.description, link.id);
-    }
-
-    const updated = getLinkById.get({ id: link.id });
-    res.json({ ...updated, aiResult });
-  } catch (err) {
-    console.error('Error analyzing link:', err);
-    res.status(500).json({ error: 'Fehler bei der Analyse' });
+  // Prefer video file for analysis, then local thumbnail, then remote URL
+  let imageSource = null;
+  if (link.media_path) {
+    const videoPath = path.join(MEDIA_DIR, link.media_path);
+    if (fs.existsSync(videoPath)) imageSource = videoPath;
   }
+  if (!imageSource && link.file_path) {
+    imageSource = path.join(UPLOAD_DIR, link.file_path);
+  }
+  if (!imageSource && link.local_thumbnail) {
+    const thumbPath = path.join(THUMB_DIR, link.local_thumbnail);
+    if (fs.existsSync(thumbPath)) imageSource = thumbPath;
+  }
+  if (!imageSource && link.thumbnail_url) {
+    imageSource = link.thumbnail_url;
+  }
+  if (!imageSource) {
+    return res.status(400).json({ error: 'Kein Bild/Video zum Analysieren vorhanden' });
+  }
+
+  // ── Return immediately — client doesn't need to wait for CLIP/Whisper ──────
+  res.status(202).json({ message: 'Re-analyse gestartet' });
+
+  // ── Run everything in background ────────────────────────────────────────────
+  const capturedLinkId = link.id;
+  const capturedUrl    = link.url;
+  const capturedSpace  = link.space;
+
+  setImmediate(async () => {
+    try {
+      const aiResult = await analyzeContent(imageSource, {
+        title: link.title,
+        description: link.description,
+        source: link.source,
+        url: link.url,
+        note: link.note,
+      });
+
+      if (aiResult) {
+        // Re-analyse = fresh start: replace all tags instead of merging.
+        // mergeAITags would silently do nothing if 15 tags already exist.
+        if (aiResult.tags.length > 0) replaceAITags(capturedLinkId, aiResult.tags);
+        if (aiResult.description) {
+          db.prepare('UPDATE links SET description = ? WHERE id = ?')
+            .run(aiResult.description, capturedLinkId);
+        }
+      }
+
+      generateAndStoreEmbedding(capturedLinkId);
+      pushEvent('link-updated', { id: capturedLinkId });
+      console.log(`[Analyze] ✅ Re-analyse abgeschlossen für ${capturedLinkId}`);
+    } catch (err) {
+      console.error(`[Analyze] ❌ Re-analyse fehlgeschlagen für ${capturedLinkId}:`, err.message);
+    }
+
+    // ── For Mind links: also re-run Whisper ───────────────────────────────────
+    if (capturedSpace === 'mind' && capturedUrl) {
+      try {
+        const available = await isWhisperAvailable();
+        if (!available) return;
+
+        const transcript = await transcribeFromUrl(capturedUrl, null);
+        if (!transcript) return;
+
+        db.prepare('UPDATE links SET transcript = ? WHERE id = ?').run(transcript, capturedLinkId);
+        console.log(`[Whisper] 💾 Re-transcription stored for Mind link ${capturedLinkId}`);
+
+        generateAndStoreEmbedding(capturedLinkId);
+        pushEvent('link-updated', { id: capturedLinkId });
+      } catch (err) {
+        console.log(`[Whisper] ⚠️  Re-transcription failed for ${capturedLinkId}: ${err.message}`);
+      }
+    }
+  });
 });
 
 // POST /api/backfill-authors – Fetch author URLs for existing links
@@ -1380,6 +1428,27 @@ router.delete('/collections/:id/links/:linkId', (req, res) => {
   }
 });
 
+// PATCH /api/collections/reorder – Reorder collections in the overview
+router.patch('/collections/reorder', (req, res) => {
+  try {
+    const { collectionIds } = req.body;
+    if (!Array.isArray(collectionIds) || collectionIds.length === 0) {
+      return res.status(400).json({ error: 'collectionIds array is required' });
+    }
+    const updatePos = db.prepare('UPDATE collections SET sort_position = ? WHERE id = ?');
+    const reorder = db.transaction(() => {
+      collectionIds.forEach((id, index) => {
+        updatePos.run(index, id);
+      });
+    });
+    reorder();
+    res.json({ message: 'Collections reordered', count: collectionIds.length });
+  } catch (err) {
+    console.error('Error reordering collections:', err);
+    res.status(500).json({ error: 'Reorder failed' });
+  }
+});
+
 // PATCH /api/collections/:id/reorder – Reorder links within a collection
 router.patch('/collections/:id/reorder', (req, res) => {
   try {
@@ -1477,7 +1546,7 @@ router.get('/settings', (req, res) => {
   try {
     const rows = getAllSettings.all();
     const settings = {};
-    const nonSensitiveKeys = ['download_path', 'cloud_backup_path', 'custom_preferred_tags', 'tag_catalog_ratio', 'custom_ai_prompt', 'preferred_ai_provider', 'use_local_clip'];
+    const nonSensitiveKeys = ['download_path', 'cloud_backup_path', 'custom_preferred_tags', 'tag_catalog_ratio', 'custom_ai_prompt', 'preferred_ai_provider', 'use_local_clip', 'onboarding_complete'];
     for (const row of rows) {
       if (nonSensitiveKeys.includes(row.key)) {
         // Show full value for non-sensitive settings
@@ -1515,7 +1584,8 @@ router.patch('/settings', (req, res) => {
       'cloud_backup_path',
       'custom_preferred_tags',
       'tag_catalog_ratio',
-      'custom_ai_prompt'
+      'custom_ai_prompt',
+      'onboarding_complete'
     ];
     if (!allowed.includes(key)) {
       return res.status(400).json({ error: 'Invalid setting key' });

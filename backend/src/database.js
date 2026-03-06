@@ -117,6 +117,18 @@ if (!clColumns.includes('sort_position')) {
   db.exec('ALTER TABLE collection_links ADD COLUMN sort_position INTEGER DEFAULT 0');
 }
 
+// Migration: add sort_position to collections
+const colColumns = db.prepare("PRAGMA table_info(collections)").all().map(c => c.name);
+if (!colColumns.includes('sort_position')) {
+  db.exec('ALTER TABLE collections ADD COLUMN sort_position INTEGER DEFAULT 0');
+  // Initialize existing collections: sort based on created_at
+  db.exec(`
+    UPDATE collections SET sort_position = (
+      SELECT COUNT(*) FROM collections c2 WHERE c2.created_at <= collections.created_at
+    )
+  `);
+}
+
 // Settings table (key-value store for app config)
 db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
@@ -212,7 +224,7 @@ const getAllCollections = db.prepare(`
   FROM collections c
   LEFT JOIN collection_links cl ON c.id = cl.collection_id
   GROUP BY c.id
-  ORDER BY c.updated_at DESC
+  ORDER BY c.sort_position ASC, c.created_at ASC
 `);
 
 const addLinkToCollection = db.prepare(`

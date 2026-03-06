@@ -127,17 +127,24 @@ def main():
             text_features = model.encode_text(text_inputs)
             text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
-            # Cosine similarity → softmax
+            # Raw cosine similarity (no softmax).
+            # Softmax forces a winner even when nothing matches well.
+            # Raw similarity gives absolute confidence scores we can threshold.
             similarity = (avg_features @ text_features.T).squeeze(0)
-            scores = similarity.softmax(dim=-1).cpu().tolist()
+            scores = similarity.cpu().tolist()
 
     except Exception as e:
         print(json.dumps({"error": f"CLIP inference failed: {e}"}))
         sys.exit(1)
 
-    # ── Rank and return top-k ─────────────────────────────────────────────────
+    # ── Filter by absolute threshold, then rank ───────────────────────────────
+    # CLIP ViT-B/32 cosine similarity: ~0.25+ = strong match, ~0.20-0.25 = ok,
+    # below 0.20 = noise. We filter here so weak/wrong tags are never returned.
     tag_scores = sorted(zip(tags, scores), key=lambda x: x[1], reverse=True)
-    selected   = tag_scores[:top_k]
+    filtered   = [(tag, score) for tag, score in tag_scores if score >= threshold]
+
+    # Still cap at top_k as a safety net
+    selected = filtered[:top_k] if filtered else tag_scores[:3]
 
     result_tags   = [tag for tag, _ in selected]
     result_scores = {tag: round(score, 6) for tag, score in selected}

@@ -145,53 +145,90 @@ export default function CollectionDetailPage() {
 
   return (
     <>
-      <header className="header">
+      <header className="header" style={{ position: 'relative' }}>
+        {/* Left — MINDVAULT logo, clickable back to main */}
         <div className="header-left">
-          <button className="collection-back-btn" onClick={() => router.push('/collections')}>
-            ← Collections
-          </button>
-          <div className="collection-detail-title">
-            {editingName ? (
-              <form onSubmit={(e) => { e.preventDefault(); handleSaveName(); }} className="collection-edit-form">
-                <input
-                  className="collection-edit-input"
-                  value={nameValue}
-                  onChange={(e) => setNameValue(e.target.value)}
-                  autoFocus
-                  onBlur={handleSaveName}
-                />
-              </form>
-            ) : (
-              <h1 onClick={() => setEditingName(true)} className="collection-editable-title">
-                {collection.name}
-              </h1>
-            )}
-            <span className="link-count">{collection.link_count} Items</span>
-          </div>
-        </div>
-      </header>
-
-      <div className="collection-detail-desc">
-        {editingDesc ? (
-          <form onSubmit={(e) => { e.preventDefault(); handleSaveDesc(); }} className="collection-edit-form">
-            <input
-              className="collection-edit-input collection-edit-desc"
-              value={descValue}
-              onChange={(e) => setDescValue(e.target.value)}
-              placeholder="Description..."
-              autoFocus
-              onBlur={handleSaveDesc}
-            />
-          </form>
-        ) : (
-          <p
-            className="collection-editable-desc"
-            onClick={() => setEditingDesc(true)}
+          <h1
+            onClick={() => router.push('/')}
+            style={{ cursor: 'pointer', WebkitAppRegion: 'no-drag' }}
+            title="Back to MindVault"
           >
-            {collection.description || 'Add description...'}
-          </p>
-        )}
-      </div>
+            MindVault
+          </h1>
+        </div>
+
+        {/* Centre — breadcrumb + collection name, same tab style as EYE / MIND */}
+        <div style={{
+          position: 'absolute',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          WebkitAppRegion: 'no-drag',
+        }}>
+          {/* Breadcrumb — Collections → */}
+          <button
+            onClick={() => router.push('/collections')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              fontSize: '10px',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              fontFamily: 'var(--font-display)',
+              cursor: 'pointer',
+              padding: '0 0 3px 0',
+              transition: 'color 0.15s',
+            }}
+            onMouseEnter={e => e.target.style.color = '#c8a84b'}
+            onMouseLeave={e => e.target.style.color = 'var(--text-muted)'}
+          >
+            Collections
+          </button>
+
+          {/* Collection name — editable, gold underline like active tab */}
+          {editingName ? (
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveName(); }}>
+              <input
+                className="collection-edit-input"
+                value={nameValue}
+                onChange={(e) => setNameValue(e.target.value)}
+                autoFocus
+                onBlur={handleSaveName}
+                style={{ textAlign: 'center', fontSize: '11px' }}
+              />
+            </form>
+          ) : (
+            <span
+              onClick={() => setEditingName(true)}
+              style={{
+                display: 'inline-block',
+                borderBottom: '2px solid #c8a84b',
+                color: '#c8a84b',
+                padding: '2px 20px',
+                fontSize: '11px',
+                fontWeight: 600,
+                fontFamily: 'var(--font-display)',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                maxWidth: '300px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              title="Click to rename"
+            >
+              {collection.name}
+            </span>
+          )}
+        </div>
+
+        {/* Right — placeholder for balance */}
+        <div className="header-right" />
+      </header>
 
       {links.length === 0 ? (
         <div className="empty">

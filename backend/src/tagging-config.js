@@ -36,18 +36,15 @@ Consider the narrative flow, visual progression, and overall cinematic language.
  * @param {Object} context       - Link metadata (title, description, source, note)
  * @param {boolean} isVideo      - Whether the content is a video
  * @param {Object} taggingSettings - User preferences from DB
- *   @param {string}  taggingSettings.preferredTags  - Comma-separated preferred tags
- *   @param {number}  taggingSettings.catalogRatio   - 0-100, percentage from catalog (default 80)
- *   @param {string}  taggingSettings.customPrompt   - Additional user instructions
+ *   @param {string}  taggingSettings.preferredTags    - Comma-separated preferred tags
+ *   @param {number}  taggingSettings.aiInterpretedCount - How many AI-invented tags to add (default 3)
+ *   @param {string}  taggingSettings.customPrompt     - Additional user instructions
  */
 function buildPrompt(context = {}, isVideo = false, taggingSettings = {}) {
-  const totalTags = 15;
-  const catalogRatio = typeof taggingSettings.catalogRatio === 'number'
-    ? Math.max(0, Math.min(100, taggingSettings.catalogRatio))
-    : 80;
-
-  const catalogCount = Math.round(totalTags * catalogRatio / 100);
-  const customCount = totalTags - catalogCount;
+  // AI interpreted tags = freely invented by AI on top of catalog tags
+  const aiInterpretedCount = typeof taggingSettings.catalogRatio === 'number'
+    ? Math.max(0, Math.min(10, taggingSettings.catalogRatio))
+    : 3;
 
   // Build context string
   let contextStr = '';
@@ -79,21 +76,23 @@ Note: Only use preferred tags if they genuinely match the content. Do not force 
     }
   }
 
-  // Tagging rules with dynamic ratio
-  let customTagsInstruction;
-  if (customCount === 0) {
-    customTagsInstruction = `- Use ONLY catalog tags (no custom tags allowed)`;
-  } else if (customCount <= 3) {
-    customTagsInstruction = `- Add UP TO ${customCount} custom tag${customCount !== 1 ? 's' : ''} ONLY if something important is genuinely missing`;
+  // Tagging rules
+  let aiTagsInstruction;
+  if (aiInterpretedCount === 0) {
+    aiTagsInstruction = `- Use ONLY catalog tags (no AI interpreted tags)`;
+  } else if (aiInterpretedCount <= 3) {
+    aiTagsInstruction = `- Add UP TO ${aiInterpretedCount} AI interpreted tag${aiInterpretedCount !== 1 ? 's' : ''} ONLY if something important is genuinely missing from the catalog`;
   } else {
-    customTagsInstruction = `- Add UP TO ${customCount} custom tag${customCount !== 1 ? 's' : ''} for important visual elements, techniques, moods, or styles not in the catalog. Be creative but selective.`;
+    aiTagsInstruction = `- Add UP TO ${aiInterpretedCount} AI interpreted tags for visual elements, techniques, moods, or styles not covered by the catalog. Be creative but selective.`;
   }
 
+  const totalTags = `10–13 catalog tags + up to ${aiInterpretedCount} AI interpreted tags`;
+
   prompt += `
-TAGGING RULES (${catalogRatio}/${100 - catalogRatio} Strategy):
-- Select EXACTLY ${totalTags} tags TOTAL — never fewer, never more
-- AT LEAST ${catalogCount} tags MUST come from the catalog above (${catalogRatio}% rule)
-${customTagsInstruction}
+TAGGING RULES:
+- Select ALL relevant catalog tags (typically 10–13 tags)
+- Catalog tags must match what is genuinely visible
+${aiTagsInstruction}
 - Prioritize: aesthetic, lighting, color, mood, movement (for video)
 - All tags must be in English
 - Output only the tags and a brief (1 sentence) visual description`;
@@ -104,7 +103,7 @@ ${customTagsInstruction}
   }
 
   // Output format
-  prompt += `\n\nOUTPUT FORMAT (JSON only):
+  prompt += `\n\nOUTPUT FORMAT (JSON only, no fixed total — include all relevant catalog tags plus AI interpreted):
 {"tags": ["tag1", "tag2", ...], "description": "brief visual description"}`;
 
   // Context

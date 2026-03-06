@@ -152,6 +152,7 @@ function createBot(token) {
           thumbnail_url: meta.thumbnail_url || null,
           tags: '[]',
           note: note,
+          space: 'eye',
         });
 
         const linkId = result.lastInsertRowid;

@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "MindVault",
+  "version": "1.0.0",
+  "description": "Save links directly to MindVault — EYE or MIND space.",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "http://localhost:3001/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "save-to-eye": {
+      "suggested_key": {
+        "mac": "Command+Shift+E",
+        "default": "Ctrl+Shift+E"
+      },
+      "description": "Save current page to EYE space"
+    },
+    "save-to-mind": {
+      "suggested_key": {
+        "mac": "Command+Shift+M",
+        "default": "Ctrl+Shift+M"
+      },
+      "description": "Save current page to MIND space"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

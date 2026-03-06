@@ -10,6 +10,7 @@ import CollectionForm from './CollectionForm';
 import PreviewModal from './PreviewModal';
 import SettingsPanel from './SettingsPanel';
 import MobileQRSection from './MobileQRSection';
+import OnboardingModal from './OnboardingModal';
 import Fuse from 'fuse.js';
 import { fetchLinks, fetchSources, fetchCollections, deleteLink, addLinksToCollection } from '../lib/api';
 import { getApiBase } from '../lib/config';
@@ -41,11 +42,13 @@ export default function LinkGrid() {
   const [showCollectionForm, setShowCollectionForm] = useState(false);
 
   // Settings menu
+  const [collectionsDropdownOpen, setCollectionsDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsActioned, setSettingsActioned] = useState(false);
   const [settingsPage, setSettingsPage] = useState('main'); // 'main' | 'tokens' | 'downloads' | 'backup' | 'tagging'
   const [settingsStatus, setSettingsStatus] = useState({});
   const [telegramToken, setTelegramToken] = useState('');
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // New SettingsPanel state
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
@@ -74,6 +77,23 @@ export default function LinkGrid() {
       refresh();
     } catch (err) {
       alert('Error moving link: ' + err.message);
+    }
+  };
+
+  const handleReanalyze = async () => {
+    if (!cardContextMenu) return;
+    const { link } = cardContextMenu;
+    setCardContextMenu(null);
+    try {
+      const res = await fetch(`${getApiBase()}/links/${link.id}/analyze`, {
+        method: 'POST',
+      });
+      // 202 = started in background, 200 = done synchronously — both are success
+      if (!res.ok) throw new Error('Failed');
+      // Tags update in background — refresh after a short delay to catch quick results
+      setTimeout(() => refresh(), 3000);
+    } catch (err) {
+      alert('Error re-analyzing link: ' + err.message);
     }
   };
 
@@ -338,6 +358,7 @@ export default function LinkGrid() {
     loadLinksRef.current();
     loadSources();
     loadCollections();
+    loadSettings();
 
     const apiBase = getApiBase();
     const es = new EventSource(`${apiBase}/events`);
@@ -385,6 +406,17 @@ export default function LinkGrid() {
     }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Show onboarding once — when settings first load and onboarding_complete is not set
+  const hasCheckedOnboardingRef = useRef(false);
+  useEffect(() => {
+    if (Object.keys(settingsStatus).length === 0) return; // not loaded yet
+    if (hasCheckedOnboardingRef.current) return;          // already checked this session
+    hasCheckedOnboardingRef.current = true;
+    if (settingsStatus.onboarding_complete !== 'true') {
+      setShowOnboarding(true);
+    }
+  }, [settingsStatus]);
 
   useEffect(() => {
     if (!settingsOpen) { setSettingsActioned(false); return; }
@@ -478,8 +510,8 @@ export default function LinkGrid() {
     <>
       <AddLink onAdded={refresh} />
 
-      {/* AI Status Warning Banner */}
-      {aiStatus && !aiStatus.ok && (
+      {/* AI Status Warning Banner — only when a key exists but has an actual error, not when no key is configured at all */}
+      {aiStatus && !aiStatus.ok && aiStatus.errorType !== 'no_key' && (
         <div style={{
           background: aiStatus.errorType === 'rate_limit' ? 'rgba(251,191,36,0.12)' :
                       aiStatus.errorType === 'auth'       ? 'rgba(239,68,68,0.12)' :
@@ -576,13 +608,61 @@ export default function LinkGrid() {
           >
             {bulkMode ? <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg> Cancel</> : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg> Select</>}
           </button>
-          <button
-            className="header-btn"
-            onClick={() => router.push('/collections')}
-            title="Manage collections"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Collections
-          </button>
+          {/* Collections split-button: left = navigate to page, right chevron = quick filter dropdown */}
+          <div className={`collections-btn-wrapper ${activeCollection ? 'active' : ''}`}>
+            <button
+              className="collections-btn-main"
+              onClick={() => { setCollectionsDropdownOpen(false); router.push('/collections'); }}
+              title="Manage collections"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+              Collections
+            </button>
+            <button
+              className="collections-btn-chevron"
+              onClick={() => setCollectionsDropdownOpen(o => !o)}
+              title="Quick filter by collection"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                style={{ transform: collectionsDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+
+            {collectionsDropdownOpen && (
+              <>
+                {/* Backdrop */}
+                <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setCollectionsDropdownOpen(false)} />
+                {/* Dropdown */}
+                <div className="collections-dropdown">
+                  <button
+                    className={`collections-dropdown-item ${!activeCollection ? 'active' : ''}`}
+                    onClick={() => { setActiveCollection(null); setCollectionsDropdownOpen(false); }}
+                  >
+                    <span>All links</span>
+                  </button>
+                  {collections.length > 0 && <div className="collections-dropdown-divider" />}
+                  {collections.map(c => (
+                    <button
+                      key={c.id}
+                      className={`collections-dropdown-item ${activeCollection === c.id ? 'active' : ''}`}
+                      onClick={() => { setActiveCollection(c.id); setCollectionsDropdownOpen(false); }}
+                    >
+                      <span>{c.name}</span>
+                      <span className="collections-dropdown-count">{c.link_count}</span>
+                    </button>
+                  ))}
+                  <div className="collections-dropdown-divider" />
+                  <button
+                    className="collections-dropdown-item collections-dropdown-manage"
+                    onClick={() => { setCollectionsDropdownOpen(false); router.push('/collections'); }}
+                  >
+                    Manage collections →
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <div className="settings-menu-wrapper" onClick={e => e.stopPropagation()} onMouseLeave={() => { if (settingsActioned) setSettingsOpen(false); }}>
             <button
               className={`header-btn settings-btn ${settingsOpen ? 'active' : ''}`}
@@ -820,76 +900,55 @@ export default function LinkGrid() {
                     </div>
                     <div className="settings-divider" />
 
-                    {/* Catalog Ratio Slider */}
-                    <div className="settings-field">
-                      <label>Catalog / Custom Ratio</label>
-                      <span className="settings-field-hint" style={{ marginBottom: '6px' }}>
-                        How many of the ~15 tags come from the predefined catalog vs. AI-generated custom tags.
+                    {/* AI Interpreted Tags Count */}
+                    {(() => { const hasApiKey = !!(settingsStatus.anthropic_api_key || settingsStatus.openai_api_key); return (
+                    <div className="settings-field" style={{ opacity: hasApiKey ? 1 : 0.4, pointerEvents: hasApiKey ? 'auto' : 'none' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        AI Interpreted Tags
+                        {!hasApiKey && <span style={{ fontSize: '9px', color: 'var(--text-dim)', fontWeight: 400, letterSpacing: '0.03em' }}>— requires API key</span>}
+                      </label>
+                      <span className="settings-field-hint" style={{ marginBottom: '8px' }}>
+                        How many additional tags the AI can freely invent beyond the catalog (e.g. &ldquo;red light&rdquo;, &ldquo;smoke effect&rdquo;).
                       </span>
-                      <style>{`
-                        .mv-ratio-slider {
-                          -webkit-appearance: none; appearance: none;
-                          width: 100%; height: 4px; border-radius: 2px;
-                          outline: none; cursor: pointer;
-                          background: linear-gradient(to right, #E8A045 var(--ratio-pct, 80%), rgba(232,160,69,0.2) var(--ratio-pct, 80%));
-                        }
-                        .mv-ratio-slider::-webkit-slider-thumb {
-                          -webkit-appearance: none; appearance: none;
-                          width: 14px; height: 14px; border-radius: 50%;
-                          background: #E8A045; cursor: pointer;
-                          box-shadow: 0 0 0 3px rgba(232,160,69,0.2);
-                        }
-                        .mv-ratio-slider::-moz-range-thumb {
-                          width: 14px; height: 14px; border-radius: 50%; border: none;
-                          background: #E8A045; cursor: pointer;
-                          box-shadow: 0 0 0 3px rgba(232,160,69,0.2);
-                        }
-                      `}</style>
                       {(() => {
-                        const ratio = parseInt(settingsStatus.tag_catalog_ratio !== undefined && settingsStatus.tag_catalog_ratio !== '' ? settingsStatus.tag_catalog_ratio : '80', 10);
-                        const catalogCount = Math.round(15 * ratio / 100);
-                        const customCount = 15 - catalogCount;
+                        const val = parseInt(settingsStatus.tag_catalog_ratio !== undefined && settingsStatus.tag_catalog_ratio !== '' ? settingsStatus.tag_catalog_ratio : '3', 10);
                         return (
-                          <div data-slider-box="">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <input
-                              type="range"
-                              className="mv-ratio-slider"
+                              type="number"
                               min="0"
-                              max="100"
-                              step="5"
-                              defaultValue={ratio}
-                              style={{ '--ratio-pct': `${ratio}%`, display: 'block', width: '100%', margin: '4px 0' }}
-                              onChange={(e) => {
-                                const val = parseInt(e.target.value, 10);
-                                const cCount = Math.round(15 * val / 100);
-                                const cuCount = 15 - cCount;
-                                e.target.style.setProperty('--ratio-pct', `${val}%`);
-                                const wrapper = e.target.closest('[data-slider-box]');
-                                if (wrapper) {
-                                  wrapper.querySelector('[data-left]').textContent = `${val}% Catalog`;
-                                  wrapper.querySelector('[data-right]').textContent = `${100 - val}% Custom`;
-                                  wrapper.querySelector('[data-summary]').textContent = `≈ ${cCount} catalog tags + ${cuCount} custom tags per item`;
-                                }
+                              max="10"
+                              defaultValue={isNaN(val) ? 3 : val}
+                              style={{
+                                width: '56px', padding: '5px 8px', fontSize: '13px', fontWeight: 600,
+                                background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px',
+                                color: 'var(--text)', outline: 'none', textAlign: 'center',
                               }}
-                              onMouseUp={(e) => handleSaveToken('tag_catalog_ratio', e.target.value)}
-                              onTouchEnd={(e) => handleSaveToken('tag_catalog_ratio', e.target.value)}
+                              onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                              onBlur={e => {
+                                e.target.style.borderColor = 'var(--border)';
+                                const n = Math.max(0, Math.min(10, parseInt(e.target.value) || 0));
+                                e.target.value = n;
+                                handleSaveToken('tag_catalog_ratio', String(n));
+                              }}
                             />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                              <span data-left="">{ratio}% Catalog</span>
-                              <span data-right="">{100 - ratio}% Custom</span>
-                            </div>
-                            <div data-summary="" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                              ≈ {catalogCount} catalog tags + {customCount} custom tags per item
-                            </div>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                              tags added on top of catalog tags
+                            </span>
                           </div>
                         );
                       })()}
                     </div>
+                    ); })()}
                     <div className="settings-divider" />
 
                     {/* Custom AI Prompt */}
-                    <div className="settings-field">
-                      <label>Custom AI Prompt</label>
+                    {(() => { const hasApiKey = !!(settingsStatus.anthropic_api_key || settingsStatus.openai_api_key); return (
+                    <div className="settings-field" style={{ opacity: hasApiKey ? 1 : 0.4, pointerEvents: hasApiKey ? 'auto' : 'none' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        Custom AI Prompt
+                        {!hasApiKey && <span style={{ fontSize: '9px', color: 'var(--text-dim)', fontWeight: 400, letterSpacing: '0.03em' }}>— requires API key</span>}
+                      </label>
                       <span className="settings-field-hint" style={{ marginBottom: '6px' }}>
                         Additional instructions for the AI tagger. Gets appended to the standard prompt.
                       </span>
@@ -929,6 +988,7 @@ export default function LinkGrid() {
                         </div>
                       )}
                     </div>
+                    ); })()}
                   </>
                 )}
 
@@ -1167,15 +1227,33 @@ export default function LinkGrid() {
 
       {/* Tag Library Modal */}
       {showTagModal && (() => {
-        const currentTags = (settingsStatus.custom_preferred_tags || '').split(',').map(t => t.trim()).filter(Boolean);
+        const catalogLabels = tagCatalog
+          ? Object.values(tagCatalog).flatMap(cat => cat.tags.map(t => t.label))
+          : [];
 
-        const addTag = (tag) => {
-          if (!tag.trim() || currentTags.includes(tag.trim())) return;
-          handleSaveToken('custom_preferred_tags', [...currentTags, tag.trim()].join(', '));
+        const allStored = (settingsStatus.custom_preferred_tags || '')
+          .split(',').map(t => t.trim()).filter(Boolean);
+
+        // Catalog tags that are active
+        const activeCatalog = allStored.filter(t => catalogLabels.includes(t));
+        // User-created custom tags (not in predefined catalog)
+        const userCustomTags = allStored.filter(t => !catalogLabels.includes(t));
+        const currentTags = allStored;
+
+        const toggleTag = (label) => {
+          const updated = activeCatalog.includes(label)
+            ? allStored.filter(t => t !== label)
+            : [...allStored, label];
+          handleSaveToken('custom_preferred_tags', updated.join(', '));
         };
 
-        const removeTag = (tag) => {
-          handleSaveToken('custom_preferred_tags', currentTags.filter(t => t !== tag).join(', '));
+        const addUserTag = (val) => {
+          if (!val.trim() || allStored.includes(val.trim())) return;
+          handleSaveToken('custom_preferred_tags', [...allStored, val.trim()].join(', '));
+        };
+
+        const removeUserTag = (tag) => {
+          handleSaveToken('custom_preferred_tags', allStored.filter(t => t !== tag).join(', '));
         };
 
         return (
@@ -1184,23 +1262,29 @@ export default function LinkGrid() {
             onClick={() => setShowTagModal(false)}
           >
             <style>{`
-              .mv-tag-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 500px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
+              .mv-tag-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 540px; max-height: 82vh; display: flex; flex-direction: column; overflow: hidden; }
               .mv-tag-modal-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
               .mv-tag-modal-title { font-size: 14px; font-weight: 600; color: var(--text); }
               .mv-tag-modal-count { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
               .mv-tag-modal-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 4px; }
-              .mv-tag-modal-addinput { padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; display: flex; gap: 8px; }
+              .mv-tag-modal-body { overflow-y: auto; flex: 1; padding: 0 0 8px; }
+              .mv-tag-category { padding: 14px 20px 8px; }
+              .mv-tag-category-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+              .mv-tag-category-name { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+              .mv-tag-category-limit { font-size: 9px; color: var(--accent); background: var(--accent-bg); padding: 2px 7px; border-radius: 10px; }
+              .mv-tag-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+              .mv-tag-chip { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--text-muted); transition: all 0.12s; user-select: none; }
+              .mv-tag-chip:hover { border-color: var(--accent); color: var(--text); }
+              .mv-tag-chip.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 500; }
+              .mv-tag-chip-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+              .mv-tag-category-divider { height: 1px; background: var(--border); margin: 0 20px; }
+              .mv-tag-modal-addinput { padding: 12px 20px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; gap: 8px; }
               .mv-tag-modal-addinput input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 7px 12px; font-size: 12px; outline: none; font-family: inherit; }
+              .mv-tag-modal-addinput input:focus { border-color: var(--accent); }
               .mv-tag-modal-addinput input::placeholder { color: var(--text-muted); }
               .mv-tag-modal-addinput button { background: var(--accent); border: none; border-radius: 6px; color: #fff; font-weight: 600; font-size: 12px; padding: 7px 14px; cursor: pointer; flex-shrink: 0; }
-              .mv-tag-list { overflow-y: auto; flex: 1; padding: 10px 16px 16px; display: flex; flex-direction: column; gap: 3px; }
-              .mv-tag-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border-radius: 6px; background: var(--surface-hover); }
-              .mv-tag-row:hover { background: var(--border); }
-              .mv-tag-label { font-size: 12px; color: var(--text); }
-              .mv-tag-remove { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; opacity: 0.55; }
-              .mv-tag-remove:hover { opacity: 1; color: var(--danger); }
-              .mv-tag-modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; flex-shrink: 0; }
-              .mv-tag-modal-footer button { background: var(--accent); border: none; border-radius: 6px; color: #fff; font-weight: 600; font-size: 12px; padding: 7px 22px; cursor: pointer; }
+              .mv-tag-custom-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 20px 4px; }
+              .mv-tag-modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; flex-shrink: 0; }
             `}</style>
             <div className="mv-tag-modal" onClick={e => e.stopPropagation()}>
 
@@ -1208,37 +1292,77 @@ export default function LinkGrid() {
               <div className="mv-tag-modal-header">
                 <div>
                   <div className="mv-tag-modal-title">Tag Library</div>
-                  <div className="mv-tag-modal-count">{currentTags.length} tags active</div>
+                  <div className="mv-tag-modal-count">{activeCatalog.length} of {catalogLabels.length} catalog tags active{userCustomTags.length > 0 ? ` · ${userCustomTags.length} custom` : ''}</div>
                 </div>
                 <button className="mv-tag-modal-close" onClick={() => setShowTagModal(false)}>✕</button>
               </div>
 
-              {/* Add tag input */}
+              {/* Catalog grouped by category */}
+              <div className="mv-tag-modal-body">
+                {tagCatalog && Object.entries(tagCatalog).map(([catId, cat], idx, arr) => (
+                  <div key={catId}>
+                    <div className="mv-tag-category">
+                      <div className="mv-tag-category-header">
+                        <span className="mv-tag-category-name">{cat.label}</span>
+                        <span className="mv-tag-category-limit">max {cat.maxSelect} selected</span>
+                      </div>
+                      <div className="mv-tag-chips">
+                        {cat.tags.map(tag => {
+                          const active = currentTags.includes(tag.label);
+                          return (
+                            <div
+                              key={tag.id}
+                              className={`mv-tag-chip${active ? ' active' : ''}`}
+                              onClick={() => toggleTag(tag.label)}
+                            >
+                              {active && <span className="mv-tag-chip-dot" />}
+                              {tag.label}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {idx < arr.length - 1 && <div className="mv-tag-category-divider" />}
+                  </div>
+                ))}
+
+                {/* User-created custom tags */}
+                {userCustomTags.length > 0 && (
+                  <>
+                    <div className="mv-tag-category-divider" />
+                    <div className="mv-tag-category">
+                      <div className="mv-tag-category-header">
+                        <span className="mv-tag-category-name">My Custom Tags</span>
+                      </div>
+                      <div className="mv-tag-chips">
+                        {userCustomTags.map((tag, i) => (
+                          <div key={i} className="mv-tag-chip active">
+                            {tag}
+                            <span
+                              style={{ fontSize: '9px', opacity: 0.6, cursor: 'pointer', marginLeft: '2px' }}
+                              onClick={(e) => { e.stopPropagation(); removeUserTag(tag); }}
+                            >✕</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Add custom tag input */}
               <div className="mv-tag-modal-addinput">
                 <input
                   type="text"
-                  placeholder="Add custom tag..."
-                  autoFocus
+                  placeholder="Add your own tag to the library..."
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') { addTag(e.target.value); e.target.value = ''; }
+                    if (e.key === 'Enter') { addUserTag(e.target.value); e.target.value = ''; }
                   }}
                 />
                 <button onMouseDown={(e) => {
                   const input = e.currentTarget.previousElementSibling;
-                  addTag(input.value); input.value = ''; input.focus();
+                  addUserTag(input.value); input.value = ''; input.focus();
                 }}>Add</button>
-              </div>
-
-              {/* Tag list */}
-              <div className="mv-tag-list">
-                {currentTags.length === 0 ? (
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}>No tags yet. Add one above.</div>
-                ) : currentTags.map((tag, i) => (
-                  <div key={i} className="mv-tag-row">
-                    <span className="mv-tag-label">{tag}</span>
-                    <button className="mv-tag-remove" onClick={() => removeTag(tag)} title="Remove">✕</button>
-                  </div>
-                ))}
               </div>
 
               {/* Footer */}
@@ -1255,7 +1379,10 @@ export default function LinkGrid() {
                 >
                   Reset to defaults
                 </button>
-                <button onClick={() => setShowTagModal(false)}>Done</button>
+                <button
+                  style={{ background: 'var(--accent)', border: 'none', borderRadius: '6px', color: '#fff', fontWeight: '600', fontSize: '12px', padding: '7px 22px', cursor: 'pointer' }}
+                  onClick={() => setShowTagModal(false)}
+                >Done</button>
               </div>
             </div>
           </div>
@@ -1268,6 +1395,7 @@ export default function LinkGrid() {
         onClose={() => setShowSettingsPanel(false)}
         settingsStatus={settingsStatus}
         onSettingsUpdate={loadSettings}
+        onOpenOnboarding={() => setShowOnboarding(true)}
       />
 
       {/* QR Code Modal */}
@@ -1343,6 +1471,16 @@ export default function LinkGrid() {
           </div>
         </div>
       )}
+      {/* Onboarding wizard — shown once when onboarding_complete is not set */}
+      {showOnboarding && (
+        <OnboardingModal
+          onComplete={() => {
+            setShowOnboarding(false);
+            loadSettings();
+          }}
+        />
+      )}
+
       {/* Right-click context menu — rendered at LinkGrid level, outside any card stacking context */}
       {cardContextMenu && (
         <>
@@ -1366,6 +1504,9 @@ export default function LinkGrid() {
                 Move to Eye
               </button>
             )}
+            <button className="card-context-item" onClick={handleReanalyze}>
+              Re-analyse
+            </button>
             <button className="card-context-item card-context-cancel" onClick={() => setCardContextMenu(null)}>
               Cancel
             </button>

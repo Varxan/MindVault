@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MindVault</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 300px;
+      background: #f5f2eb;
+      color: #1a1a18;
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      font-size: 13px;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid #e2e0d8;
+    }
+
+    .header-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #4a4a45;
+    }
+
+    .status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #ccc9be;
+      transition: background 0.3s;
+    }
+
+    .status-dot.online  { background: #7aad6e; }
+    .status-dot.offline { background: #d93025; }
+
+    /* ── Page info ── */
+    .page-info {
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid #e2e0d8;
+    }
+
+    .page-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: #1a1a18;
+      line-height: 1.5;
+      margin-bottom: 4px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .page-url {
+      font-size: 11px;
+      color: #888880;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+    }
+
+    /* ── Space selector — tab style like MindVault ── */
+    .space-selector {
+      display: flex;
+      gap: 0;
+      padding: 0 20px;
+      border-bottom: 1px solid #e2e0d8;
+    }
+
+    .space-btn {
+      flex: 1;
+      padding: 12px 0 10px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: #1a1a18;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      margin-bottom: -1px;
+    }
+
+    .space-btn:hover {
+      color: #C8861E;
+    }
+
+    .space-btn.active {
+      color: #C8861E;
+      border-bottom-color: #C8861E;
+    }
+
+    /* ── Save button ── */
+    .save-area {
+      padding: 16px 20px 18px;
+    }
+
+    .save-btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #e2e0d8;
+      background: #faf8f4;
+      color: #1a1a18;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .save-btn:hover:not(:disabled) {
+      background: #fff;
+      border-color: #ccc9be;
+    }
+
+    .save-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .save-btn.loading {
+      color: #888880;
+    }
+
+    /* ── Shortcuts hint ── */
+    .shortcuts {
+      padding: 0 20px 14px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .shortcut-hint {
+      font-size: 10px;
+      color: #bbb;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Success state ── */
+    .state-success {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 20px;
+      gap: 6px;
+    }
+
+    .success-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #C8861E;
+    }
+
+    .success-sub {
+      font-size: 11px;
+      color: #888880;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Offline state ── */
+    .state-offline {
+      display: none;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .offline-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #4a4a45;
+      margin-bottom: 6px;
+    }
+
+    .offline-sub {
+      font-size: 11px;
+      color: #888880;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <span class="header-title">MindVault</span>
+    <div class="status-dot" id="statusDot"></div>
+  </div>
+
+  <!-- Main content -->
+  <div id="mainContent">
+
+    <!-- Page info -->
+    <div class="page-info">
+      <div class="page-title" id="pageTitle">Loading…</div>
+      <div class="page-url" id="pageUrl"></div>
+    </div>
+
+    <!-- Space selector -->
+    <div class="space-selector">
+      <button class="space-btn" id="btnEye">Eye</button>
+      <button class="space-btn" id="btnMind">Mind</button>
+    </div>
+
+    <!-- Save -->
+    <div class="save-area">
+      <button class="save-btn" id="saveBtn">
+        Save to MindVault
+      </button>
+    </div>
+
+    <!-- Shortcuts -->
+    <div class="shortcuts">
+      <span class="shortcut-hint">⌘⇧E → Eye</span>
+      <span class="shortcut-hint">⌘⇧M → Mind</span>
+    </div>
+
+  </div>
+
+  <!-- Success -->
+  <div class="state-success" id="stateSuccess">
+    <div class="success-label" id="successSpace"></div>
+    <div class="success-sub">Saved</div>
+  </div>
+
+  <!-- Offline -->
+  <div class="state-offline" id="stateOffline">
+    <div class="offline-title">MindVault not running</div>
+    <div class="offline-sub">Open MindVault on your Mac,<br/>then try again.</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

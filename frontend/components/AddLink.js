@@ -99,6 +99,10 @@ export default function AddLink({ onAdded }) {
       // URL dropped (e.g. dragged from address bar or another tab)
       const text = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/uri-list');
       if (text && (text.startsWith('http://') || text.startsWith('https://'))) {
+        // Ignore internal thumbnail/file drags from within the app itself
+        if (text.includes('localhost') && (text.includes('/thumbnails/') || text.includes('/files/'))) {
+          return;
+        }
         setUrlRef.current(text.trim());
         setShowFormRef.current(true);
         return;

@@ -26,7 +26,9 @@ app.use(cors({
                   origin.match(/^https?:\/\/10\./) ||
                   origin.match(/^https?:\/\/172\.(1[6-9]|2\d|3[01])\./);
     const isAllowed = ALLOWED_ORIGINS.some(o => origin.startsWith(o));
-    if (isLocalhost || isLAN || isAllowed) return callback(null, true);
+    const isBrowserExtension = origin.startsWith('chrome-extension://') ||
+                               origin.startsWith('moz-extension://');
+    if (isLocalhost || isLAN || isAllowed || isBrowserExtension) return callback(null, true);
     callback(null, false);
   },
   credentials: true,

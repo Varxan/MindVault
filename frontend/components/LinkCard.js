@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import VideoPlayerModal from './VideoPlayerModal';
 import PreviewModal from './PreviewModal';
 import SourceLogo from './SourceLogo';
@@ -23,6 +23,18 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
   const [allCollections, setAllCollections] = useState([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const collectionsMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!collectionsMenuOpen) return;
+    const handleClickOutside = (e) => {
+      if (collectionsMenuRef.current && !collectionsMenuRef.current.contains(e.target)) {
+        setCollectionsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [collectionsMenuOpen]);
   const [mediaSaved, setMediaSaved] = useState(!!link.media_saved);
   const [noteEditing, setNoteEditing] = useState(false);
   const [noteText, setNoteText] = useState(link.note || '');
@@ -292,7 +304,7 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
 
       {/* Collections dropdown */}
       {collectionsMenuOpen && (
-        <div className="card-collections-menu" onClick={(e) => e.stopPropagation()}>
+        <div className="card-collections-menu" ref={collectionsMenuRef} onClick={(e) => e.stopPropagation()}>
           {allCollections.length === 0 ? (
             <div className="card-collections-empty">No collections yet</div>
           ) : (
@@ -351,7 +363,7 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
         </div>
       )}
 
-      <div className="card-thumbnail-link" onClick={async () => {
+      <div className="card-thumbnail-link" onDragStart={(e) => e.preventDefault()} onClick={async () => {
         if (hasMedia && link.media_type === 'video') {
           // Check for carousel files and auto-open first video
           try {
@@ -383,7 +395,8 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
               className="card-image"
               src={thumbnailSrc}
               alt={link.title || ''}
-              loading="lazy"
+              loading="eager"
+              draggable={false}
               onError={(e) => {
                 e.target.style.display = 'none';
                 e.target.parentElement.classList.add('card-placeholder');
@@ -513,7 +526,24 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
               {tags.length > 0 && (
                 <div className="card-tags">
                   {tags.map((tag, i) => (
-                    <span key={i} className="card-tag">{tag}</span>
+                    <span key={i} className="card-tag">
+                      {tag}
+                      <span
+                        className="card-tag-x"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const updated = tags.filter(t => t !== tag);
+                          try {
+                            await fetch(`${getApiBase()}/links/${link.id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ tags: updated }),
+                            });
+                            onRefresh?.();
+                          } catch { /* silent */ }
+                        }}
+                      >✕</span>
+                    </span>
                   ))}
                 </div>
               )}

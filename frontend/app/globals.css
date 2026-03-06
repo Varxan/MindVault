@@ -193,6 +193,7 @@ code {
 .is-electron .header-right input,
 .is-electron .header-left button,
 .is-electron .header-left a,
+.is-electron .header-left h1,
 .is-electron .collection-back-btn,
 .is-electron .settings-dropdown,
 .is-electron .settings-menu-wrapper {
@@ -595,6 +596,8 @@ code {
   width: 100%;
   height: auto;
   display: block;
+  -webkit-user-drag: none;  /* Prevents native WebKit/Blink image drag */
+  pointer-events: none;     /* No mouse events on img — passes through to parent card div */
 }
 
 .card-placeholder {
@@ -842,6 +845,31 @@ code {
 .card-tag-submit:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* ── Tag delete on hover ── */
+.card-tag {
+  position: relative;
+  cursor: default;
+}
+
+.card-tag-x {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 0.55rem;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.card-tag:hover .card-tag-x {
+  opacity: 1;
 }
 
 .card-date {
@@ -1573,6 +1601,24 @@ code {
   border-left: 3px solid var(--accent);
 }
 
+/* ========== Collection Grid Item (drag-and-drop in overview) ========== */
+.collection-grid-item {
+  cursor: grab;
+}
+
+.collection-grid-item:active {
+  cursor: grabbing;
+}
+
+.collection-grid-item.dragging {
+  opacity: 0.4;
+}
+
+.collection-grid-item.drag-over .collection-card {
+  border: 1px solid #c8a84b;
+  box-shadow: 0 0 0 2px rgba(200, 168, 75, 0.2);
+}
+
 /* ========== Collection Card ========== */
 .collection-card {
   background: var(--surface);
@@ -1624,6 +1670,21 @@ code {
   font-family: var(--font-display);
   font-size: 0.95rem;
   font-weight: 600;
+  margin-bottom: 0.25rem;
+  cursor: text;
+}
+
+.collection-card-name-input {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #c8a84b;
+  color: var(--text-primary);
+  outline: none;
+  padding: 0 0 2px 0;
   margin-bottom: 0.25rem;
 }
 
@@ -1679,6 +1740,133 @@ code {
 .collection-back-btn:hover {
   border-color: var(--border-hover);
   color: var(--text);
+}
+
+/* ── Collections split-button ── */
+.collections-btn-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: visible;
+  transition: border-color 0.2s;
+}
+
+.collections-btn-wrapper:hover,
+.collections-btn-wrapper.active {
+  border-color: var(--accent);
+}
+
+.collections-btn-wrapper.active .collections-btn-main,
+.collections-btn-wrapper.active .collections-btn-chevron {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.collections-btn-main {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.6rem 0.4rem 0.85rem;
+  background: var(--surface);
+  border: none;
+  border-radius: 20px 0 0 20px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
+}
+
+.collections-btn-main:hover {
+  color: var(--text);
+}
+
+.collections-btn-chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.6rem;
+  background: var(--surface);
+  border: none;
+  border-left: 1px solid var(--border);
+  border-radius: 0 20px 20px 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.collections-btn-chevron:hover {
+  color: var(--text);
+}
+
+/* ── Collections dropdown ── */
+.collections-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  z-index: 9999;
+  overflow: hidden;
+  padding: 4px;
+}
+
+.collections-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.collections-dropdown-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.collections-dropdown-item.active {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.collections-dropdown-count {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  background: var(--bg);
+  padding: 0.1rem 0.4rem;
+  border-radius: 10px;
+  margin-left: 0.5rem;
+}
+
+.collections-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.collections-dropdown-manage {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  font-style: italic;
+}
+
+.collections-dropdown-manage:hover {
+  color: var(--accent);
+  background: var(--accent-bg);
 }
 
 /* ========== Collection Detail ========== */

@@ -142,8 +142,14 @@ function getPreferredProvider() {
   const anthropicKey = getAnthropicKey();
   const openaiKey = getOpenAIKey();
 
-  // Local CLIP is handled separately before this function is called
-  if (preferred === 'local_clip') return null;
+  // Local CLIP is handled separately before this function is called.
+  // If CLIP is the preferred provider but no API key overrides exist,
+  // still fall back to available API providers so links get real tags.
+  if (preferred === 'local_clip') {
+    if (anthropicKey) return 'anthropic';
+    if (openaiKey) return 'openai';
+    return null;
+  }
 
   if (preferred === 'openai' && openaiKey) return 'openai';
   if (preferred === 'anthropic' && anthropicKey) return 'anthropic';
@@ -450,28 +456,28 @@ async function analyzeContent(imageSource, context = {}) {
       });
 
       if (!imgResponse.ok) {
-        console.log(`[AI] ⚠️  Could not download image (${imgResponse.status}) – using fallback`);
-        return fallbackAnalysis(context);
+        // Thumbnail blocked by CDN (403/404) — continue without image.
+        // Anthropic can still tag based on URL, title, and description alone.
+        console.log(`[AI] ⚠️  Could not download thumbnail (${imgResponse.status}) — will use text-only API analysis`);
+      } else {
+        const buffer = await imgResponse.buffer();
+        const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
+        const mediaType = contentType.split(';')[0].trim();
+
+        if (!mediaType.startsWith('image/')) {
+          console.log(`[AI] ⚠️  Not an image (${mediaType}) — will use text-only API analysis`);
+        } else {
+          console.log(`[AI] ✅ Image loaded (${(buffer.length / 1024).toFixed(1)}KB, ${mediaType})`);
+          contentItems = [{
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: mediaType,
+              data: buffer.toString('base64'),
+            },
+          }];
+        }
       }
-
-      const buffer = await imgResponse.buffer();
-      const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
-      const mediaType = contentType.split(';')[0].trim();
-
-      if (!mediaType.startsWith('image/')) {
-        console.log(`[AI] ⚠️  Not an image (${mediaType}) – using fallback`);
-        return fallbackAnalysis(context);
-      }
-
-      console.log(`[AI] ✅ Image loaded (${(buffer.length / 1024).toFixed(1)}KB, ${mediaType})`);
-      contentItems = [{
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: mediaType,
-          data: buffer.toString('base64'),
-        },
-      }];
     }
     // Handle local image files
     else if (fs.existsSync(imageSource)) {
@@ -496,8 +502,8 @@ async function analyzeContent(imageSource, context = {}) {
         },
       }];
     } else {
-      console.log(`[AI] ⚠️  Image source not found: ${imageSource} – using fallback`);
-      return fallbackAnalysis(context);
+      // No image available — fall through to text-only API call
+      console.log(`[AI] ⚠️  No image available (${imageSource}) — will use text-only API analysis`);
     }
 
     // Build prompt with user tagging preferences
@@ -534,24 +540,36 @@ async function analyzeContent(imageSource, context = {}) {
  * are averaged in Python before tag scoring — same holistic view the API gets.
  */
 async function analyzeWithCLIP(imagePaths, context = {}) {
-  const { getAllTags } = require('./tag-catalog');
-  const tags = getAllTags();
+  const { getAllTagsForCLIP } = require('./tag-catalog');
+  const tagDefs = getAllTagsForCLIP();
 
   // Accept both a single path (legacy) and an array
   const paths = Array.isArray(imagePaths) ? imagePaths : [imagePaths];
 
+  // Send natural-language CLIP prompts (not display labels) for accurate scoring.
+  // CLIP was trained on descriptive sentences — prompts like
+  // "a scene with warm golden hour sunlight" score far better than "Golden Hour".
+  const clipPrompts = tagDefs.map(t => t.clip);
+
+  // Build a lookup: clipPrompt → { label, categoryId, maxSelect }
+  const promptToMeta = {};
+  tagDefs.forEach(t => { promptToMeta[t.clip] = t; });
+
   const input = JSON.stringify({
     imagePaths: paths,
-    tags,
-    topK: 15,
-    threshold: 0.001,
+    tags:       clipPrompts,
+    topK:       tagDefs.length, // return all that pass the threshold
+    threshold:  0.18,           // absolute cosine similarity cutoff (not softmax)
   });
 
   return new Promise((resolve) => {
     const pythonCmd = getClipPython();
     const scriptPath = path.join(__dirname, 'clip_tagger.py');
 
-    execFile(pythonCmd, [scriptPath, input], { timeout: 30000 }, (err, stdout, stderr) => {
+    // 120s timeout: CLIP cold-start takes ~25s (model import), plus inference
+    // time for 90+ tags. The old 30s timeout was never updated when the
+    // tag catalog was expanded in commit 616897c.
+    execFile(pythonCmd, [scriptPath, input], { timeout: 120000 }, (err, stdout, stderr) => {
       if (err) {
         console.error('[CLIP] ❌ Script error:', err.message);
         if (stderr) console.error('[CLIP] stderr:', stderr.substring(0, 200));
@@ -569,9 +587,27 @@ async function analyzeWithCLIP(imagePaths, context = {}) {
           return;
         }
 
-        console.log(`[CLIP] ✅ ${result.tags.length} tags from ${result.frames || 1} frame(s) on ${result.device} — ${result.tags.slice(0, 5).join(', ')}…`);
+        // ── Category-aware selection ──────────────────────────────────────────
+        // Python returns prompts ranked by cosine similarity (best first).
+        // We pick the top-maxSelect per category to ensure diverse, useful tags
+        // instead of e.g. 5 lighting tags and no location/mood.
+        const categoryCount = {};
+        const selectedLabels = [];
+
+        for (const prompt of result.tags) {
+          const meta = promptToMeta[prompt];
+          if (!meta) continue;
+          const { label, categoryId, maxSelect } = meta;
+          const count = categoryCount[categoryId] || 0;
+          if (count < maxSelect) {
+            selectedLabels.push(label);
+            categoryCount[categoryId] = count + 1;
+          }
+        }
+
+        console.log(`[CLIP] ✅ ${selectedLabels.length} tags from ${result.frames || 1} frame(s) on ${result.device} — ${selectedLabels.slice(0, 5).join(', ')}…`);
         resolve({
-          tags: result.tags,
+          tags:        selectedLabels,
           description: null, // CLIP doesn't generate descriptions
         });
       } catch (parseErr) {
