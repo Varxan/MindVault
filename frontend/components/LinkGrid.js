@@ -178,6 +178,19 @@ export default function LinkGrid() {
     try {
       const res = await fetch(`${getApiBase()}/settings`);
       const data = await res.json();
+      // Auto-correct legacy DB value: old default was 80 which exceeds the 0–10 range.
+      // Silently reset to 5 so the UI shows a sensible number without user action.
+      if (data.tag_catalog_ratio !== undefined) {
+        const stored = parseInt(data.tag_catalog_ratio, 10);
+        if (!isNaN(stored) && stored > 10) {
+          data.tag_catalog_ratio = '5';
+          fetch(`${getApiBase()}/settings`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'tag_catalog_ratio', value: '5' }),
+          }).catch(() => {});
+        }
+      }
       setSettingsStatus(data);
     } catch {}
   };
@@ -248,9 +261,18 @@ export default function LinkGrid() {
     const gen = ++loadGenRef.current;
 
     try {
-      // Only show spinner if we have no cached data to show immediately
+      // If we have a fresh cache for this space (set during tab-click), show it and bail.
+      // Avoids double-setLinks which causes Masonry column-count reflow (thumbnail jump).
+      // SSE events invalidate the cache (spaceCacheRef.current[space] = null) so new
+      // content still triggers a real fetch.
       const hasCached = !search && !activeSource && !activeCollection && spaceCacheRef.current[activeSpace];
-      if (!hasCached) setLoading(true);
+      if (hasCached) {
+        setLinks(spaceCacheRef.current[activeSpace].links);
+        setTotal(spaceCacheRef.current[activeSpace].total);
+        setLoading(false);
+        return; // skip fetch — SSE will call loadLinks with cleared cache when new data arrives
+      }
+      setLoading(true);
       setError(null);
 
       const isMindSearch = search && activeSpace === 'mind';
@@ -379,6 +401,8 @@ export default function LinkGrid() {
       try {
         const { type } = JSON.parse(e.data);
         if (type === 'link-added' || type === 'link-updated' || type === 'link-deleted') {
+          // Invalidate space cache so loadLinks does a real fetch (not a cache bail-out)
+          spaceCacheRef.current = { eye: null, mind: null };
           loadLinksRef.current();
         }
       } catch {}
@@ -447,31 +471,21 @@ export default function LinkGrid() {
     }
   }, [settingsStatus]);
 
-  // Blur searchbar when clicking anywhere outside it (incl. Electron drag regions)
-  // Must use document capture phase — React synthetic events don't fire on drag regions
-  useEffect(() => {
-    const handler = (e) => {
-      const active = document.activeElement;
-      if (!active || active.tagName !== 'INPUT') return;
-      if (!active.closest('.search-bar')) return; // only care about the searchbar
-      if (!active.contains(e.target)) active.blur();
-    };
-    document.addEventListener('mousedown', handler, true); // capture: before Electron drag
-    return () => document.removeEventListener('mousedown', handler, true);
-  }, []);
+  // (searchbar blur is handled inside the universal outside-click handler below)
 
   // Listen for "Setup Wizard" from the native macOS Application Menu
+  // preload.js dispatches 'mv:show-onboarding' as a CustomEvent — no contextBridge roundtrip needed
   useEffect(() => {
-    const wrapped = window.electron?.onShowOnboarding?.(() => setShowOnboarding(true));
-    return () => { if (wrapped) window.electron?.offShowOnboarding?.(wrapped); };
+    const handler = () => setShowOnboarding(true);
+    window.addEventListener('mv:show-onboarding', handler);
+    return () => window.removeEventListener('mv:show-onboarding', handler);
   }, []);
 
   // Listen for "License…" → Enter Key flow from the native macOS Application Menu
   useEffect(() => {
-    const wrapped = window.electron?.onShowLicenseActivation?.(() => {
-      setLicenseKey(''); setLicenseStatus(null); setShowLicenseModal(true);
-    });
-    return () => { if (wrapped) window.electron?.offShowLicenseActivation?.(wrapped); };
+    const handler = () => { setLicenseKey(''); setLicenseStatus(null); setShowLicenseModal(true); };
+    window.addEventListener('mv:show-license-activation', handler);
+    return () => window.removeEventListener('mv:show-license-activation', handler);
   }, []);
 
   const handleActivateLicense = async () => {
@@ -491,15 +505,21 @@ export default function LinkGrid() {
   };
 
   // ── Universal outside-click handler ─────────────────────────────────────
-  // One mousedown listener (capture phase) closes all open popups when
-  // clicking outside their container. Capture ensures it fires even if
-  // inner elements call stopPropagation.
+  // Single capture-phase mousedown listener — always active.
+  // Handles: searchbar blur + all popup closes.
+  // Capture phase fires before any React synthetic handlers / stopPropagation.
   useEffect(() => {
-    const noneOpen = !settingsOpen && !filterOpen && !collectionsDropdownOpen && !bulkMode;
-    if (noneOpen) return;
-
     const handler = (e) => {
-      // Settings dropdown
+      // ── Searchbar blur ─────────────────────────────────────────────────
+      // Blur the focused search input when clicking OUTSIDE the .search-bar container.
+      // Must check the container (not the input itself) so the ✕ clear button works.
+      const active = document.activeElement;
+      if (active && active.classList.contains('search-input')) {
+        const searchBar = active.closest('.search-bar');
+        if (searchBar && !searchBar.contains(e.target)) active.blur();
+      }
+
+      // ── Settings dropdown ──────────────────────────────────────────────
       if (settingsOpen) {
         const wrapper = document.querySelector('.settings-menu-wrapper');
         if (wrapper && !wrapper.contains(e.target)) {
@@ -507,25 +527,22 @@ export default function LinkGrid() {
           setSettingsActioned(false);
         }
       }
-      // Filter dropdown
+      // ── Source filter dropdown ─────────────────────────────────────────
       if (filterOpen) {
         const wrapper = document.querySelector('.filter-wrapper');
         if (wrapper && !wrapper.contains(e.target)) setFilterOpen(false);
       }
-      // Collections chevron dropdown
+      // ── Collections chevron dropdown ───────────────────────────────────
       if (collectionsDropdownOpen) {
         const wrapper = document.querySelector('.collections-btn-group');
         if (wrapper && !wrapper.contains(e.target)) setCollectionsDropdownOpen(false);
       }
-      // Bulk mode — exit when clicking outside toolbar and cards
+      // ── Bulk mode — exit when clicking outside toolbar and cards ───────
       if (bulkMode) {
-        const toolbar  = document.querySelector('.toolbar');
-        const inCard   = e.target.closest('.card-wrapper');
-        const inBar    = toolbar && toolbar.contains(e.target);
-        if (!inCard && !inBar) {
-          setBulkMode(false);
-          setSelectedLinks(new Set());
-        }
+        const toolbar = document.querySelector('.toolbar');
+        const inCard  = e.target.closest('.card-wrapper');
+        const inBar   = toolbar && toolbar.contains(e.target);
+        if (!inCard && !inBar) { setBulkMode(false); setSelectedLinks(new Set()); }
       }
     };
 
@@ -539,6 +556,7 @@ export default function LinkGrid() {
       await deleteLink(id);
       setLinks((prev) => prev.filter((l) => l.id !== id));
       setTotal((prev) => prev - 1);
+      spaceCacheRef.current[activeSpace] = null; // invalidate so next tab-switch re-fetches
     } catch (err) {
       alert('Delete error: ' + err.message);
     }
