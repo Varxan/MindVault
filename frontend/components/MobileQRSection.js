@@ -7,21 +7,17 @@ const PWA_BASE_URL = process.env.NEXT_PUBLIC_PWA_URL || 'https://mind-vault-chi.
 const TRIAL_DAYS   = 30;
 
 export default function MobileQRSection() {
-  const [deviceId,    setDeviceId]    = useState(null);
-  const [qrSvg,       setQrSvg]       = useState(null);
-  const [copied,      setCopied]      = useState(false);
-  const [trialInfo,   setTrialInfo]   = useState(null);
-  const [loading,     setLoading]     = useState(true);
+  const [deviceId, setDeviceId] = useState(null);
+  const [qrSvg,    setQrSvg]   = useState(null);
+  const [copied,   setCopied]  = useState(false);
+  const [loading,  setLoading] = useState(true);
 
   // Load device config from backend
   useEffect(() => {
     fetch(`${getApiBase()}/device-info`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
-        if (data?.deviceId) {
-          setDeviceId(data.deviceId);
-          setTrialInfo(data.trialInfo);
-        }
+        if (data?.deviceId) setDeviceId(data.deviceId);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -62,24 +58,6 @@ export default function MobileQRSection() {
 
   return (
     <div style={{ padding: '4px 0' }}>
-      {/* Trial / License badge */}
-      {trialInfo && (
-        <div style={{
-          fontSize: '11px',
-          color: trialInfo.isLicensed ? '#4ade80' : '#c9a84c',
-          background: trialInfo.isLicensed ? 'rgba(74,222,128,0.08)' : 'rgba(201,168,76,0.08)',
-          border: `1px solid ${trialInfo.isLicensed ? 'rgba(74,222,128,0.2)' : 'rgba(201,168,76,0.2)'}`,
-          borderRadius: '6px',
-          padding: '5px 10px',
-          marginBottom: '12px',
-        }}>
-          {trialInfo.isLicensed
-            ? '✓ License active'
-            : `Trial: ${trialInfo.daysRemaining} day${trialInfo.daysRemaining !== 1 ? 's' : ''} remaining`
-          }
-        </div>
-      )}
-
       {/* Instructions */}
       <div style={{ fontSize: '12px', color: '#888', marginBottom: '12px', lineHeight: 1.5 }}>
         Scan with your phone to install the app and connect to your library.

@@ -177,14 +177,16 @@ code {
   border: 1px solid var(--border);
 }
 
-/* ── Electron: traffic-light clearance + full header row as drag handle ── */
-.is-electron .header {
-  padding-left: 0px;
-  margin-top: 1rem;
-  /* Entire header row is a window drag handle */
+/* ── Electron: traffic-light clearance + full sticky area as drag handle ── */
+/* sticky-top covers the full top area incl. the gap above .header (traffic lights) */
+.is-electron .sticky-top {
   -webkit-app-region: drag;
   cursor: default;
   user-select: none;
+}
+.is-electron .header {
+  padding-left: 0px;
+  margin-top: 1rem;
 }
 
 /* Buttons, links and dropdowns inside the header stay clickable */

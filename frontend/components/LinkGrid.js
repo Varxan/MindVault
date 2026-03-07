@@ -29,6 +29,7 @@ export default function LinkGrid() {
   const [error, setError] = useState(null);
   const allMindLinksRef = useRef([]);  // full unfiltered Mind links for Fuse
   const loadGenRef = useRef(0);        // generation counter — discard stale async results
+  const spaceCacheRef = useRef({ eye: null, mind: null }); // instant cache per space
 
   // Bulk selection
   const [bulkMode, setBulkMode] = useState(false);
@@ -49,6 +50,9 @@ export default function LinkGrid() {
   const [settingsStatus, setSettingsStatus] = useState({});
   const [telegramToken, setTelegramToken] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showLicenseModal, setShowLicenseModal] = useState(false);
+  const [licenseKey, setLicenseKey] = useState('');
+  const [licenseStatus, setLicenseStatus] = useState(null); // null | 'activating' | 'ok' | 'error'
 
   // New SettingsPanel state
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
@@ -243,7 +247,9 @@ export default function LinkGrid() {
     const gen = ++loadGenRef.current;
 
     try {
-      setLoading(true);
+      // Only show spinner if we have no cached data to show immediately
+      const hasCached = !search && !activeSource && !activeCollection && spaceCacheRef.current[activeSpace];
+      if (!hasCached) setLoading(true);
       setError(null);
 
       const isMindSearch = search && activeSpace === 'mind';
@@ -308,6 +314,11 @@ export default function LinkGrid() {
       if (gen !== loadGenRef.current) return; // stale — discard (prevents Eye going blank)
       setLinks(data.links);
       setTotal(data.total);
+
+      // Cache per-space results for instant tab switching (no reload flash)
+      if (!search && !activeSource && !activeCollection) {
+        spaceCacheRef.current[activeSpace] = { links: data.links, total: data.total };
+      }
 
       // Keep allMindLinksRef in sync when in Mind with no active search
       if (activeSpace === 'mind' && !search) {
@@ -417,6 +428,36 @@ export default function LinkGrid() {
       setShowOnboarding(true);
     }
   }, [settingsStatus]);
+
+  // Listen for "Setup Wizard" from the native macOS Application Menu
+  useEffect(() => {
+    const handler = () => setShowOnboarding(true);
+    window.electron?.onShowOnboarding?.(handler);
+    return () => window.electron?.offShowOnboarding?.(handler);
+  }, []);
+
+  // Listen for "License…" → Enter Key flow from the native macOS Application Menu
+  useEffect(() => {
+    const handler = () => { setLicenseKey(''); setLicenseStatus(null); setShowLicenseModal(true); };
+    window.electron?.onShowLicenseActivation?.(handler);
+    return () => window.electron?.offShowLicenseActivation?.(handler);
+  }, []);
+
+  const handleActivateLicense = async () => {
+    if (!licenseKey.trim()) return;
+    setLicenseStatus('activating');
+    try {
+      const result = await window.electron?.activateLicense?.(licenseKey.trim());
+      if (result?.success) {
+        setLicenseStatus('ok');
+        setTimeout(() => setShowLicenseModal(false), 1800);
+      } else {
+        setLicenseStatus('error:' + (result?.error || 'Invalid key'));
+      }
+    } catch (e) {
+      setLicenseStatus('error:' + e.message);
+    }
+  };
 
   useEffect(() => {
     if (!settingsOpen) { setSettingsActioned(false); return; }
@@ -550,7 +591,17 @@ export default function LinkGrid() {
         </div>
       )}
 
-      <div className="sticky-top">
+      <div
+        className="sticky-top"
+        onMouseDown={e => {
+          // Blur searchbar (or any focused input) when clicking on the drag area.
+          // mousedown fires before Electron's window-drag takes over, so this works
+          // even on -webkit-app-region: drag zones.
+          if (document.activeElement && document.activeElement !== e.target) {
+            document.activeElement.blur();
+          }
+        }}
+      >
       <header className="header" style={{ position: 'relative' }}>
         <div className="header-left">
           <h1>MindVault</h1>
@@ -574,6 +625,9 @@ export default function LinkGrid() {
               key={tab.label}
               onClick={() => {
                 if (tab.value === activeSpace) return; // already active — do nothing (no "all" view)
+                // Instant cache hit — show previous results immediately, no loading flash
+                const cached = spaceCacheRef.current[tab.value];
+                if (cached) { setLinks(cached.links); setTotal(cached.total); }
                 setActiveSpace(tab.value);
                 setActiveSource(null);
                 setActiveCollection(null);
@@ -1395,7 +1449,6 @@ export default function LinkGrid() {
         onClose={() => setShowSettingsPanel(false)}
         settingsStatus={settingsStatus}
         onSettingsUpdate={loadSettings}
-        onOpenOnboarding={() => setShowOnboarding(true)}
       />
 
       {/* QR Code Modal */}
@@ -1479,6 +1532,49 @@ export default function LinkGrid() {
             loadSettings();
           }}
         />
+      )}
+
+      {/* License activation modal — triggered from MindVault → License… menu */}
+      {showLicenseModal && (
+        <div
+          onClick={() => setShowLicenseModal(false)}
+          style={{ position:'fixed', inset:0, zIndex:10000, background:'rgba(0,0,0,0.7)', backdropFilter:'blur(8px)', WebkitBackdropFilter:'blur(8px)', display:'flex', alignItems:'center', justifyContent:'center' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background:'#1a1a1a', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'16px', padding:'28px 28px 24px', width:'100%', maxWidth:'360px' }}
+          >
+            <div style={{ fontSize:'15px', fontWeight:650, color:'#e8e8e8', marginBottom:'6px' }}>Enter License Key</div>
+            <div style={{ fontSize:'12px', color:'#555', marginBottom:'20px', lineHeight:1.5 }}>
+              Get your key at <span style={{ color:'#c8a84b' }}>mindvault.app</span>
+            </div>
+            <input
+              autoFocus
+              value={licenseKey}
+              onChange={e => { setLicenseKey(e.target.value); setLicenseStatus(null); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleActivateLicense(); if (e.key === 'Escape') setShowLicenseModal(false); }}
+              placeholder="XXXX-XXXX-XXXX-XXXX"
+              style={{ width:'100%', boxSizing:'border-box', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', padding:'10px 12px', color:'#e8e8e8', fontSize:'13px', fontFamily:'monospace', letterSpacing:'0.05em', outline:'none', marginBottom:'12px' }}
+            />
+            {licenseStatus === 'ok' && (
+              <div style={{ color:'#4ade80', fontSize:'12px', marginBottom:'10px' }}>✓ License activated! Thank you.</div>
+            )}
+            {licenseStatus?.startsWith('error:') && (
+              <div style={{ color:'#f87171', fontSize:'12px', marginBottom:'10px' }}>✕ {licenseStatus.slice(6)}</div>
+            )}
+            <div style={{ display:'flex', gap:'8px' }}>
+              <button
+                onClick={() => setShowLicenseModal(false)}
+                style={{ flex:1, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'8px', color:'#666', fontSize:'12px', padding:'8px', cursor:'pointer' }}
+              >Cancel</button>
+              <button
+                onClick={handleActivateLicense}
+                disabled={licenseStatus === 'activating'}
+                style={{ flex:2, background:'#c8a84b', border:'none', borderRadius:'8px', color:'#000', fontSize:'12px', fontWeight:650, padding:'8px', cursor:'pointer', opacity: licenseStatus === 'activating' ? 0.6 : 1 }}
+              >{licenseStatus === 'activating' ? 'Activating…' : 'Activate'}</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Right-click context menu — rendered at LinkGrid level, outside any card stacking context */}

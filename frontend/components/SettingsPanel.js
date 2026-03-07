@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getApiBase } from '../lib/config';
 
 
-export default function SettingsPanel({ isOpen, onClose, settingsStatus, onSettingsUpdate, onOpenOnboarding }) {
+export default function SettingsPanel({ isOpen, onClose, settingsStatus, onSettingsUpdate }) {
   const [anthropicKey, setAnthropicKey] = useState('');
   const [openaiKey, setOpenaiKey] = useState('');
   const [preferredProvider, setPreferredProvider] = useState('local_clip');
@@ -207,32 +207,6 @@ export default function SettingsPanel({ isOpen, onClose, settingsStatus, onSetti
                 <span className="settings-field-hint">platform.openai.com/api-keys</span>
               </div>
             )}
-          </>
-        )}
-
-        {/* Setup Wizard */}
-        {onOpenOnboarding && (
-          <>
-            <div className="sp-divider"/>
-            <div style={{ textAlign: 'center', paddingBottom: '4px' }}>
-              <button
-                onClick={() => { onClose(); onOpenOnboarding(); }}
-                style={{
-                  background: 'none',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '8px',
-                  color: '#888',
-                  fontSize: '12px',
-                  padding: '7px 18px',
-                  cursor: 'pointer',
-                  transition: 'color 0.15s, border-color 0.15s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.color='#c8a84b'; e.currentTarget.style.borderColor='rgba(200,168,75,0.4)'; }}
-                onMouseLeave={e => { e.currentTarget.style.color='#888'; e.currentTarget.style.borderColor='rgba(255,255,255,0.1)'; }}
-              >
-                ↺ Relaunch Setup Wizard
-              </button>
-            </div>
           </>
         )}
 

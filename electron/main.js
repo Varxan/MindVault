@@ -617,8 +617,79 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Remove default menu bar (MindVault has its own UI)
-  Menu.setApplicationMenu(null);
+  // Build native macOS application menu
+  const template = [
+    {
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        {
+          label: 'License…',
+          click: () => showLicenseDialog(),
+        },
+        {
+          label: 'Setup Wizard',
+          accelerator: 'CmdOrCtrl+Shift+W',
+          click: () => mainWindow?.webContents.send('show-onboarding'),
+        },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
+    },
+    { role: 'editMenu' }, // Copy / Paste / Undo in text fields
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+// ── License Dialog ────────────────────────────────────────────────────────────
+
+function showLicenseDialog() {
+  const config = loadUserConfig();
+  const win    = mainWindow;
+
+  if (!config) {
+    dialog.showMessageBox(win, {
+      type:    'info',
+      title:   'License',
+      message: 'No account found.',
+      detail:  'Please restart MindVault and sign in or start a trial.',
+      buttons: ['OK'],
+    });
+    return;
+  }
+
+  if (config.isLicensed) {
+    // Licensed — show status
+    dialog.showMessageBox(win, {
+      type:    'info',
+      title:   'License',
+      message: '✓ License active',
+      detail:  `Registered to: ${config.email || 'unknown'}\n\nThank you for supporting MindVault.`,
+      buttons: ['OK'],
+    });
+  } else {
+    // Trial — show days remaining and offer to enter key
+    const days = trialDaysRemaining(config);
+    const { response } = dialog.showMessageBoxSync(win, {
+      type:    'info',
+      title:   'License',
+      message: days > 0 ? `Trial — ${days} day${days !== 1 ? 's' : ''} remaining` : 'Trial expired',
+      detail:  'Enter your license key to unlock MindVault.\nGet a license at mindvault.app',
+      buttons: ['Enter License Key', 'Cancel'],
+      defaultId: 0,
+      cancelId:  1,
+    });
+    if (response === 0) {
+      mainWindow?.webContents.send('show-license-activation');
+    }
+  }
 }
 
 // ── App Lifecycle ────────────────────────────────────────────────────────────
