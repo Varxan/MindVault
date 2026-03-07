@@ -204,6 +204,11 @@ code {
   user-select: auto;
 }
 
+/* Logo on main page is not interactive — use default cursor */
+.is-electron .header-left h1 {
+  cursor: default;
+}
+
 /* Toolbar row (search / filter / views) is never a drag area */
 .is-electron .toolbar,
 .is-electron .toolbar button,

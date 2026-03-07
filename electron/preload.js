@@ -11,10 +11,19 @@ contextBridge.exposeInMainWorld('electron', {
   version:  process.versions.electron,
   platform: process.platform,
   // Menu → renderer events
-  onShowOnboarding:        (cb) => ipcRenderer.on('show-onboarding', cb),
-  offShowOnboarding:       (cb) => ipcRenderer.removeListener('show-onboarding', cb),
-  onShowLicenseActivation: (cb) => ipcRenderer.on('show-license-activation', cb),
-  offShowLicenseActivation:(cb) => ipcRenderer.removeListener('show-license-activation', cb),
+  // Wrap callbacks inside preload so contextBridge isolation doesn't swallow them
+  onShowOnboarding: (cb) => {
+    const wrapped = () => cb();
+    ipcRenderer.on('show-onboarding', wrapped);
+    return wrapped; // return so the caller can remove it
+  },
+  offShowOnboarding: (wrapped) => ipcRenderer.removeListener('show-onboarding', wrapped),
+  onShowLicenseActivation: (cb) => {
+    const wrapped = () => cb();
+    ipcRenderer.on('show-license-activation', wrapped);
+    return wrapped;
+  },
+  offShowLicenseActivation: (wrapped) => ipcRenderer.removeListener('show-license-activation', wrapped),
   // License activation (trial → licensed)
   activateLicense: (key) => ipcRenderer.invoke('activation:activateLicenseExpired', key),
 });

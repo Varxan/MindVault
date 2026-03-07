@@ -31,6 +31,7 @@ export default function LinkGrid() {
   const loadGenRef = useRef(0);        // generation counter — discard stale async results
   const spaceCacheRef = useRef({ eye: null, mind: null }); // instant cache per space
 
+
   // Bulk selection
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedLinks, setSelectedLinks] = useState(new Set());
@@ -400,6 +401,23 @@ export default function LinkGrid() {
     loadLinks();
   }, [loadLinks]);
 
+  // ── Prefetch the other space in the background after initial load ─────────
+  // Warms the cache so tab switching is instant with no column-layout reflow.
+  useEffect(() => {
+    const prefetchOtherSpace = async () => {
+      const otherSpace = activeSpace === 'eye' ? 'mind' : 'eye';
+      if (spaceCacheRef.current[otherSpace]) return; // already cached
+      try {
+        const data = await fetchLinks({ space: otherSpace });
+        spaceCacheRef.current[otherSpace] = { links: data.links, total: data.total };
+        if (otherSpace === 'mind') allMindLinksRef.current = data.links || [];
+      } catch (_) {}
+    };
+    // Delay so it doesn't compete with the primary load
+    const t = setTimeout(prefetchOtherSpace, 1500);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Check AI status once on mount + every 60s (lightweight)
   useEffect(() => {
     const checkAIStatus = async () => {
@@ -429,18 +447,31 @@ export default function LinkGrid() {
     }
   }, [settingsStatus]);
 
+  // Blur searchbar when clicking anywhere outside it (incl. Electron drag regions)
+  // Must use document capture phase — React synthetic events don't fire on drag regions
+  useEffect(() => {
+    const handler = (e) => {
+      const active = document.activeElement;
+      if (!active || active.tagName !== 'INPUT') return;
+      if (!active.closest('.search-bar')) return; // only care about the searchbar
+      if (!active.contains(e.target)) active.blur();
+    };
+    document.addEventListener('mousedown', handler, true); // capture: before Electron drag
+    return () => document.removeEventListener('mousedown', handler, true);
+  }, []);
+
   // Listen for "Setup Wizard" from the native macOS Application Menu
   useEffect(() => {
-    const handler = () => setShowOnboarding(true);
-    window.electron?.onShowOnboarding?.(handler);
-    return () => window.electron?.offShowOnboarding?.(handler);
+    const wrapped = window.electron?.onShowOnboarding?.(() => setShowOnboarding(true));
+    return () => { if (wrapped) window.electron?.offShowOnboarding?.(wrapped); };
   }, []);
 
   // Listen for "License…" → Enter Key flow from the native macOS Application Menu
   useEffect(() => {
-    const handler = () => { setLicenseKey(''); setLicenseStatus(null); setShowLicenseModal(true); };
-    window.electron?.onShowLicenseActivation?.(handler);
-    return () => window.electron?.offShowLicenseActivation?.(handler);
+    const wrapped = window.electron?.onShowLicenseActivation?.(() => {
+      setLicenseKey(''); setLicenseStatus(null); setShowLicenseModal(true);
+    });
+    return () => { if (wrapped) window.electron?.offShowLicenseActivation?.(wrapped); };
   }, []);
 
   const handleActivateLicense = async () => {
@@ -459,24 +490,48 @@ export default function LinkGrid() {
     }
   };
 
+  // ── Universal outside-click handler ─────────────────────────────────────
+  // One mousedown listener (capture phase) closes all open popups when
+  // clicking outside their container. Capture ensures it fires even if
+  // inner elements call stopPropagation.
   useEffect(() => {
-    if (!settingsOpen) { setSettingsActioned(false); return; }
-    // Still close on click far outside (e.g. clicking content area)
-    const close = (e) => {
-      const wrapper = document.querySelector('.settings-menu-wrapper');
-      if (wrapper && wrapper.contains(e.target)) return;
-      setSettingsOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [settingsOpen]);
+    const noneOpen = !settingsOpen && !filterOpen && !collectionsDropdownOpen && !bulkMode;
+    if (noneOpen) return;
 
-  useEffect(() => {
-    if (!filterOpen) return;
-    const close = () => setFilterOpen(false);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
-  }, [filterOpen]);
+    const handler = (e) => {
+      // Settings dropdown
+      if (settingsOpen) {
+        const wrapper = document.querySelector('.settings-menu-wrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+          setSettingsOpen(false);
+          setSettingsActioned(false);
+        }
+      }
+      // Filter dropdown
+      if (filterOpen) {
+        const wrapper = document.querySelector('.filter-wrapper');
+        if (wrapper && !wrapper.contains(e.target)) setFilterOpen(false);
+      }
+      // Collections chevron dropdown
+      if (collectionsDropdownOpen) {
+        const wrapper = document.querySelector('.collections-btn-group');
+        if (wrapper && !wrapper.contains(e.target)) setCollectionsDropdownOpen(false);
+      }
+      // Bulk mode — exit when clicking outside toolbar and cards
+      if (bulkMode) {
+        const toolbar  = document.querySelector('.toolbar');
+        const inCard   = e.target.closest('.card-wrapper');
+        const inBar    = toolbar && toolbar.contains(e.target);
+        if (!inCard && !inBar) {
+          setBulkMode(false);
+          setSelectedLinks(new Set());
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handler, true);
+    return () => document.removeEventListener('mousedown', handler, true);
+  }, [settingsOpen, filterOpen, collectionsDropdownOpen, bulkMode]);
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this link?')) return;
@@ -591,17 +646,7 @@ export default function LinkGrid() {
         </div>
       )}
 
-      <div
-        className="sticky-top"
-        onMouseDown={e => {
-          // Blur searchbar (or any focused input) when clicking on the drag area.
-          // mousedown fires before Electron's window-drag takes over, so this works
-          // even on -webkit-app-region: drag zones.
-          if (document.activeElement && document.activeElement !== e.target) {
-            document.activeElement.blur();
-          }
-        }}
-      >
+      <div className="sticky-top">
       <header className="header" style={{ position: 'relative' }}>
         <div className="header-left">
           <h1>MindVault</h1>
@@ -663,7 +708,7 @@ export default function LinkGrid() {
             {bulkMode ? <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg> Cancel</> : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg> Select</>}
           </button>
           {/* Collections split-button: left = navigate to page, right chevron = quick filter dropdown */}
-          <div className={`collections-btn-wrapper ${activeCollection ? 'active' : ''}`}>
+          <div className={`collections-btn-wrapper collections-btn-group ${activeCollection ? 'active' : ''}`}>
             <button
               className="collections-btn-main"
               onClick={() => { setCollectionsDropdownOpen(false); router.push('/collections'); }}
@@ -685,9 +730,7 @@ export default function LinkGrid() {
 
             {collectionsDropdownOpen && (
               <>
-                {/* Backdrop */}
-                <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setCollectionsDropdownOpen(false)} />
-                {/* Dropdown */}
+                {/* Dropdown — outside click handled by universal mousedown handler */}
                 <div className="collections-dropdown">
                   <button
                     className={`collections-dropdown-item ${!activeCollection ? 'active' : ''}`}
@@ -965,14 +1008,14 @@ export default function LinkGrid() {
                         How many additional tags the AI can freely invent beyond the catalog (e.g. &ldquo;red light&rdquo;, &ldquo;smoke effect&rdquo;).
                       </span>
                       {(() => {
-                        const val = parseInt(settingsStatus.tag_catalog_ratio !== undefined && settingsStatus.tag_catalog_ratio !== '' ? settingsStatus.tag_catalog_ratio : '3', 10);
+                        const val = parseInt(settingsStatus.tag_catalog_ratio !== undefined && settingsStatus.tag_catalog_ratio !== '' ? settingsStatus.tag_catalog_ratio : '5', 10);
                         return (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <input
                               type="number"
                               min="0"
                               max="10"
-                              defaultValue={isNaN(val) ? 3 : val}
+                              defaultValue={isNaN(val) ? 5 : val}
                               style={{
                                 width: '56px', padding: '5px 8px', fontSize: '13px', fontWeight: 600,
                                 background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px',

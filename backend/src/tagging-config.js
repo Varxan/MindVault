@@ -44,7 +44,7 @@ function buildPrompt(context = {}, isVideo = false, taggingSettings = {}) {
   // AI interpreted tags = freely invented by AI on top of catalog tags
   const aiInterpretedCount = typeof taggingSettings.catalogRatio === 'number'
     ? Math.max(0, Math.min(10, taggingSettings.catalogRatio))
-    : 3;
+    : 5;
 
   // Build context string
   let contextStr = '';

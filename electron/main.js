@@ -630,7 +630,6 @@ function createWindow() {
         },
         {
           label: 'Setup Wizard',
-          accelerator: 'CmdOrCtrl+Shift+W',
           click: () => mainWindow?.webContents.send('show-onboarding'),
         },
         { type: 'separator' },

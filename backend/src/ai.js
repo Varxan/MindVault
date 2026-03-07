@@ -174,7 +174,7 @@ function getTaggingSettings() {
     const ratio = getSetting.get('tag_catalog_ratio');
     if (ratio && ratio.value !== undefined && ratio.value !== '') {
       settings.catalogRatio = parseInt(ratio.value, 10);
-      if (isNaN(settings.catalogRatio)) settings.catalogRatio = 80;
+      if (isNaN(settings.catalogRatio)) settings.catalogRatio = 5;
     }
 
     const customPrompt = getSetting.get('custom_ai_prompt');
