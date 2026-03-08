@@ -716,7 +716,7 @@ export default function LinkGrid() {
                 background: 'transparent',
                 border: 'none',
                 borderBottom: activeSpace === tab.value ? '2px solid #c8a84b' : '2px solid transparent',
-                color: activeSpace === tab.value ? '#c8a84b' : '#555',
+                color: activeSpace === tab.value ? '#c8a84b' : '#888',
                 padding: '4px 20px',
                 fontSize: '11px',
                 fontWeight: activeSpace === tab.value ? 600 : 400,
