@@ -429,7 +429,6 @@ export default function OnboardingModal({ onComplete }) {
         {step === 7 && (
           <>
             <div className="ob-body" style={{textAlign:'center', paddingTop: 52}}>
-              <div style={{fontSize: 40, marginBottom: 20}}>✦</div>
               <div className="ob-title" style={{textAlign:'center'}}>You&apos;re all set</div>
               <div className="ob-desc" style={{textAlign:'center'}}>
                 MindVault is ready. Start saving links, building collections, and letting AI tag your references automatically.<br /><br />
