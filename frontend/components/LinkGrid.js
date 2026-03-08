@@ -559,12 +559,20 @@ export default function LinkGrid() {
         const wrapper = document.querySelector('.collections-btn-group');
         if (wrapper && !wrapper.contains(e.target)) setCollectionsDropdownOpen(false);
       }
-      // ── Bulk mode — exit when clicking outside toolbar and cards ───────
+      // ── Bulk mode — exit when clicking outside toolbar, bulk toolbar,
+      //    collection picker modal, and cards ────────────────────────────
       if (bulkMode) {
-        const toolbar = document.querySelector('.toolbar');
-        const inCard  = e.target.closest('.card-wrapper');
-        const inBar   = toolbar && toolbar.contains(e.target);
-        if (!inCard && !inBar) { setBulkMode(false); setSelectedLinks(new Set()); }
+        const toolbar     = document.querySelector('.toolbar');
+        const bulkToolbar = document.querySelector('.bulk-toolbar');
+        const picker      = document.querySelector('.collection-picker');
+        const inCard      = e.target.closest('.card-wrapper');
+        const inBar       = toolbar     && toolbar.contains(e.target);
+        const inBulkBar   = bulkToolbar && bulkToolbar.contains(e.target);
+        const inPicker    = picker      && picker.contains(e.target);
+        if (!inCard && !inBar && !inBulkBar && !inPicker) {
+          setBulkMode(false);
+          setSelectedLinks(new Set());
+        }
       }
     };
 
