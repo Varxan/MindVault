@@ -50,11 +50,17 @@ If you activate a license key, the key is verified against Marco Frei's licensin
 
 ---
 
-## 4. AI Features and Local Processing
+## 4. AI Features and Data Processing
 
-MindVault includes AI-powered features including automatic tagging, semantic search, and visual similarity analysis using CLIP and language models.
+MindVault includes AI-powered features including automatic tagging, semantic search, and visual similarity analysis.
 
-**All AI processing runs entirely on your device.** No images, video frames, text, or metadata are sent to any external AI service (including OpenAI, Anthropic, Google, or any other provider). The AI models are bundled with the application.
+**Local AI (default):** Core features such as visual similarity (CLIP) and semantic search run entirely on your device using bundled models. No data is sent externally for these features.
+
+**External AI (optional):** MindVault optionally supports connecting your own API key for external AI services (such as OpenAI or Anthropic) to enable more advanced tagging and analysis. If you configure an API key, content you choose to process — such as link titles, descriptions, or image data — will be sent to the respective third-party AI provider. This is an opt-in feature that requires you to actively provide your own API credentials.
+
+Marco Frei does not receive, store, or have access to any data sent to third-party AI providers. The privacy policies of the respective providers apply:
+- OpenAI: https://openai.com/policies/privacy-policy
+- Anthropic: https://www.anthropic.com/privacy
 
 ---
 
