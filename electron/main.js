@@ -743,6 +743,75 @@ function runClipSetupIfNeeded() {
   }
 }
 
+// ── Update Checker ────────────────────────────────────────────────────────────
+// Fetches the latest GitHub Release and notifies the renderer if a newer
+// version is available. Uses only Node's built-in https — no extra deps.
+// Only runs in production; dev mode always skips.
+
+const GITHUB_OWNER = 'Varxan';
+const GITHUB_REPO  = 'MindVault';
+
+function parseVersion(v) {
+  return (v || '').replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+}
+
+function isNewer(latest, current) {
+  const [la, lb, lc] = parseVersion(latest);
+  const [ca, cb, cc] = parseVersion(current);
+  if (la !== ca) return la > ca;
+  if (lb !== cb) return lb > cb;
+  return lc > cc;
+}
+
+function checkForUpdates() {
+  if (isDev) return; // skip in dev — version from package.json is always "old"
+
+  const currentVersion = app.getVersion();
+  log(`[Updater] Checking for updates (current: v${currentVersion})…`);
+
+  const options = {
+    hostname: 'api.github.com',
+    path:     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`,
+    headers:  { 'User-Agent': `MindVault/${currentVersion}` },
+  };
+
+  https.get(options, (res) => {
+    let raw = '';
+    res.on('data', chunk => { raw += chunk; });
+    res.on('end', () => {
+      try {
+        const release = JSON.parse(raw);
+        const latestTag = release.tag_name;
+        if (!latestTag) return; // no releases published yet — silent
+        const latestVersion = latestTag.replace(/^v/, '');
+
+        log(`[Updater] Latest release: v${latestVersion}`);
+
+        if (!isNewer(latestVersion, currentVersion)) {
+          log('[Updater] App is up to date.');
+          return;
+        }
+
+        log(`[Updater] Update available: v${latestVersion}`);
+
+        // Dispatch into renderer via executeJavaScript (same pattern as wizard/license)
+        const detail = JSON.stringify({
+          version:  latestVersion,
+          url:      release.html_url,
+          name:     release.name || `MindVault v${latestVersion}`,
+        });
+        mainWindow?.webContents.executeJavaScript(
+          `window.dispatchEvent(new CustomEvent('mv:update-available', { detail: ${detail} }));`
+        ).catch(() => {});
+      } catch (err) {
+        log(`[Updater] Parse error: ${err.message}`);
+      }
+    });
+  }).on('error', (err) => {
+    log(`[Updater] Network error: ${err.message}`);
+  });
+}
+
 // ── Launch main app (called after activation or directly on startup) ──────────
 
 async function launchMainApp() {
@@ -790,6 +859,8 @@ async function launchMainApp() {
     isStartingUp = false;
     createWindow();
     runClipSetupIfNeeded(); // Auto-install CLIP on first launch if not present
+    // Check for updates 6s after launch so UI is fully settled
+    setTimeout(checkForUpdates, 6000);
 
   } catch (err) {
     log('[Electron] STARTUP FAILED: ' + err.message);

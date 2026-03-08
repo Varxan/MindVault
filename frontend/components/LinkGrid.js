@@ -54,6 +54,7 @@ export default function LinkGrid() {
   const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [licenseKey, setLicenseKey] = useState('');
   const [licenseStatus, setLicenseStatus] = useState(null); // null | 'activating' | 'ok' | 'error'
+  const [updateInfo, setUpdateInfo] = useState(null); // { version, url, name } | null
 
   // Search focus tracking — needed to temporarily disable drag region
   const [searchFocused, setSearchFocused] = useState(false);
@@ -490,6 +491,13 @@ export default function LinkGrid() {
     const handler = () => { setLicenseKey(''); setLicenseStatus(null); setShowLicenseModal(true); };
     window.addEventListener('mv:show-license-activation', handler);
     return () => window.removeEventListener('mv:show-license-activation', handler);
+  }, []);
+
+  // Listen for update-available event from main process (via executeJavaScript)
+  useEffect(() => {
+    const handler = (e) => setUpdateInfo(e.detail);
+    window.addEventListener('mv:update-available', handler);
+    return () => window.removeEventListener('mv:update-available', handler);
   }, []);
 
   const handleActivateLicense = async () => {
@@ -1129,6 +1137,26 @@ export default function LinkGrid() {
           </div>
         </div>
       </header>
+
+      {/* ── Update available banner ── */}
+      {updateInfo && (
+        <div className="update-banner">
+          <span className="update-banner-dot">✦</span>
+          <span className="update-banner-text">
+            MindVault <strong>{updateInfo.version}</strong> is available
+          </span>
+          <a
+            className="update-banner-btn"
+            href={updateInfo.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Download →
+          </a>
+          <button className="update-banner-close" onClick={() => setUpdateInfo(null)}>✕</button>
+        </div>
+      )}
+
       <input
         ref={importRef}
         type="file"
