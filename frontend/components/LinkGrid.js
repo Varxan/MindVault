@@ -474,7 +474,7 @@ export default function LinkGrid() {
   // (searchbar blur is handled inside the universal outside-click handler below)
 
   // Listen for "Setup Wizard" from the native macOS Application Menu
-  // preload.js dispatches 'mv:show-onboarding' as a CustomEvent — no contextBridge roundtrip needed
+  // main.js executeJavaScript dispatches 'mv:show-onboarding' as CustomEvent directly into renderer
   useEffect(() => {
     const handler = () => setShowOnboarding(true);
     window.addEventListener('mv:show-onboarding', handler);

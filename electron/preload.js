@@ -6,19 +6,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 // (e.g. drag regions, traffic-light padding) without affecting browser usage
 document.documentElement.classList.add('is-electron');
 
-// IPC → Custom DOM Events
-// contextBridge cannot reliably return functions, so we dispatch native DOM
-// CustomEvents that the renderer can listen to with window.addEventListener.
-// This sidesteps contextBridge serialisation entirely.
-ipcRenderer.on('show-onboarding', () => {
-  window.dispatchEvent(new CustomEvent('mv:show-onboarding'));
-});
-
-ipcRenderer.on('show-license-activation', () => {
-  window.dispatchEvent(new CustomEvent('mv:show-license-activation'));
-});
-
-// Expose minimal Electron info to the renderer
+// Expose minimal Electron info to the renderer.
+// Menu → renderer communication uses executeJavaScript + CustomEvent (in main.js)
+// instead of IPC, because contextIsolation separates the preload and renderer
+// JavaScript worlds — events dispatched from preload are invisible to React.
 contextBridge.exposeInMainWorld('electron', {
   version:  process.versions.electron,
   platform: process.platform,

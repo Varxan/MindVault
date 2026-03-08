@@ -630,7 +630,9 @@ function createWindow() {
         },
         {
           label: 'Setup Wizard',
-          click: () => mainWindow?.webContents.send('show-onboarding'),
+          click: () => mainWindow?.webContents.executeJavaScript(
+            'window.dispatchEvent(new CustomEvent("mv:show-onboarding"));'
+          ).catch(() => {}),
         },
         { type: 'separator' },
         { role: 'services' },
@@ -686,7 +688,9 @@ function showLicenseDialog() {
       cancelId:  1,
     });
     if (response === 0) {
-      mainWindow?.webContents.send('show-license-activation');
+      mainWindow?.webContents.executeJavaScript(
+        'window.dispatchEvent(new CustomEvent("mv:show-license-activation"));'
+      ).catch(() => {});
     }
   }
 }
