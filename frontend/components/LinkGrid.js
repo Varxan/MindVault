@@ -1254,7 +1254,7 @@ export default function LinkGrid() {
             className="bulk-action-btn"
             onClick={() => setShowBulkCollectionPicker(true)}
           >
-            📁 Add to collection
+            Add to collection
           </button>
           <button className="bulk-cancel-btn" onClick={toggleBulkMode}>Cancel</button>
         </div>

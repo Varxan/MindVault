@@ -749,7 +749,7 @@ function runClipSetupIfNeeded() {
 // Only runs in production; dev mode always skips.
 
 const GITHUB_OWNER = 'Varxan';
-const GITHUB_REPO  = 'MindVault';
+const GITHUB_REPO  = 'MindVault-releases'; // public repo — source stays private
 
 function parseVersion(v) {
   return (v || '').replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
@@ -771,7 +771,10 @@ function checkForUpdates() {
 
   const options = {
     hostname: 'api.github.com',
-    path:     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`,
+    // /releases?per_page=1 returns the most recent release including prereleases,
+    // unlike /releases/latest which only returns stable (non-prerelease) releases.
+    // This allows beta users to receive prerelease update notifications.
+    path:     `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases?per_page=1`,
     headers:  { 'User-Agent': `MindVault/${currentVersion}` },
   };
 
@@ -780,9 +783,11 @@ function checkForUpdates() {
     res.on('data', chunk => { raw += chunk; });
     res.on('end', () => {
       try {
-        const release = JSON.parse(raw);
+        const releases = JSON.parse(raw);
+        const release = Array.isArray(releases) ? releases[0] : null;
+        if (!release) return; // no releases published yet — silent
         const latestTag = release.tag_name;
-        if (!latestTag) return; // no releases published yet — silent
+        if (!latestTag) return;
         const latestVersion = latestTag.replace(/^v/, '');
 
         log(`[Updater] Latest release: v${latestVersion}`);
