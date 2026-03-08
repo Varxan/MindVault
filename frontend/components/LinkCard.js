@@ -51,9 +51,11 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
 
-  const tags = (() => {
-    try { return JSON.parse(link.tags || '[]'); } catch { return []; }
-  })();
+  // Tags as local state for optimistic UI updates (instant delete feedback).
+  // Syncs with prop when parent refreshes with fresh server data.
+  const parseTags = (raw) => { try { return JSON.parse(raw || '[]'); } catch { return []; } };
+  const [tags, setTags] = useState(() => parseTags(link.tags));
+  useEffect(() => { setTags(parseTags(link.tags)); }, [link.tags]);
 
   // Build thumbnail URL: prefer local, fallback to remote
   const thumbnailSrc = (() => {
@@ -533,14 +535,16 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
                         onClick={async (e) => {
                           e.stopPropagation();
                           const updated = tags.filter(t => t !== tag);
+                          setTags(updated); // optimistic — instant UI feedback
                           try {
                             await fetch(`${getApiBase()}/links/${link.id}`, {
                               method: 'PATCH',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ tags: updated }),
                             });
-                            onRefresh?.();
-                          } catch { /* silent */ }
+                          } catch {
+                            setTags(tags); // revert on error
+                          }
                         }}
                       >✕</span>
                     </span>

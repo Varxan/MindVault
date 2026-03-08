@@ -379,6 +379,7 @@ export default function LinkGrid() {
   }, []);
 
   const refresh = useCallback(() => {
+    spaceCacheRef.current = { eye: null, mind: null }; // force fresh fetch
     loadLinks();
     loadSources();
     loadCollections();
