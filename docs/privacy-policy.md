@@ -2,7 +2,7 @@
 
 **Effective Date:** March 2026
 **Product:** MindVault
-**Developer:** Varxan (sole developer, independent)
+**Developer:** Marco Frei
 
 ---
 
@@ -22,7 +22,7 @@ All content you save in MindVault — including links, titles, tags, notes, thum
 - macOS: `~/Library/Application Support/MindVault/data/`
 - Windows: `%APPDATA%\MindVault\data\`
 
-This data never leaves your device unless you explicitly export it. Varxan has no access to this data.
+This data never leaves your device unless you explicitly export it. Marco Frei has no access to this data.
 
 ---
 
@@ -46,7 +46,7 @@ GET https://api.github.com/repos/Varxan/MindVault-releases/releases?per_page=1
 This request includes a standard `User-Agent` header containing the app name and version number (e.g., `MindVault/1.0.0`). No personal data, no device identifiers, and no usage data are included. GitHub's privacy policy applies to this request: https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement
 
 ### 3.4 License Activation
-If you activate a license key, the key is verified against Varxan's licensing server. Only the license key itself is transmitted — no personal data, usage data, or device fingerprints are sent.
+If you activate a license key, the key is verified against Marco Frei's licensing server. Only the license key itself is transmitted — no personal data, usage data, or device fingerprints are sent.
 
 ---
 
@@ -60,7 +60,7 @@ MindVault includes AI-powered features including automatic tagging, semantic sea
 
 ## 5. Data We Do Not Collect
 
-Varxan does not collect:
+Marco Frei does not collect:
 
 - Usage analytics or telemetry
 - Crash reports (unless you manually send them)
@@ -79,9 +79,9 @@ When you save a link from a third-party website, you interact with that website'
 
 ## 7. Data Security
 
-Your data is stored locally on your device and protected by your operating system's file permissions and security model. Varxan recommends enabling full-disk encryption on your device (FileVault on macOS, BitLocker on Windows) for additional protection.
+Your data is stored locally on your device and protected by your operating system's file permissions and security model. Marco Frei recommends enabling full-disk encryption on your device (FileVault on macOS, BitLocker on Windows) for additional protection.
 
-Since Varxan does not store your data on any server, we cannot recover your data in the event of device loss or damage. **We recommend regular backups of your MindVault data folder.**
+Since Marco Frei does not store your data on any server, we cannot recover your data in the event of device loss or damage. **We recommend regular backups of your MindVault data folder.**
 
 ---
 

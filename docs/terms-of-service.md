@@ -2,7 +2,7 @@
 
 **Effective Date:** March 2026
 **Product:** MindVault
-**Developer:** Varxan (sole developer, independent)
+**Developer:** Marco Frei
 
 ---
 
@@ -20,7 +20,7 @@ MindVault is a personal organization tool that allows you to save, tag, and mana
 
 ## 3. License Grant
 
-Varxan grants you a personal, non-exclusive, non-transferable, revocable license to use MindVault for your own personal or internal professional use, subject to these Terms.
+Marco Frei grants you a personal, non-exclusive, non-transferable, revocable license to use MindVault for your own personal or internal professional use, subject to these Terms.
 
 You may not:
 - Redistribute, sell, sublicense, or commercially exploit the App or any portion of it
@@ -46,7 +46,7 @@ MindVault provides tools to save links and locally cache media (thumbnails, prev
 
 MindVault uses open-source tools (such as yt-dlp) solely to fetch metadata and preview thumbnails. Any misuse of these tools to circumvent platform protections or to infringe copyright is a violation of these Terms and potentially of applicable law.
 
-**Varxan is not responsible for any copyright infringement committed by users of the App.**
+**Marco Frei is not responsible for any copyright infringement committed by users of the App.**
 
 ---
 
@@ -80,25 +80,25 @@ Updates are not installed automatically. You remain in control of when and wheth
 
 MindVault is provided **"as is"** without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement.
 
-Varxan does not warrant that the App will be error-free, uninterrupted, or that defects will be corrected.
+Marco Frei does not warrant that the App will be error-free, uninterrupted, or that defects will be corrected.
 
 ---
 
 ## 9. Limitation of Liability
 
-To the fullest extent permitted by applicable law, Varxan shall not be liable for any indirect, incidental, special, consequential, or punitive damages — including loss of data, loss of profits, or business interruption — arising from your use of or inability to use the App, even if advised of the possibility of such damages.
+To the fullest extent permitted by applicable law, Marco Frei shall not be liable for any indirect, incidental, special, consequential, or punitive damages — including loss of data, loss of profits, or business interruption — arising from your use of or inability to use the App, even if advised of the possibility of such damages.
 
 ---
 
 ## 10. Termination
 
-Varxan reserves the right to revoke your license to use the App at any time if you violate these Terms. Upon termination, you must cease all use of the App.
+Marco Frei reserves the right to revoke your license to use the App at any time if you violate these Terms. Upon termination, you must cease all use of the App.
 
 ---
 
 ## 11. Changes to These Terms
 
-Varxan may update these Terms from time to time. Significant changes will be communicated via an in-app notice. Continued use of the App after changes are posted constitutes acceptance of the revised Terms.
+Marco Frei may update these Terms from time to time. Significant changes will be communicated via an in-app notice. Continued use of the App after changes are posted constitutes acceptance of the revised Terms.
 
 ---
 
