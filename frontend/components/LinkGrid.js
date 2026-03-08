@@ -1149,7 +1149,6 @@ export default function LinkGrid() {
       {/* ── Update available banner ── */}
       {updateInfo && (
         <div className="update-banner">
-          <span className="update-banner-dot">✦</span>
           <span className="update-banner-text">
             MindVault <strong>{updateInfo.version}</strong> is available
           </span>

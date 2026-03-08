@@ -901,12 +901,9 @@ code {
   border-bottom: 1px solid rgba(200, 168, 75, 0.18);
   font-size: 11px;
   color: var(--text-muted);
+  -webkit-app-region: no-drag; /* always clickable — buttons inside must not be swallowed */
 }
-.update-banner-dot {
-  color: #c8a84b;
-  font-size: 9px;
-  flex-shrink: 0;
-}
+.update-banner-dot { display: none; } /* removed — kept for safety */
 .update-banner-text {
   flex: 1;
   color: var(--text-muted);
