@@ -14,34 +14,34 @@ function createBot(token) {
 
   bot.start((ctx) => {
     ctx.reply(
-      '🧠 *Willkommen bei MindVault!*\n\n' +
-      'Sende mir einen Link und ich speichere ihn für dich.\n\n' +
-      '*Befehle:*\n' +
-      '/start – Diese Nachricht\n' +
-      '/help – Hilfe & Tipps\n\n' +
-      '_Tipp: Füge nach dem Link eine Notiz hinzu!_\n' +
-      '`https://example.com Tolles Projekt`',
+      '🧠 *Welcome to MindVault!*\n\n' +
+      'Send me a link and I\'ll save it for you.\n\n' +
+      '*Commands:*\n' +
+      '/start – This message\n' +
+      '/help – Help & tips\n\n' +
+      '_Tip: Add a note after the link!_\n' +
+      '`https://example.com Great project`',
       { parse_mode: 'Markdown' }
     );
   });
 
   bot.help((ctx) => {
     ctx.reply(
-      '📌 *So nutzt du MindVault:*\n\n' +
-      '*Link speichern:*\n' +
-      'Einfach URL senden – fertig!\n\n' +
-      '*Link + Notiz:*\n' +
-      '`https://vimeo.com/123 Schöne Lichtstimmung`\n\n' +
-      '*Tags hinzufügen:*\n' +
-      'Nach dem Speichern einfach Tags als nächste Nachricht senden:\n' +
+      '📌 *How to use MindVault:*\n\n' +
+      '*Save a link:*\n' +
+      'Just send a URL – done!\n\n' +
+      '*Link + note:*\n' +
+      '`https://vimeo.com/123 Beautiful lighting`\n\n' +
+      '*Add tags:*\n' +
+      'After saving, just send tags as your next message:\n' +
       '`portrait warm tones cinematic`\n' +
-      'oder: `#portrait #warm-tones #cinematic`\n\n' +
-      '*Was passiert:*\n' +
-      '• Source wird erkannt (Instagram, Vimeo, YouTube...)\n' +
-      '• Titel & Thumbnail werden automatisch geholt\n' +
-      '• AI analysiert das Bild und generiert Tags\n' +
-      '• Deine manuellen Tags werden hinzugefügt\n\n' +
-      'Unterstützte Plattformen: Instagram, Vimeo, YouTube, TikTok, Pinterest, Behance, Dribbble, Flickr, Unsplash, Twitter/X + alle Webseiten',
+      'or: `#portrait #warm-tones #cinematic`\n\n' +
+      '*What happens:*\n' +
+      '• Source is detected (Instagram, Vimeo, YouTube...)\n' +
+      '• Title & thumbnail are fetched automatically\n' +
+      '• AI analyzes the image and generates tags\n' +
+      '• Your manual tags are added on top\n\n' +
+      'Supported platforms: Instagram, Vimeo, YouTube, TikTok, Pinterest, Behance, Dribbble, Flickr, Unsplash, Twitter/X + all websites',
       { parse_mode: 'Markdown' }
     );
   });
@@ -64,7 +64,7 @@ function createBot(token) {
         const userTags = parseTags(text);
 
         if (userTags.length === 0) {
-          ctx.reply('🤔 Ich konnte keinen Link finden.\nSende mir eine URL!');
+          ctx.reply('🤔 No link found.\nSend me a URL!');
           return;
         }
 
@@ -79,9 +79,9 @@ function createBot(token) {
 
           console.log(`[Bot] Manual tags for Link ${last.linkId}: ${userTags.join(', ')}`);
 
-          const tagReply = `🏷 *${userTags.length} Tags hinzugefügt:*\n` +
+          const tagReply = `🏷 *${userTags.length} tag${userTags.length === 1 ? '' : 's'} added:*\n` +
             userTags.map(t => `\`${t}\``).join(' ') +
-            (existingTags.length > 0 ? `\n\n_+ ${existingTags.length} AI-Tags_` : '');
+            (existingTags.length > 0 ? `\n\n_+ ${existingTags.length} AI tags_` : '');
           ctx.reply(tagReply, { parse_mode: 'Markdown' })
             .catch(() => ctx.reply(tagReply.replace(/[_*`\[\]]/g, '')));
 
@@ -89,12 +89,12 @@ function createBot(token) {
           lastSavedLink.delete(chatId);
         } catch (err) {
           console.error('Error adding tags:', err);
-          ctx.reply('❌ Fehler beim Hinzufügen der Tags');
+          ctx.reply('❌ Error adding tags');
         }
         return;
       }
 
-      ctx.reply('🤔 Ich konnte keinen Link finden.\nSende mir eine URL!');
+      ctx.reply('🤔 No link found.\nSend me a URL!');
       return;
     }
 
@@ -166,7 +166,7 @@ function createBot(token) {
           db.prepare('UPDATE links SET author_url = ? WHERE id = ?').run(meta.author_url, linkId);
         }
 
-        // AI-Analyse async (nicht blockierend)
+        // AI analysis async (non-blocking)
         // Use local thumbnail file if available (remote URLs are often blocked)
         const aiImageSource = localThumb
           ? path.join(__dirname, '..', 'data', 'thumbnails', localThumb)
@@ -181,7 +181,7 @@ function createBot(token) {
             if (aiResult.tags.length > 0) {
               db.prepare('UPDATE links SET tags = ? WHERE id = ?')
                 .run(JSON.stringify(aiResult.tags), linkId);
-              console.log(`[AI] Tags für Link ${linkId}: ${aiResult.tags.join(', ')}`);
+              console.log(`[AI] Tags for Link ${linkId}: ${aiResult.tags.join(', ')}`);
             }
             if (aiResult.description && !meta.description) {
               db.prepare('UPDATE links SET description = ? WHERE id = ?')
@@ -210,16 +210,16 @@ function createBot(token) {
     let reply = '';
 
     if (saved.length > 0) {
-      reply += `✅ ${saved.length === 1 ? 'Gespeichert!' : saved.length + ' Links gespeichert!'}\n\n`;
+      reply += `✅ ${saved.length === 1 ? 'Saved!' : saved.length + ' links saved!'}\n\n`;
       reply += saved.join('\n');
       if (note) {
         reply += `\n\n📝 _${note}_`;
       }
-      reply += '\n\n🏷 _Tags? Sende sie als nächste Nachricht_';
+      reply += '\n\n🏷 _Tags? Send them as your next message_';
     }
 
     if (errors.length > 0) {
-      reply += `\n\n❌ Fehler bei: ${errors.join(', ')}`;
+      reply += `\n\n❌ Failed: ${errors.join(', ')}`;
     }
 
     ctx.reply(reply, { parse_mode: 'Markdown', disable_web_page_preview: true })
