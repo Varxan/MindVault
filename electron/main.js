@@ -635,6 +635,15 @@ function createWindow() {
           ).catch(() => {}),
         },
         { type: 'separator' },
+        {
+          label: 'Privacy Policy',
+          click: () => shell.openExternal('https://mindvault.app/privacy'),
+        },
+        {
+          label: 'Terms of Service',
+          click: () => shell.openExternal('https://mindvault.app/terms'),
+        },
+        { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
         { role: 'hide' },
