@@ -184,6 +184,11 @@ code {
   cursor: default;
   user-select: none;
 }
+/* When a popup/dropdown/search is active, temporarily disable drag so clicks
+   pass through to JavaScript — lets the universal handler close everything. */
+.is-electron .sticky-top.popups-open {
+  -webkit-app-region: no-drag;
+}
 .is-electron .header {
   padding-left: 0px;
   margin-top: 1rem;

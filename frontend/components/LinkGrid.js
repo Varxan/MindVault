@@ -55,6 +55,9 @@ export default function LinkGrid() {
   const [licenseKey, setLicenseKey] = useState('');
   const [licenseStatus, setLicenseStatus] = useState(null); // null | 'activating' | 'ok' | 'error'
 
+  // Search focus tracking — needed to temporarily disable drag region
+  const [searchFocused, setSearchFocused] = useState(false);
+
   // New SettingsPanel state
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
@@ -507,12 +510,22 @@ export default function LinkGrid() {
   // ── Universal outside-click handler ─────────────────────────────────────
   // Single capture-phase mousedown listener — always active.
   // Handles: searchbar blur + all popup closes.
-  // Capture phase fires before any React synthetic handlers / stopPropagation.
+  //
+  // DRAG REGION FIX: Electron's -webkit-app-region:drag swallows mouse events
+  // at native level before they reach JavaScript. When anything is open/focused,
+  // we temporarily flip .sticky-top to no-drag so clicks pass through to JS.
+  // Once everything closes, drag is re-enabled on the next render cycle.
   useEffect(() => {
+    const stickyTop = document.querySelector('.sticky-top');
+    const anyOpen = settingsOpen || filterOpen || collectionsDropdownOpen || bulkMode || searchFocused;
+
+    if (stickyTop) {
+      if (anyOpen) stickyTop.classList.add('popups-open');
+      else         stickyTop.classList.remove('popups-open');
+    }
+
     const handler = (e) => {
       // ── Searchbar blur ─────────────────────────────────────────────────
-      // Blur the focused search input when clicking OUTSIDE the .search-bar container.
-      // Must check the container (not the input itself) so the ✕ clear button works.
       const active = document.activeElement;
       if (active && active.classList.contains('search-input')) {
         const searchBar = active.closest('.search-bar');
@@ -547,8 +560,11 @@ export default function LinkGrid() {
     };
 
     document.addEventListener('mousedown', handler, true);
-    return () => document.removeEventListener('mousedown', handler, true);
-  }, [settingsOpen, filterOpen, collectionsDropdownOpen, bulkMode]);
+    return () => {
+      document.removeEventListener('mousedown', handler, true);
+      if (stickyTop) stickyTop.classList.remove('popups-open');
+    };
+  }, [settingsOpen, filterOpen, collectionsDropdownOpen, bulkMode, searchFocused]);
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this link?')) return;
@@ -1132,6 +1148,8 @@ export default function LinkGrid() {
               type="text"
               placeholder="Search..."
               value={search}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setActiveSource(null);

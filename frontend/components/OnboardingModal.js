@@ -161,33 +161,22 @@ export default function OnboardingModal({ onComplete }) {
         }
         .ob-instruction-list {
           list-style: none;
-          padding: 0; margin: 0 0 20px;
-          display: flex; flex-direction: column; gap: 10px;
+          padding: 0; margin: 0 0 18px;
+          display: flex; flex-direction: column; gap: 8px;
         }
         .ob-instruction-list li {
-          display: flex; align-items: flex-start; gap: 12px;
+          display: flex; align-items: flex-start; gap: 10px;
           font-size: 12px; color: var(--text-muted); line-height: 1.5;
         }
         .ob-step-num {
           flex-shrink: 0;
-          width: 20px; height: 20px;
+          width: 18px; height: 18px;
           border-radius: 50%;
           background: rgba(200,168,75,0.15);
           color: #c8a84b;
-          font-size: 10px; font-weight: 700;
+          font-size: 9px; font-weight: 700;
           display: flex; align-items: center; justify-content: center;
           margin-top: 1px;
-        }
-        .ob-code {
-          background: var(--bg);
-          border: 1px solid var(--border);
-          border-radius: 6px;
-          padding: 8px 12px;
-          font-size: 11px;
-          font-family: monospace;
-          color: var(--text);
-          margin: 8px 0 16px;
-          word-break: break-all;
         }
         .ob-provider-tabs {
           display: flex; gap: 8px; margin-bottom: 14px;
@@ -283,18 +272,15 @@ export default function OnboardingModal({ onComplete }) {
                 </li>
                 <li>
                   <span className="ob-step-num">2</span>
-                  <span>Send <code style={{background:'var(--bg)',padding:'1px 5px',borderRadius:'4px',fontSize:'11px'}}>/newbot</code> and follow the prompts to name your bot</span>
+                  <span>Send <code style={{background:'var(--bg)',padding:'1px 5px',borderRadius:'4px',fontSize:'11px'}}>/newbot</code> and follow the prompts</span>
                 </li>
                 <li>
                   <span className="ob-step-num">3</span>
-                  <span>BotFather will give you a token like:<br />
-                    <span className="ob-code">123456789:AAFxxxxxxxxxxxxxxxxxxxxxxx</span>
-                    Paste it below.
-                  </span>
+                  <span>Copy the token (e.g. <code style={{background:'var(--bg)',padding:'2px 6px',borderRadius:'4px',fontSize:'10px',letterSpacing:'-0.02em'}}>123456789:AAFxx…</code>) and paste it below</span>
                 </li>
                 <li>
                   <span className="ob-step-num">4</span>
-                  <span>Open your new bot in Telegram and send <code style={{background:'var(--bg)',padding:'1px 5px',borderRadius:'4px',fontSize:'11px'}}>/start</code></span>
+                  <span>Open your bot in Telegram and send <code style={{background:'var(--bg)',padding:'1px 5px',borderRadius:'4px',fontSize:'11px'}}>/start</code></span>
                 </li>
               </ul>
               <input
