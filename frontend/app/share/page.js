@@ -94,8 +94,15 @@ export default function SharePage() {
 
   // ── Parse URL params on mount ──────────────────────────────────────────────
   useEffect(() => {
-    const p   = new URLSearchParams(window.location.search);
-    const url = p.get('url') || p.get('text') || '';
+    const p = new URLSearchParams(window.location.search);
+
+    // Some apps (YouTube iOS) send the URL embedded in a text string like:
+    // "Let's share videos and messages on YouTube. https://youtu.be/xxx"
+    // Extract the first https:// URL from whatever we receive.
+    const raw = p.get('url') || p.get('text') || '';
+    const urlMatch = raw.match(/https?:\/\/[^\s]+/);
+    const url = urlMatch ? urlMatch[0].replace(/[.,;!?)]+$/, '') : raw.trim();
+
     if (!url) { setPhase('saved'); return; }
 
     const share = { url, title: p.get('title') || '', text: p.get('text') || '' };
