@@ -2284,6 +2284,20 @@ code {
   font-size: 0.72rem;
 }
 
+.card-context-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0;
+}
+
+.card-context-danger {
+  color: #e05555;
+}
+
+.card-context-danger:hover {
+  background: rgba(224, 85, 85, 0.08);
+}
+
 /* ========== Bulk Selection ========== */
 .card-wrapper {
   position: relative;

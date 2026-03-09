@@ -76,7 +76,23 @@ Updates are not installed automatically. You remain in control of when and wheth
 
 ---
 
-## 8. No Warranty
+## 8. Mobile Companion & Cross-Device Connectivity
+
+MindVault offers optional cross-device features, including a Progressive Web App (PWA) for mobile use and QR-code pairing to connect your phone with the desktop app.
+
+**Availability and cost:**
+
+- These features rely on internet connectivity and third-party infrastructure (including cloud hosting and database services). While MindVault strives to keep these features free of charge, **their availability cannot be guaranteed in all markets, regions, or under all network conditions.**
+- Depending on your mobile carrier, regional regulations, or platform provider policies, access to these features may become subject to data charges, restrictions, or fees outside of MindVault's control. Marco Frei bears no responsibility for any such third-party charges.
+- In the event that the QR/PWA sync feature becomes unavailable or restricted, **MindVault always provides Telegram bot integration as a free, alternative method for sending links from your phone to your desktop library.** This fallback channel is designed to remain accessible regardless of infrastructure changes.
+
+**Data routing:**
+
+Links shared via the PWA or Telegram are temporarily processed through MindVault's backend infrastructure before being imported to your local library. They are not stored permanently on any server and are deleted from the queue as soon as they are processed.
+
+---
+
+## 9. No Warranty
 
 MindVault is provided **"as is"** without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, or non-infringement.
 
@@ -84,30 +100,30 @@ Marco Frei does not warrant that the App will be error-free, uninterrupted, or t
 
 ---
 
-## 9. Limitation of Liability
+## 10. Limitation of Liability
 
 To the fullest extent permitted by applicable law, Marco Frei shall not be liable for any indirect, incidental, special, consequential, or punitive damages — including loss of data, loss of profits, or business interruption — arising from your use of or inability to use the App, even if advised of the possibility of such damages.
 
 ---
 
-## 10. Termination
+## 11. Termination
 
 Marco Frei reserves the right to revoke your license to use the App at any time if you violate these Terms. Upon termination, you must cease all use of the App.
 
 ---
 
-## 11. Changes to These Terms
+## 12. Changes to These Terms
 
 Marco Frei may update these Terms from time to time. Significant changes will be communicated via an in-app notice. Continued use of the App after changes are posted constitutes acceptance of the revised Terms.
 
 ---
 
-## 12. Governing Law
+## 13. Governing Law
 
 These Terms are governed by the laws of Switzerland, without regard to its conflict of law provisions. Any disputes arising from these Terms shall be resolved in the competent courts of Switzerland.
 
 ---
 
-## 13. Contact
+## 14. Contact
 
 For questions about these Terms, contact: **marco.pro.frei@gmail.com**

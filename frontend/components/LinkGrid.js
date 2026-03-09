@@ -106,6 +106,37 @@ export default function LinkGrid() {
     }
   };
 
+  // Re-download: clear cached file for this link, then trigger fresh download
+  const handleRedownload = async () => {
+    if (!cardContextMenu) return;
+    const { link } = cardContextMenu;
+    setCardContextMenu(null);
+    try {
+      // Step 1: delete local media files + reset media_path in DB
+      await fetch(`${getApiBase()}/links/${link.id}/media`, { method: 'DELETE' });
+      // Step 2: trigger fresh download
+      const res = await fetch(`${getApiBase()}/links/${link.id}/download`, { method: 'POST' });
+      if (!res.ok) throw new Error('Download failed');
+      refresh();
+    } catch (err) {
+      alert('Re-download failed: ' + err.message);
+    }
+  };
+
+  // Delete cache file: remove local media for this link only, keep the link
+  const handleDeleteCacheFile = async () => {
+    if (!cardContextMenu) return;
+    const { link } = cardContextMenu;
+    setCardContextMenu(null);
+    try {
+      const res = await fetch(`${getApiBase()}/links/${link.id}/media`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed');
+      refresh();
+    } catch (err) {
+      alert('Error deleting cache file: ' + err.message);
+    }
+  };
+
   // QR modal
   const [showQRModal, setShowQRModal] = useState(false);
 
@@ -1718,6 +1749,17 @@ export default function LinkGrid() {
             <button className="card-context-item" onClick={handleReanalyze}>
               Re-analyse
             </button>
+            {cardContextMenu.link.media_path && (
+              <>
+                <div className="card-context-divider" />
+                <button className="card-context-item" onClick={handleRedownload}>
+                  Re-download
+                </button>
+                <button className="card-context-item card-context-danger" onClick={handleDeleteCacheFile}>
+                  Delete cache file
+                </button>
+              </>
+            )}
             <button className="card-context-item card-context-cancel" onClick={() => setCardContextMenu(null)}>
               Cancel
             </button>

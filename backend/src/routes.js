@@ -673,16 +673,26 @@ router.post('/links/:id/download', async (req, res) => {
       if (existing.length > 0) {
         const mediaFiles = existing.filter(f => f.type !== 'thumbnail');
         const mainFile = mediaFiles.sort((a, b) => b.size - a.size)[0] || existing[0];
-        return res.json({
-          message: 'Bereits heruntergeladen',
-          file: mainFile,
-          downloadUrl: `/api/files/media/${mainFile.filename}`,
-          allFiles: mediaFiles.map(f => ({
-            ...f,
-            downloadUrl: `/api/files/media/${f.filename}`,
-            sizeFormatted: formatSize(f.size),
-          })),
-        });
+
+        // Guard: if the main file is < 1 KB it's likely a broken/partial download.
+        // Delete and fall through to re-download automatically.
+        if (mainFile.size < 1024) {
+          console.warn(`[Download] File looks corrupt (${mainFile.size} bytes): ${mainFile.filename} — clearing and re-downloading`);
+          existing.forEach(f => { try { fs.unlinkSync(f.filepath); } catch {} });
+          db.prepare('UPDATE links SET media_path = NULL, media_type = NULL WHERE id = ?').run(link.id);
+          // fall through to fresh download below
+        } else {
+          return res.json({
+            message: 'Bereits heruntergeladen',
+            file: mainFile,
+            downloadUrl: `/api/files/media/${mainFile.filename}`,
+            allFiles: mediaFiles.map(f => ({
+              ...f,
+              downloadUrl: `/api/files/media/${f.filename}`,
+              sizeFormatted: formatSize(f.size),
+            })),
+          });
+        }
       }
     }
 
