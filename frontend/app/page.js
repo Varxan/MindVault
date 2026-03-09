@@ -69,15 +69,6 @@ export default function LandingPage() {
         .feature-card h3 { font-size:17px; font-weight:700; color:var(--text); margin-bottom:10px; letter-spacing:-0.3px; font-family:'Inter',sans-serif; }
         .feature-card p { font-size:14px; color:var(--text-muted); line-height:1.7; }
 
-        /* HOW */
-        .how { max-width:560px; margin:0 auto; padding:0 24px 100px; }
-        .steps { display:flex; flex-direction:column; }
-        .step { display:flex; gap:20px; padding:28px 0; border-bottom:1px solid var(--border); }
-        .step:last-child { border-bottom:none; }
-        .step-num { width:34px; height:34px; border-radius:50%; flex-shrink:0; background:var(--accent-light); border:1px solid var(--accent-mid); color:var(--accent); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:2px; font-family:'Inter',sans-serif; }
-        .step-body h4 { font-size:16px; font-weight:700; color:var(--text); margin-bottom:6px; }
-        .step-body p { font-size:14px; color:var(--text-muted); line-height:1.7; }
-
         /* CTA */
         .cta-bottom { max-width:620px; margin:0 auto; padding:0 24px 110px; text-align:center; }
         .cta-card { background:var(--text); border-radius:20px; padding:56px 40px; }
@@ -163,26 +154,6 @@ export default function LandingPage() {
               </div>
               <h3>{f.title}</h3>
               <p>{f.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section className="how">
-        <div className="features-header">
-          <div className="eyebrow">How it works</div>
-          <h2>Setup in five minutes.</h2>
-        </div>
-        <div className="steps">
-          {[
-            { n: '1', title: 'Install MindVault on your Mac', text: 'The Electron app runs in the background and manages your local library. Your data stays on your machine.' },
-            { n: '2', title: 'Send links from anywhere', text: 'Chrome Extension, Telegram bot or iPhone Share Sheet. Links reach your Vault in seconds, even when your Mac is off.' },
-            { n: '3', title: 'Browse your visual library', text: 'Thumbnails, tags, collections, semantic search. Everything that ever inspired you, finally in one place.' },
-          ].map(s => (
-            <div key={s.n} className="step">
-              <div className="step-num">{s.n}</div>
-              <div className="step-body"><h4>{s.title}</h4><p>{s.text}</p></div>
             </div>
           ))}
         </div>
