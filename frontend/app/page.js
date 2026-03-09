@@ -1,523 +1,284 @@
 export const runtime = 'edge';
 
 export const metadata = {
-  title: 'MindVault — Your personal link vault',
-  description: 'Capture links from anywhere. Organize with tags. Access your visual library from any device.',
+  title: 'MindVault — Deine visuelle Inspirations-Bibliothek',
+  description: 'Speichere was dich inspiriert — egal woher. Verwandle gedankenloses Scrollen in eine kuratierte Referenz-Bibliothek.',
 };
 
 export default function LandingPage() {
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#080808',
-      color: '#e0e0e0',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      overflowX: 'hidden',
-    }}>
+    <div style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", background: '#f5f2eb', color: '#1a1a18', minHeight: '100vh', overflowX: 'hidden' }}>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        /* ── Nav ── */
-        .nav {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 20px 40px;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-          position: sticky; top: 0; z-index: 100;
-          background: rgba(8,8,8,0.92);
-          backdrop-filter: blur(12px);
-        }
-        .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-        .nav-logo span { font-weight: 700; font-size: 16px; color: #e0e0e0; letter-spacing: -0.3px; }
-        .nav-cta {
-          background: #e0e0e0; color: #080808;
-          border: none; border-radius: 10px;
-          padding: 9px 20px; font-size: 14px; font-weight: 600;
-          cursor: pointer; text-decoration: none;
-          transition: opacity 0.15s;
-          display: inline-block;
-        }
-        .nav-cta:hover { opacity: 0.85; }
-
-        /* ── Hero ── */
-        .hero {
-          text-align: center;
-          padding: 90px 24px 80px;
-          max-width: 720px;
-          margin: 0 auto;
-        }
-        .hero-badge {
-          display: inline-flex; align-items: center; gap: 6px;
-          background: rgba(200,168,75,0.1);
-          border: 1px solid rgba(200,168,75,0.25);
-          border-radius: 20px;
-          padding: 5px 14px;
-          font-size: 12px; font-weight: 600;
-          color: #c8a84b;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          margin-bottom: 28px;
-        }
-        .hero h1 {
-          font-size: clamp(36px, 6vw, 60px);
-          font-weight: 700;
-          line-height: 1.1;
-          letter-spacing: -1.5px;
-          color: #f0f0f0;
-          margin-bottom: 20px;
-        }
-        .hero h1 .accent { color: #c8a84b; }
-        .hero p {
-          font-size: 18px;
-          color: #666;
-          line-height: 1.6;
-          max-width: 480px;
-          margin: 0 auto 40px;
-        }
-        .hero-actions {
-          display: flex; gap: 12px; justify-content: center;
-          flex-wrap: wrap;
-        }
-        .btn-primary {
-          display: inline-flex; align-items: center; gap: 8px;
-          background: #e0e0e0; color: #080808;
-          border: none; border-radius: 12px;
-          padding: 14px 28px; font-size: 15px; font-weight: 600;
-          cursor: pointer; text-decoration: none;
-          transition: opacity 0.15s, transform 0.15s;
-        }
-        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn-secondary {
-          display: inline-flex; align-items: center; gap: 8px;
-          background: transparent; color: #888;
-          border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
-          padding: 14px 28px; font-size: 15px; font-weight: 500;
-          cursor: pointer; text-decoration: none;
-          transition: all 0.15s;
-        }
-        .btn-secondary:hover { color: #e0e0e0; border-color: rgba(255,255,255,0.25); }
-
-        /* ── Preview ── */
-        .preview-wrap {
-          max-width: 900px;
-          margin: 0 auto;
-          padding: 0 24px 80px;
-        }
-        .preview-window {
-          background: #111;
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 16px;
-          overflow: hidden;
-          box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
-        }
-        .preview-bar {
-          background: #1a1a1a;
-          border-bottom: 1px solid rgba(255,255,255,0.06);
-          padding: 12px 16px;
-          display: flex; align-items: center; gap: 8px;
-        }
-        .dot { width: 10px; height: 10px; border-radius: 50%; }
-        .preview-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 1px;
-          background: rgba(255,255,255,0.04);
-          padding: 20px;
-          gap: 12px;
-        }
-        .preview-card {
-          background: #161616;
-          border-radius: 10px;
-          overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.05);
-        }
-        .preview-thumb {
-          width: 100%; aspect-ratio: 16/9;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .preview-info { padding: 8px 10px 10px; }
-        .preview-title {
-          font-size: 11px; font-weight: 600; color: #bbb;
-          margin-bottom: 5px; line-height: 1.3;
-        }
-        .preview-tags { display: flex; gap: 4px; flex-wrap: wrap; }
-        .preview-tag {
-          font-size: 9px; color: #555;
-          background: rgba(255,255,255,0.04);
-          border-radius: 3px; padding: 2px 5px;
+        :root {
+          --bg: #f5f2eb; --surface: #faf8f4; --surface-2: #edeae3;
+          --border: #e2e0d8; --border-2: #ccc9be;
+          --text: #1a1a18; --text-muted: #888880; --text-dim: #bbb;
+          --accent: #C8861E; --accent-light: rgba(200,134,30,0.1); --accent-mid: rgba(200,134,30,0.22);
         }
 
-        /* ── Features ── */
-        .features {
-          max-width: 900px;
-          margin: 0 auto;
-          padding: 0 24px 80px;
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-          gap: 16px;
-        }
-        .feature-card {
-          background: rgba(255,255,255,0.02);
-          border: 1px solid rgba(255,255,255,0.06);
-          border-radius: 16px;
-          padding: 28px 24px;
-          transition: border-color 0.2s;
-        }
-        .feature-card:hover { border-color: rgba(255,255,255,0.12); }
-        .feature-icon {
-          width: 40px; height: 40px;
-          background: rgba(200,168,75,0.08);
-          border-radius: 10px;
-          display: flex; align-items: center; justify-content: center;
-          margin-bottom: 16px;
-        }
-        .feature-card h3 {
-          font-size: 15px; font-weight: 600;
-          color: #d0d0d0; margin-bottom: 8px;
-        }
-        .feature-card p { font-size: 14px; color: #555; line-height: 1.6; }
+        /* NAV */
+        .nav { display:flex; align-items:center; justify-content:space-between; padding:18px 48px; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; background:rgba(245,242,235,0.92); backdrop-filter:blur(16px); }
+        .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--text); }
+        .nav-logo-mark { width:30px; height:30px; border-radius:7px; background:var(--text); display:flex; align-items:center; justify-content:center; }
+        .nav-logo span { font-weight:700; font-size:16px; letter-spacing:-0.3px; }
+        .nav-right { display:flex; align-items:center; gap:12px; }
+        .nav-badge { font-size:11px; font-weight:600; letter-spacing:0.05em; color:var(--accent); background:var(--accent-light); border:1px solid var(--accent-mid); border-radius:20px; padding:4px 10px; text-transform:uppercase; }
+        .nav-cta { background:var(--text); color:var(--bg); border:none; border-radius:10px; padding:9px 20px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; transition:opacity 0.15s; display:inline-block; font-family:inherit; }
+        .nav-cta:hover { opacity:0.75; }
 
-        /* ── How it works ── */
-        .how {
-          max-width: 700px;
-          margin: 0 auto;
-          padding: 0 24px 80px;
-          text-align: center;
-        }
-        .section-label {
-          font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
-          text-transform: uppercase; color: #444;
-          margin-bottom: 12px;
-        }
-        .how h2 {
-          font-size: clamp(24px, 4vw, 36px); font-weight: 700;
-          color: #e0e0e0; margin-bottom: 14px; letter-spacing: -0.5px;
-        }
-        .how > p { font-size: 16px; color: #555; line-height: 1.6; margin-bottom: 48px; }
-        .steps {
-          display: flex; flex-direction: column; gap: 0;
-          text-align: left;
-        }
-        .step {
-          display: flex; gap: 20px; align-items: flex-start;
-          padding: 24px 0;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .step:last-child { border-bottom: none; }
-        .step-num {
-          width: 32px; height: 32px; border-radius: 50%;
-          background: rgba(200,168,75,0.08);
-          border: 1px solid rgba(200,168,75,0.2);
-          color: #c8a84b; font-size: 13px; font-weight: 700;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0; margin-top: 2px;
-        }
-        .step-body h4 { font-size: 15px; font-weight: 600; color: #d0d0d0; margin-bottom: 6px; }
-        .step-body p { font-size: 14px; color: #555; line-height: 1.6; }
+        /* HERO */
+        .hero { text-align:center; padding:80px 24px 64px; max-width:780px; margin:0 auto; }
+        .hero h1 { font-size:clamp(38px,5.5vw,64px); font-weight:700; line-height:1.08; letter-spacing:-2px; color:var(--text); margin-bottom:22px; }
+        .hero h1 em { font-style:normal; color:var(--accent); }
+        .hero-sub { font-size:19px; color:var(--text-muted); line-height:1.6; max-width:520px; margin:0 auto 40px; font-weight:400; }
+        .btn-coming { display:inline-flex; align-items:center; gap:8px; background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border-2); border-radius:12px; padding:14px 28px; font-size:15px; font-weight:600; cursor:default; text-decoration:none; font-family:inherit; }
+        .btn-coming .badge { font-size:9px; font-weight:700; letter-spacing:0.08em; background:var(--accent); color:white; border-radius:4px; padding:2px 6px; text-transform:uppercase; }
 
-        /* ── Download ── */
-        .download {
-          max-width: 700px;
-          margin: 0 auto;
-          padding: 0 24px 100px;
-          text-align: center;
-        }
-        .download-card {
-          background: rgba(200,168,75,0.04);
-          border: 1px solid rgba(200,168,75,0.15);
-          border-radius: 20px;
-          padding: 48px 32px;
-        }
-        .download h2 {
-          font-size: clamp(22px, 3.5vw, 32px); font-weight: 700;
-          color: #e0e0e0; margin-bottom: 12px; letter-spacing: -0.5px;
-        }
-        .download > .download-card > p {
-          font-size: 16px; color: #666; margin-bottom: 32px; line-height: 1.6;
-        }
-        .download-buttons {
-          display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
-          margin-bottom: 20px;
-        }
-        .btn-dl {
-          display: inline-flex; align-items: center; gap: 10px;
-          background: #e0e0e0; color: #080808;
-          border: none; border-radius: 12px;
-          padding: 14px 24px; font-size: 14px; font-weight: 600;
-          cursor: pointer; text-decoration: none;
-          transition: opacity 0.15s, transform 0.15s;
-          min-width: 160px; justify-content: center;
-        }
-        .btn-dl:hover { opacity: 0.88; transform: translateY(-1px); }
-        .btn-dl.win {
-          background: transparent; color: #888;
-          border: 1px solid rgba(255,255,255,0.1);
-        }
-        .btn-dl.win:hover { color: #e0e0e0; border-color: rgba(255,255,255,0.25); }
-        .version-note { font-size: 12px; color: #333; }
-        .version-note a { color: #c8a84b; text-decoration: none; }
-        .version-note a:hover { text-decoration: underline; }
+        /* MOCKUP */
+        .mockup-wrap { max-width:1020px; margin:0 auto; padding:0 24px 88px; }
+        .mockup-window { background:#0a0a0a; border-radius:14px; overflow:hidden; box-shadow:0 0 0 1px rgba(0,0,0,0.12),0 32px 80px rgba(0,0,0,0.22),0 8px 20px rgba(0,0,0,0.12); }
+        .mockup-bar { background:#111; padding:11px 16px; display:flex; align-items:center; gap:7px; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .mdot { width:10px; height:10px; border-radius:50%; }
+        .mockup-header { background:#111; border-bottom:1px solid rgba(255,255,255,0.06); padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:52px; }
+        .mockup-logo { font-size:18px; font-weight:700; letter-spacing:-0.5px; color:#C8861E; font-family:Georgia,serif; }
+        .mockup-tabs { display:flex; gap:24px; }
+        .mockup-tab { font-size:12px; font-weight:600; letter-spacing:0.05em; color:rgba(255,255,255,0.3); text-transform:uppercase; }
+        .mockup-tab.active { color:#C8861E; border-bottom:2px solid #C8861E; }
+        .mockup-actions { display:flex; gap:8px; }
+        .mockup-action-btn { font-size:11px; color:rgba(255,255,255,0.3); background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:4px 10px; }
+        .mockup-search { background:#0a0a0a; padding:10px 20px; border-bottom:1px solid rgba(255,255,255,0.05); }
+        .mockup-search-inner { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; height:34px; display:flex; align-items:center; gap:8px; padding:0 12px; }
+        .mockup-search-inner span { font-size:12px; color:rgba(255,255,255,0.18); }
+        .mockup-grid { background:#0a0a0a; padding:16px 16px 0; columns:4; column-gap:10px; }
+        .mc { break-inside:avoid; margin-bottom:10px; background:#141414; border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.06); }
+        .mc-body { padding:8px 10px 10px; }
+        .mc-source { display:flex; align-items:center; gap:5px; margin-bottom:2px; }
+        .mc-source-icon { width:12px; height:12px; border-radius:2px; background:rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; }
+        .mc-source-domain { font-size:10px; color:rgba(255,255,255,0.25); }
+        .mc-title { font-size:11px; font-weight:600; color:rgba(255,255,255,0.75); line-height:1.3; margin-bottom:6px; }
+        .mc-tags { display:flex; gap:3px; flex-wrap:wrap; }
+        .mc-tag { font-size:9px; color:rgba(255,255,255,0.25); background:rgba(255,255,255,0.05); border-radius:3px; padding:2px 5px; }
+        .mc-date { font-size:9px; color:rgba(255,255,255,0.15); margin-top:5px; }
 
-        /* ── Footer ── */
-        .footer {
-          border-top: 1px solid rgba(255,255,255,0.05);
-          padding: 32px 40px;
-          display: flex; align-items: center; justify-content: space-between;
-          gap: 16px;
-          flex-wrap: wrap;
-        }
-        .footer-logo { display: flex; align-items: center; gap: 8px; }
-        .footer-logo span { font-size: 14px; font-weight: 600; color: #444; }
-        .footer p { font-size: 13px; color: #333; }
+        /* SELLS */
+        .sells { max-width:960px; margin:0 auto; padding:0 24px 88px; }
+        .sells-header { text-align:center; margin-bottom:52px; }
+        .section-eyebrow { font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:14px; }
+        .sells-header h2 { font-size:clamp(26px,3.5vw,40px); font-weight:700; letter-spacing:-1px; color:var(--text); line-height:1.15; }
+        .sells-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:2px; background:var(--border); border-radius:16px; overflow:hidden; border:1px solid var(--border); }
+        .sell-card { background:var(--surface); padding:36px 32px; transition:background 0.2s; }
+        .sell-card:hover { background:var(--bg); }
+        .sell-icon { width:44px; height:44px; border-radius:11px; background:var(--accent-light); border:1px solid var(--accent-mid); display:flex; align-items:center; justify-content:center; margin-bottom:20px; }
+        .sell-card h3 { font-size:18px; font-weight:700; color:var(--text); margin-bottom:10px; letter-spacing:-0.3px; }
+        .sell-card p { font-size:15px; color:var(--text-muted); line-height:1.65; }
 
-        @media (max-width: 600px) {
-          .nav { padding: 16px 20px; }
-          .preview-grid { grid-template-columns: repeat(2, 1fr); }
-          .preview-grid .preview-card:last-child { display: none; }
-          .footer { padding: 24px 20px; }
+        /* HOW */
+        .how { max-width:640px; margin:0 auto; padding:0 24px 88px; }
+        .steps { display:flex; flex-direction:column; }
+        .step { display:flex; gap:18px; padding:26px 0; border-bottom:1px solid var(--border); }
+        .step:last-child { border-bottom:none; }
+        .step-num { width:34px; height:34px; border-radius:50%; flex-shrink:0; background:var(--accent-light); border:1px solid var(--accent-mid); color:var(--accent); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:2px; }
+        .step-body h4 { font-size:16px; font-weight:700; color:var(--text); margin-bottom:6px; }
+        .step-body p { font-size:14px; color:var(--text-muted); line-height:1.65; }
+
+        /* CTA */
+        .cta-bottom { max-width:700px; margin:0 auto; padding:0 24px 100px; text-align:center; }
+        .cta-card { background:var(--text); border-radius:20px; padding:52px 36px; }
+        .cta-card h2 { font-size:clamp(22px,3vw,34px); font-weight:700; color:var(--bg); margin-bottom:12px; letter-spacing:-0.5px; }
+        .cta-card > p { font-size:15px; color:rgba(245,242,235,0.5); margin-bottom:32px; line-height:1.6; }
+        .cta-coming { display:inline-flex; align-items:center; gap:10px; background:rgba(245,242,235,0.1); border:1px solid rgba(245,242,235,0.15); border-radius:12px; padding:16px 32px; font-size:15px; font-weight:600; color:rgba(245,242,235,0.4); font-family:inherit; }
+        .cta-coming .pill { font-size:9px; font-weight:700; letter-spacing:0.08em; background:var(--accent); color:white; border-radius:4px; padding:3px 7px; text-transform:uppercase; }
+        .cta-notify { margin-top:18px; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+        .cta-notify input { background:rgba(245,242,235,0.08); border:1px solid rgba(245,242,235,0.15); border-radius:10px; padding:11px 16px; font-size:14px; color:rgba(245,242,235,0.7); font-family:inherit; outline:none; min-width:220px; transition:border-color 0.2s; }
+        .cta-notify input::placeholder { color:rgba(245,242,235,0.25); }
+        .cta-notify input:focus { border-color:rgba(245,242,235,0.35); }
+        .cta-notify button { background:var(--accent); color:white; border:none; border-radius:10px; padding:11px 22px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; transition:opacity 0.15s; }
+        .cta-notify button:hover { opacity:0.88; }
+
+        /* FOOTER */
+        .footer { border-top:1px solid var(--border); padding:28px 48px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+        .footer-logo { display:flex; align-items:center; gap:8px; }
+        .footer-logo-mark { width:22px; height:22px; border-radius:5px; background:var(--text); opacity:0.3; display:flex; align-items:center; justify-content:center; }
+        .footer p { font-size:13px; color:var(--text-dim); }
+
+        @media (max-width:640px) {
+          .nav { padding:14px 20px; }
+          .mockup-grid { columns:2; }
+          .sells-grid { grid-template-columns:1fr; }
+          .footer { padding:20px; flex-direction:column; text-align:center; }
         }
       `}</style>
 
-      {/* ── Nav ── */}
+      {/* NAV */}
       <nav className="nav">
         <a href="/" className="nav-logo">
-          <img src="/icon-192x192.png" alt="MindVault" style={{ width: 28, height: 28, borderRadius: 6 }} />
+          <div className="nav-logo-mark">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2" fill="#f5f2eb"/>
+              <rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2" fill="#f5f2eb" opacity=".6"/>
+              <rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2" fill="#f5f2eb" opacity=".6"/>
+              <rect x="9" y="9" width="5.5" height="5.5" rx="1.2" fill="#f5f2eb" opacity=".35"/>
+            </svg>
+          </div>
           <span>MindVault</span>
         </a>
-        <a href="https://github.com/Varxan/MindVault/releases/latest" className="nav-cta">
-          Download
-        </a>
+        <div className="nav-right">
+          <span className="nav-badge">Beta soon</span>
+          <a href="#notify" className="nav-cta">Notify me</a>
+        </div>
       </nav>
 
-      {/* ── Hero ── */}
+      {/* HERO */}
       <section className="hero">
-        <div className="hero-badge">
-          <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-            <circle cx="4" cy="4" r="4" fill="#c8a84b" />
-          </svg>
-          Personal · Private · Offline-first
-        </div>
-
-        <h1>
-          Your links.<br />
-          <span className="accent">Beautifully organized.</span>
-        </h1>
-
-        <p>
-          MindVault saves links from anywhere — browser, Telegram, iPhone Share Sheet — and turns them into a visual, tagged library you actually want to browse.
+        <h1>Dein visuelles<br /><em>Inspirations-Archiv.</em></h1>
+        <p className="hero-sub">
+          Speichere was dich inspiriert — egal woher. Verwandle gedankenloses Scrollen in
+          eine kuratierte Referenz-Bibliothek für deine nächste Arbeit.
         </p>
-
-        <div className="hero-actions">
-          <a
-            href="https://github.com/Varxan/MindVault/releases/latest"
-            className="btn-primary"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
+          <div className="btn-coming">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <path d="M7.5 1v8M4 6l3.5 3.5L11 6M1.5 12.5h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Download for Mac
-          </a>
-          <a
-            href="/library"
-            className="btn-secondary"
-          >
-            Open PWA
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </a>
+            Download für Mac
+            <span className="badge">Coming Soon</span>
+          </div>
         </div>
       </section>
 
-      {/* ── App Preview ── */}
-      <div className="preview-wrap">
-        <div className="preview-window">
-          <div className="preview-bar">
-            <div className="dot" style={{ background: '#ff5f57' }} />
-            <div className="dot" style={{ background: '#febc2e' }} />
-            <div className="dot" style={{ background: '#28c840' }} />
-            <div style={{ marginLeft: 12, fontSize: 12, color: '#444', fontWeight: 500 }}>
-              MindVault
+      {/* APP MOCKUP */}
+      <div className="mockup-wrap">
+        <div className="mockup-window">
+          <div className="mockup-bar">
+            <div className="mdot" style={{background:'#ff5f57'}}/>
+            <div className="mdot" style={{background:'#febc2e'}}/>
+            <div className="mdot" style={{background:'#28c840'}}/>
+          </div>
+          <div className="mockup-header">
+            <span className="mockup-logo">MINDVAULT</span>
+            <div className="mockup-tabs">
+              <div className="mockup-tab active">EYE</div>
+              <div className="mockup-tab">MIND</div>
+            </div>
+            <div className="mockup-actions">
+              <div className="mockup-action-btn">Select</div>
+              <div className="mockup-action-btn">Collections</div>
             </div>
           </div>
-          <div className="preview-grid">
+          <div className="mockup-search">
+            <div className="mockup-search-inner">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="5" cy="5" r="3.5" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2"/><path d="M8 8l2 2" stroke="rgba(255,255,255,0.2)" strokeWidth="1.2" strokeLinecap="round"/></svg>
+              <span>Search...</span>
+            </div>
+          </div>
+          <div className="mockup-grid">
             {[
-              { color: '#1a1208', accent: '#c8a84b', title: 'Cinematic lighting techniques for documentary', tags: ['film', 'lighting', 'dop'] },
-              { color: '#0a1218', accent: '#4a9eff', title: 'CSS Grid mastery — complete visual guide', tags: ['css', 'design', 'dev'] },
-              { color: '#120a18', accent: '#b44aff', title: 'Brutalist UI design patterns 2024', tags: ['ui', 'inspiration'] },
-              { color: '#0a1808', accent: '#4aff8c', title: 'Audio mixing for film: the invisible art', tags: ['audio', 'film', 'post'] },
-              { color: '#18100a', accent: '#ff8c4a', title: 'Building an Electron app from scratch', tags: ['electron', 'dev'] },
-              { color: '#0a1818', accent: '#4afff0', title: 'Color grading with DaVinci Resolve', tags: ['colorgrade', 'film'] },
-            ].map((card, i) => (
-              <div key={i} className="preview-card">
-                <div className="preview-thumb" style={{ background: card.color }}>
-                  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                    <rect x="2" y="4" width="24" height="18" rx="2" stroke={card.accent} strokeWidth="1" opacity="0.4"/>
-                    <circle cx="8" cy="10" r="2" stroke={card.accent} strokeWidth="1" opacity="0.4"/>
-                    <path d="M2 18 L8 12 L13 16 L19 10 L26 18" stroke={card.accent} strokeWidth="1" strokeLinejoin="round" opacity="0.4"/>
-                  </svg>
-                </div>
-                <div className="preview-info">
-                  <div className="preview-title">{card.title}</div>
-                  <div className="preview-tags">
-                    {card.tags.map(t => <span key={t} className="preview-tag">{t}</span>)}
+              { bg:'linear-gradient(160deg,#1a0e0a,#3d1f12,#1a0e0a)', ar:'3/4', title:'roastnpost_oakland', tags:['portrait','film','street'], date:'09.03.2026', domain:'instagram.com' },
+              { bg:'linear-gradient(180deg,#0d1520,#1a2d45,#0d1a2a)', ar:'2/3', title:'Macro portrait — electric_theatre', tags:['macro','close-up','portrait'], date:'08.03.2026', domain:'instagram.com' },
+              { bg:'linear-gradient(160deg,#1a1208,#2e2010,#0e0c08)', ar:'16/9', title:'Video by room6.agency', tags:['landscape','cinematic','dop'], date:'26.02.2026', domain:'instagram.com' },
+              { bg:'linear-gradient(180deg,#1a2035,#2d3555 30%,#c87a30 70%,#8c3a10)', ar:'16/10', title:'Video by alexisgomez', tags:['golden hour','beach','mood'], date:'20.02.2026', domain:'instagram.com' },
+              { bg:'linear-gradient(180deg,#12100e,#2a2420,#181410)', ar:'3/4', title:'Street portrait — Mexico City', tags:['street','portrait','mexico'], date:'15.02.2026', domain:'vimeo.com' },
+              { bg:'linear-gradient(160deg,#12100e,#201c14,#0e0c0a)', ar:'16/9', title:'Raleigh — RALEIGH FOREVER', tags:['film','narrative','mood'], date:'12.02.2026', domain:'vimeo.com' },
+              { bg:'linear-gradient(180deg,#181010,#301818,#120c0c)', ar:'3/4', title:'Cinema — Lights & Composition', tags:['cinema','composition','ref'], date:'08.02.2026', domain:'instagram.com' },
+            ].map((c, i) => (
+              <div key={i} className="mc">
+                <div style={{ aspectRatio:c.ar, background:c.bg, width:'100%' }}/>
+                <div className="mc-body">
+                  <div className="mc-source">
+                    <div className="mc-source-icon"/>
+                    <span className="mc-source-domain">{c.domain}</span>
                   </div>
+                  <div className="mc-title">{c.title}</div>
+                  <div className="mc-tags">{c.tags.map(t => <span key={t} className="mc-tag">{t}</span>)}</div>
+                  <div className="mc-date">{c.date}</div>
                 </div>
               </div>
             ))}
           </div>
+          <div style={{ height:60, background:'linear-gradient(to bottom, transparent, #0a0a0a)' }}/>
         </div>
       </div>
 
-      {/* ── Features ── */}
-      <section className="features">
-        {[
-          {
-            icon: (
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M9 2L11.5 7H16L12.5 10L14 15L9 12L4 15L5.5 10L2 7H6.5L9 2Z" stroke="#c8a84b" strokeWidth="1.3" strokeLinejoin="round"/>
-              </svg>
-            ),
-            title: 'Visual thumbnails',
-            desc: 'Every link gets an auto-fetched thumbnail. Browse your vault like a mood board, not a list.',
-          },
-          {
-            icon: (
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M2 9a7 7 0 1 0 14 0A7 7 0 0 0 2 9z" stroke="#c8a84b" strokeWidth="1.3"/>
-                <path d="M9 6v3l2 2" stroke="#c8a84b" strokeWidth="1.3" strokeLinecap="round"/>
-              </svg>
-            ),
-            title: 'Share in seconds',
-            desc: 'Use the iPhone Share Sheet, Telegram, or the Chrome extension. Links land in your vault instantly.',
-          },
-          {
-            icon: (
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <rect x="2" y="2" width="6" height="6" rx="1.5" stroke="#c8a84b" strokeWidth="1.3"/>
-                <rect x="10" y="2" width="6" height="6" rx="1.5" stroke="#c8a84b" strokeWidth="1.3"/>
-                <rect x="2" y="10" width="6" height="6" rx="1.5" stroke="#c8a84b" strokeWidth="1.3"/>
-                <rect x="10" y="10" width="6" height="6" rx="1.5" stroke="#c8a84b" strokeWidth="1.3"/>
-              </svg>
-            ),
-            title: 'Tags & collections',
-            desc: 'Organize by topic, project, or mood. Filter instantly. AI tagging keeps everything sorted automatically.',
-          },
-          {
-            icon: (
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M3 9h12M3 5h12M3 13h8" stroke="#c8a84b" strokeWidth="1.3" strokeLinecap="round"/>
-              </svg>
-            ),
-            title: 'Offline-first',
-            desc: 'Your data lives on your Mac. No subscriptions, no cloud lock-in. Fast, private, always available.',
-          },
-          {
-            icon: (
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M9 2v4M9 12v4M2 9h4M12 9h4M4.5 4.5l2.8 2.8M10.7 10.7l2.8 2.8M4.5 13.5l2.8-2.8M10.7 7.3l2.8-2.8" stroke="#c8a84b" strokeWidth="1.3" strokeLinecap="round"/>
-              </svg>
-            ),
-            title: 'Semantic search',
-            desc: 'Find links by meaning, not just keywords. Search for "ideas about tension in film" and it just works.',
-          },
-          {
-            icon: (
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <rect x="2" y="4" width="14" height="10" rx="2" stroke="#c8a84b" strokeWidth="1.3"/>
-                <path d="M6 4V3M12 4V3M2 8h14" stroke="#c8a84b" strokeWidth="1.3" strokeLinecap="round"/>
-              </svg>
-            ),
-            title: 'Spaces: Eye & Mind',
-            desc: 'Visual inspiration in Eye, longer reads in Mind. Two vaults, one app.',
-          },
-        ].map((f, i) => (
-          <div key={i} className="feature-card">
-            <div className="feature-icon">{f.icon}</div>
-            <h3>{f.title}</h3>
-            <p>{f.desc}</p>
-          </div>
-        ))}
-      </section>
-
-      {/* ── How it works ── */}
-      <section className="how">
-        <div className="section-label">How it works</div>
-        <h2>From any device, to your vault</h2>
-        <p>MindVault runs locally on your Mac but accepts links from anywhere.</p>
-        <div className="steps">
+      {/* SELLS */}
+      <section className="sells">
+        <div className="sells-header">
+          <div className="section-eyebrow">Warum MindVault</div>
+          <h2>Dein Doomscrolling hat<br/>jetzt einen Zweck.</h2>
+        </div>
+        <div className="sells-grid">
           {[
-            {
-              n: '1',
-              title: 'Install MindVault on your Mac',
-              desc: 'Download the Electron app. It runs in the background and manages your local library.',
-            },
-            {
-              n: '2',
-              title: 'Share links from anywhere',
-              desc: 'Use the Chrome extension, the Telegram bot, or the iPhone Share Sheet. Links queue up in Supabase and sync to your Mac the moment it\'s online.',
-            },
-            {
-              n: '3',
-              title: 'Browse your visual vault',
-              desc: 'Open MindVault on your Mac or phone. Thumbnails, tags, collections — your whole web, organized.',
-            },
-          ].map(s => (
-            <div key={s.n} className="step">
-              <div className="step-num">{s.n}</div>
-              <div className="step-body">
-                <h4>{s.title}</h4>
-                <p>{s.desc}</p>
+            { icon:<path d="M10 2.5L3 7.5V17.5H8V13H12V17.5H17V7.5L10 2.5Z" stroke="#C8861E" strokeWidth="1.5" strokeLinejoin="round"/>, title:'Speichere links von überall', text:'Telegram, iPhone Share Sheet, Chrome Extension — alles landet direkt in deinem Vault. Kein App-Wechsel, kein Copy-Paste, kein Vergessen.' },
+            { icon:<><rect x="2" y="2" width="7" height="7" rx="1.5" stroke="#C8861E" strokeWidth="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5" stroke="#C8861E" strokeWidth="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5" stroke="#C8861E" strokeWidth="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5" stroke="#C8861E" strokeWidth="1.5"/></>, title:'Organisiere deine Inspirationen', text:'Tags, Collections, zwei Spaces (Eye & Mind). KI erkennt automatisch worum es geht — du musst nichts manuell eintippen.' },
+            { icon:<path d="M2 10C2 10 5 4 10 4C15 4 18 10 18 10C18 10 15 16 10 16C5 16 2 10 2 10Z" stroke="#C8861E" strokeWidth="1.5"/>, title:'Instagram, TikTok, YouTube — endlich sinnvoll', text:'Statt endlos zu scrollen und alles zu vergessen: schick dir den Link. MindVault macht daraus ein visuelles Archiv mit Thumbnail, Tags und Kontext.' },
+            { icon:<><rect x="2" y="4" width="16" height="12" rx="2" stroke="#C8861E" strokeWidth="1.5"/><path d="M6 9h8M6 12h5" stroke="#C8861E" strokeWidth="1.5" strokeLinecap="round"/></>, title:'References ready — immer', text:'Moodboard für einen Pitch? Referenzen für dein nächstes Projekt? Alles ist durchsuchbar, visuell und sofort zur Hand.' },
+          ].map((s, i) => (
+            <div key={i} className="sell-card">
+              <div className="sell-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">{s.icon}</svg>
               </div>
+              <h3>{s.title}</h3>
+              <p>{s.text}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── Download ── */}
-      <section className="download">
-        <div className="download-card">
-          <h2>Ready to start?</h2>
-          <p>Free to download. Your data, your machine.</p>
-          <div className="download-buttons">
-            <a
-              href="https://github.com/Varxan/MindVault/releases/latest"
-              className="btn-dl"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M8 1v9M4 7l4 4 4-4M2 13h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              Download for macOS
-            </a>
-            <a
-              href="https://github.com/Varxan/MindVault/releases/latest"
-              className="btn-dl win"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <rect x="2" y="2" width="5.5" height="5.5" fill="currentColor" opacity="0.7"/>
-                <rect x="8.5" y="2" width="5.5" height="5.5" fill="currentColor" opacity="0.7"/>
-                <rect x="2" y="8.5" width="5.5" height="5.5" fill="currentColor" opacity="0.7"/>
-                <rect x="8.5" y="8.5" width="5.5" height="5.5" fill="currentColor" opacity="0.7"/>
-              </svg>
-              Download for Windows
-            </a>
-          </div>
-          <p className="version-note">
-            View all releases on{' '}
-            <a href="https://github.com/Varxan/MindVault/releases">GitHub</a>
-          </p>
+      {/* HOW */}
+      <section className="how">
+        <div className="sells-header">
+          <div className="section-eyebrow">So funktioniert's</div>
+          <h2>Setup in 5 Minuten.</h2>
+        </div>
+        <div className="steps">
+          {[
+            { n:'1', title:'MindVault auf dem Mac installieren', text:'Die Electron-App lädt im Hintergrund und verwaltet deine lokale Bibliothek. Deine Daten bleiben auf deinem Rechner.' },
+            { n:'2', title:'Links von überall senden', text:'Chrome Extension, Telegram Bot oder iPhone Share Sheet. Der Link landet in Sekunden in deinem Vault — auch wenn der Mac gerade aus ist.' },
+            { n:'3', title:'Deine visuelle Bibliothek durchstöbern', text:'Thumbnails, Tags, Collections, semantische Suche. Alles was dich je inspiriert hat — endlich an einem Ort.' },
+          ].map(s => (
+            <div key={s.n} className="step">
+              <div className="step-num">{s.n}</div>
+              <div className="step-body"><h4>{s.title}</h4><p>{s.text}</p></div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* ── Footer ── */}
+      {/* CTA */}
+      <section className="cta-bottom" id="notify">
+        <div className="cta-card">
+          <h2>Bald verfügbar.</h2>
+          <p>MindVault ist aktuell in der Beta-Phase.<br/>Trag dich ein und wir sagen dir Bescheid.</p>
+          <div className="cta-coming">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+              <path d="M7.5 1v8M4 6l3.5 3.5L11 6M1.5 12.5h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Download für Mac
+            <span className="pill">Coming Soon</span>
+          </div>
+          <div className="cta-notify">
+            <input type="email" placeholder="deine@email.com" />
+            <button type="button">Benachrichtigen</button>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
       <footer className="footer">
         <div className="footer-logo">
-          <img src="/icon-192x192.png" alt="MindVault" style={{ width: 22, height: 22, borderRadius: 5, opacity: 0.5 }} />
+          <div className="footer-logo-mark">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2" fill="white"/>
+              <rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2" fill="white" opacity=".6"/>
+              <rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2" fill="white" opacity=".6"/>
+              <rect x="9" y="9" width="5.5" height="5.5" rx="1.2" fill="white" opacity=".35"/>
+            </svg>
+          </div>
           <span>MindVault</span>
         </div>
-        <p>Built for creators who collect ideas.</p>
-        <a href="/library" style={{ fontSize: 13, color: '#333', textDecoration: 'none' }}>
-          Open PWA →
-        </a>
+        <p>Gebaut für Kreative, die Ideen sammeln.</p>
+        <p style={{color:'var(--text-dim)',fontSize:12}}>© 2026</p>
       </footer>
     </div>
   );
