@@ -442,9 +442,14 @@ function startBackend() {
   const backendRoot = path.join(process.resourcesPath, 'backend');
   log(`[Electron] Backend root: ${backendRoot}`);
 
-  // Extend PATH so the backend can find system tools (yt-dlp, ffmpeg, etc.)
-  // installed via Homebrew, nvm, or the standard macOS locations.
+  // Bundled binaries (ffmpeg, ffprobe, yt-dlp) ship inside the app package
+  const bundledBinPath = isDev
+    ? path.join(__dirname, '..', 'bin', 'mac-arm64')
+    : path.join(process.resourcesPath, 'bin');
+
+  // Extend PATH — bundled bin dir comes first so it takes priority over system installs
   const extraPaths = [
+    bundledBinPath,
     '/opt/homebrew/bin',        // Homebrew on Apple Silicon
     '/opt/homebrew/sbin',
     '/usr/local/bin',           // Homebrew on Intel / manual installs
@@ -462,12 +467,13 @@ function startBackend() {
     cwd: backendRoot,  // ← backend/ root so node_modules are found
     env: {
       ...process.env,
-      PATH:         fullPath,
-      PORT:         String(BACKEND_PORT),
-      FRONTEND_URL: FRONTEND_URL,
-      DATA_PATH:    DATA_PATH,
-      NODE_ENV:     'production',
-      NODE_PATH:    path.join(backendRoot, 'node_modules'),
+      PATH:             fullPath,
+      PORT:             String(BACKEND_PORT),
+      FRONTEND_URL:     FRONTEND_URL,
+      DATA_PATH:        DATA_PATH,
+      NODE_ENV:         'production',
+      NODE_PATH:        path.join(backendRoot, 'node_modules'),
+      BUNDLED_BIN_PATH: bundledBinPath,
     },
     silent: true,   // ← must be true so we can capture stdout/stderr in log
   });

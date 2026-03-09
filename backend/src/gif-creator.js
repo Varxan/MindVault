@@ -6,6 +6,23 @@ const { MEDIA_DIR } = require('./downloader');
 const DATA_ROOT = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
 const GIF_DIR = path.join(DATA_ROOT, 'gifs');
 
+// Resolve ffmpeg/ffprobe — bundled binary takes priority over system install
+function findBin(name) {
+  if (process.env.BUNDLED_BIN_PATH) {
+    const bundled = path.join(process.env.BUNDLED_BIN_PATH, name);
+    if (fs.existsSync(bundled)) return bundled;
+  }
+  // Homebrew fallbacks
+  const homebrew = `/opt/homebrew/bin/${name}`;
+  if (fs.existsSync(homebrew)) return homebrew;
+  const homebrewIntel = `/usr/local/bin/${name}`;
+  if (fs.existsSync(homebrewIntel)) return homebrewIntel;
+  return name; // rely on PATH
+}
+
+const FFMPEG  = findBin('ffmpeg');
+const FFPROBE = findBin('ffprobe');
+
 // Ensure GIF directory exists
 if (!fs.existsSync(GIF_DIR)) {
   fs.mkdirSync(GIF_DIR, { recursive: true });
@@ -54,13 +71,13 @@ async function createGif(videoPath, startTime, endTime, fps = 25, width = 480, c
     const paletteFile = path.join(GIF_DIR, `palette-${timestamp}.png`);
 
     // Generate palette for better quality GIFs (colors control compression)
-    const paletteCmd = `ffmpeg -y -ss ${startTime} -t ${duration} -i "${videoPath}" -vf "fps=${fps},scale=${width}:-1:flags=lanczos,palettegen=max_colors=${maxColors}" "${paletteFile}" 2>/dev/null`;
+    const paletteCmd = `${FFMPEG} -y -ss ${startTime} -t ${duration} -i "${videoPath}" -vf "fps=${fps},scale=${width}:-1:flags=lanczos,palettegen=max_colors=${maxColors}" "${paletteFile}" 2>/dev/null`;
 
     console.log(`[GIF Creator] Generating palette (${maxColors} colors)...`);
     execSync(paletteCmd, { encoding: 'utf-8', stdio: 'pipe' });
 
     // Generate GIF using palette
-    const gifCmd = `ffmpeg -y -ss ${startTime} -t ${duration} -i "${videoPath}" -i "${paletteFile}" -lavfi "fps=${fps},scale=${width}:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=sierra2_4a" "${filepath}" 2>/dev/null`;
+    const gifCmd = `${FFMPEG} -y -ss ${startTime} -t ${duration} -i "${videoPath}" -i "${paletteFile}" -lavfi "fps=${fps},scale=${width}:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=sierra2_4a" "${filepath}" 2>/dev/null`;
 
     console.log(`[GIF Creator] Generating GIF...`);
     execSync(gifCmd, { encoding: 'utf-8', stdio: 'pipe' });
@@ -98,7 +115,7 @@ async function createGif(videoPath, startTime, endTime, fps = 25, width = 480, c
  */
 function getVideoDuration(videoPath) {
   try {
-    const cmd = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${videoPath}"`;
+    const cmd = `${FFPROBE} -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${videoPath}"`;
     const output = execSync(cmd, { encoding: 'utf-8' }).trim();
     return parseFloat(output);
   } catch (err) {
@@ -171,7 +188,7 @@ async function createScreenshot(videoPath, time) {
     console.log(`[Still Grab] Extracting frame at ${time}s from ${videoPath}`);
 
     // Extract single frame at native resolution, no scaling
-    const cmd = `ffmpeg -y -ss ${time} -i "${videoPath}" -frames:v 1 -q:v 1 "${filepath}" 2>/dev/null`;
+    const cmd = `${FFMPEG} -y -ss ${time} -i "${videoPath}" -frames:v 1 -q:v 1 "${filepath}" 2>/dev/null`;
     execSync(cmd, { encoding: 'utf-8', stdio: 'pipe', timeout: 30000 });
 
     if (!fs.existsSync(filepath)) {
@@ -258,10 +275,10 @@ async function createClip(videoPath, startTime, endTime, options = {}) {
       console.log(`  - Target video bitrate: ${videoBitrateKbps}k (audio: ${audioBitrate}k)`);
 
       // Two-pass would be ideal but single-pass with constrained bitrate is faster
-      cmd = `ffmpeg -y -ss ${startTime} -t ${duration} -i "${videoPath}" -c:v libx264 -preset slow -b:v ${videoBitrateKbps}k -maxrate ${videoBitrateKbps}k -bufsize ${Math.floor(videoBitrateKbps * 2)}k -c:a aac -b:a ${audioBitrate}k -movflags +faststart "${filepath}" 2>/dev/null`;
+      cmd = `${FFMPEG} -y -ss ${startTime} -t ${duration} -i "${videoPath}" -c:v libx264 -preset slow -b:v ${videoBitrateKbps}k -maxrate ${videoBitrateKbps}k -bufsize ${Math.floor(videoBitrateKbps * 2)}k -c:a aac -b:a ${audioBitrate}k -movflags +faststart "${filepath}" 2>/dev/null`;
     } else {
       // Default quality-based encoding
-      cmd = `ffmpeg -y -ss ${startTime} -t ${duration} -i "${videoPath}" -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 192k -movflags +faststart "${filepath}" 2>/dev/null`;
+      cmd = `${FFMPEG} -y -ss ${startTime} -t ${duration} -i "${videoPath}" -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 192k -movflags +faststart "${filepath}" 2>/dev/null`;
     }
 
     execSync(cmd, { encoding: 'utf-8', stdio: 'pipe', timeout: 300000 });

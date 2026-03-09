@@ -13,17 +13,24 @@ if (!fs.existsSync(MEDIA_DIR)) {
 
 /**
  * Resolve the full path to yt-dlp.
- * Checks common install locations so it works inside the Electron app
- * even when PATH doesn't include Homebrew directories.
+ * Bundled binary (shipped inside the app) takes priority,
+ * then falls back to Homebrew / system installs.
  */
 function findYtdlp() {
+  // Bundled binary path set by Electron via BUNDLED_BIN_PATH env var
+  const bundledBin = process.env.BUNDLED_BIN_PATH
+    ? path.join(process.env.BUNDLED_BIN_PATH, 'yt-dlp')
+    : null;
+
   const candidates = [
-    'yt-dlp',                        // relies on PATH (works in dev + if PATH is set)
+    bundledBin,                      // bundled inside the .app (highest priority)
+    'yt-dlp',                        // PATH (works in dev + if PATH is set)
     '/opt/homebrew/bin/yt-dlp',      // Homebrew on Apple Silicon
     '/usr/local/bin/yt-dlp',         // Homebrew on Intel
     '/usr/bin/yt-dlp',               // system install
     path.join(process.env.HOME || '', '.local/bin/yt-dlp'), // pip --user install
-  ];
+  ].filter(Boolean);
+
   for (const p of candidates) {
     try {
       if (p === 'yt-dlp') return p;  // let the OS resolve it

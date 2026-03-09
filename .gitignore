@@ -26,3 +26,8 @@ backend/clip-models/
 # macOS
 .DS_Store
 .vercel
+
+# Bundled native binaries (downloaded separately, not committed to git)
+bin/mac-arm64/ffmpeg
+bin/mac-arm64/ffprobe
+bin/mac-arm64/yt-dlp

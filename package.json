@@ -66,6 +66,11 @@
       {
         "from": "frontend/public",
         "to": "frontend-standalone/public"
+      },
+      {
+        "from": "bin/mac-arm64",
+        "to": "bin",
+        "filter": ["ffmpeg", "ffprobe", "yt-dlp"]
       }
     ],
     "mac": {
