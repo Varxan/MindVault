@@ -1,5 +1,7 @@
 'use client';
 
+export const runtime = 'edge';
+
 import { useEffect, useState, useCallback, useRef } from 'react';
 
 const QUEUE_KEY = 'mindvault_share_queue';
