@@ -637,11 +637,11 @@ function createWindow() {
         { type: 'separator' },
         {
           label: 'Privacy Policy',
-          click: () => shell.openExternal('https://mindvault.app/privacy'),
+          click: () => shell.openExternal('https://mindvault.ch/privacy'),
         },
         {
           label: 'Terms of Service',
-          click: () => shell.openExternal('https://mindvault.app/terms'),
+          click: () => shell.openExternal('https://mindvault.ch/terms'),
         },
         { type: 'separator' },
         { role: 'services' },
