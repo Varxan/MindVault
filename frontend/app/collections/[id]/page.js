@@ -151,7 +151,7 @@ export default function CollectionDetailPage() {
         {/* Left — MINDVAULT logo, clickable back to main */}
         <div className="header-left">
           <h1
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/app')}
             style={{ cursor: 'pointer', WebkitAppRegion: 'no-drag' }}
             title="Back to MindVault"
           >
