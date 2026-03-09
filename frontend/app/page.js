@@ -1,4 +1,4 @@
-import WaitlistForm from '../components/WaitlistForm';
+import WaitlistForm from './components/WaitlistForm';
 
 export const runtime = 'edge';
 
