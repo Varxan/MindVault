@@ -23,6 +23,7 @@ const isDev = !app.isPackaged;
 const BACKEND_PORT = 3001;
 const FRONTEND_PORT = 3000;
 const FRONTEND_URL  = `http://127.0.0.1:${FRONTEND_PORT}`;
+const APP_URL       = `http://127.0.0.1:${FRONTEND_PORT}/app`;
 const BACKEND_URL   = `http://127.0.0.1:${BACKEND_PORT}`;
 
 // DATA_PATH is resolved inside app.whenReady() to guarantee app.getPath()
@@ -592,8 +593,8 @@ function createWindow() {
     },
   });
 
-  // Load the app
-  mainWindow.loadURL(FRONTEND_URL);
+  // Load the app (at /app — root / is the public landing page)
+  mainWindow.loadURL(APP_URL);
 
   // Inject 'is-electron' class after every page load (after React hydration)
   // This is more reliable than the inline script approach since it runs
