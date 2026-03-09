@@ -7,47 +7,80 @@ export const metadata = {
   description: 'Save what inspires you — from anywhere. Turn endless scrolling into a curated reference library for your next project.',
 };
 
+// MindVault icon SVG inlined — dark bg, green vault + sparkles
+const MindVaultIcon = ({ size = 28 }) => (
+  <svg width={size} height={size} viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: size * 0.25, display: 'block' }}>
+    <rect width="192" height="192" fill="#1a1a1a" rx="48"/>
+    <g transform="translate(48, 56)">
+      <rect x="12" y="20" width="72" height="60" rx="4" fill="none" stroke="#4aef8a" strokeWidth="3"/>
+      <circle cx="48" cy="50" r="12" fill="none" stroke="#4aef8a" strokeWidth="2"/>
+      <g fill="#4aef8a">
+        <circle cx="20" cy="15" r="2"/>
+        <circle cx="76" cy="18" r="2"/>
+        <circle cx="15" cy="75" r="2"/>
+        <circle cx="82" cy="78" r="2"/>
+      </g>
+    </g>
+  </svg>
+);
+
 export default function LandingPage() {
   return (
     <div style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif", background: '#f5f2eb', color: '#1a1a18', minHeight: '100vh', overflowX: 'hidden' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        @font-face {
+          font-family: 'Harmony';
+          src: url('/fonts/Harmony.otf') format('opentype');
+          font-weight: 400;
+          font-style: normal;
+          font-display: swap;
+        }
+        @font-face {
+          font-family: 'Humane';
+          src: url('/fonts/Humane-Medium.ttf') format('truetype');
+          font-weight: 500;
+          font-style: normal;
+          font-display: swap;
+        }
+
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         :root {
           --bg: #f5f2eb; --surface: #faf8f4; --surface-2: #edeae3;
           --border: #e2e0d8; --border-2: #ccc9be;
           --text: #1a1a18; --text-muted: #888880; --text-dim: #bbbbb5;
           --accent: #C8861E; --accent-light: rgba(200,134,30,0.1); --accent-mid: rgba(200,134,30,0.22);
+          --green: #4aef8a;
         }
 
         /* NAV */
         .nav { display:flex; align-items:center; justify-content:space-between; padding:18px 48px; border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; background:rgba(245,242,235,0.92); backdrop-filter:blur(16px); }
         .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--text); }
-        .nav-logo img { width:28px; height:28px; border-radius:7px; display:block; }
-        .nav-logo span { font-weight:700; font-size:16px; letter-spacing:-0.3px; }
+        .nav-logo-text { font-family:'Humane', sans-serif; font-weight:500; font-size:22px; letter-spacing:0.04em; line-height:1; padding-top:2px; }
         .nav-right { display:flex; align-items:center; gap:12px; }
-        .nav-badge { font-size:11px; font-weight:600; letter-spacing:0.05em; color:var(--accent); background:var(--accent-light); border:1px solid var(--accent-mid); border-radius:20px; padding:4px 10px; text-transform:uppercase; }
-        .nav-cta { background:var(--text); color:var(--bg); border:none; border-radius:10px; padding:9px 20px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; transition:opacity 0.15s; display:inline-block; font-family:inherit; }
+        .nav-badge { font-size:11px; font-weight:600; letter-spacing:0.05em; color:var(--accent); background:var(--accent-light); border:1px solid var(--accent-mid); border-radius:20px; padding:4px 10px; text-transform:uppercase; font-family:'Inter',sans-serif; }
+        .nav-cta { background:var(--text); color:var(--bg); border:none; border-radius:10px; padding:9px 20px; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; transition:opacity 0.15s; display:inline-block; font-family:'Inter',sans-serif; }
         .nav-cta:hover { opacity:0.75; }
 
         /* HERO */
-        .hero { text-align:center; padding:110px 24px 88px; max-width:720px; margin:0 auto; }
-        .hero h1 { font-size:clamp(40px,5.5vw,68px); font-weight:700; line-height:1.05; letter-spacing:-2.5px; color:var(--text); margin-bottom:24px; }
+        .hero { text-align:center; padding:110px 24px 88px; max-width:760px; margin:0 auto; }
+        .hero h1 { font-family:'Harmony', -apple-system, sans-serif; font-size:clamp(44px,6vw,76px); font-weight:400; line-height:1.02; letter-spacing:-1px; color:var(--text); margin-bottom:24px; }
         .hero h1 em { font-style:normal; color:var(--accent); }
         .hero-sub { font-size:18px; color:var(--text-muted); line-height:1.65; max-width:460px; margin:0 auto 44px; font-weight:400; }
-        .btn-coming { display:inline-flex; align-items:center; gap:8px; background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border-2); border-radius:12px; padding:14px 28px; font-size:15px; font-weight:600; cursor:default; text-decoration:none; font-family:inherit; }
+        .btn-coming { display:inline-flex; align-items:center; gap:8px; background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border-2); border-radius:12px; padding:14px 28px; font-size:15px; font-weight:600; cursor:default; font-family:'Inter',sans-serif; }
         .btn-coming .badge { font-size:9px; font-weight:700; letter-spacing:0.08em; background:var(--accent); color:white; border-radius:4px; padding:2px 6px; text-transform:uppercase; }
 
         /* FEATURES */
         .features { max-width:960px; margin:0 auto; padding:0 24px 100px; }
         .features-header { text-align:center; margin-bottom:56px; }
-        .eyebrow { font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:16px; }
-        .features-header h2 { font-size:clamp(26px,3.5vw,38px); font-weight:700; letter-spacing:-1px; color:var(--text); line-height:1.15; }
+        .eyebrow { font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:16px; font-family:'Inter',sans-serif; }
+        .features-header h2 { font-family:'Harmony', -apple-system, sans-serif; font-size:clamp(28px,4vw,44px); font-weight:400; letter-spacing:-0.5px; color:var(--text); line-height:1.1; }
         .features-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:2px; background:var(--border); border-radius:16px; overflow:hidden; border:1px solid var(--border); }
         .feature-card { background:var(--surface); padding:36px 32px; transition:background 0.2s; }
         .feature-card:hover { background:var(--bg); }
         .feature-icon { width:44px; height:44px; border-radius:11px; background:var(--accent-light); border:1px solid var(--accent-mid); display:flex; align-items:center; justify-content:center; margin-bottom:20px; }
-        .feature-card h3 { font-size:17px; font-weight:700; color:var(--text); margin-bottom:10px; letter-spacing:-0.3px; }
+        .feature-card h3 { font-size:17px; font-weight:700; color:var(--text); margin-bottom:10px; letter-spacing:-0.3px; font-family:'Inter',sans-serif; }
         .feature-card p { font-size:14px; color:var(--text-muted); line-height:1.7; }
 
         /* HOW */
@@ -55,22 +88,22 @@ export default function LandingPage() {
         .steps { display:flex; flex-direction:column; }
         .step { display:flex; gap:20px; padding:28px 0; border-bottom:1px solid var(--border); }
         .step:last-child { border-bottom:none; }
-        .step-num { width:34px; height:34px; border-radius:50%; flex-shrink:0; background:var(--accent-light); border:1px solid var(--accent-mid); color:var(--accent); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:2px; }
+        .step-num { width:34px; height:34px; border-radius:50%; flex-shrink:0; background:var(--accent-light); border:1px solid var(--accent-mid); color:var(--accent); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:2px; font-family:'Inter',sans-serif; }
         .step-body h4 { font-size:16px; font-weight:700; color:var(--text); margin-bottom:6px; }
         .step-body p { font-size:14px; color:var(--text-muted); line-height:1.7; }
 
         /* CTA */
         .cta-bottom { max-width:620px; margin:0 auto; padding:0 24px 110px; text-align:center; }
         .cta-card { background:var(--text); border-radius:20px; padding:56px 40px; }
-        .cta-card h2 { font-size:clamp(22px,3vw,32px); font-weight:700; color:var(--bg); margin-bottom:12px; letter-spacing:-0.5px; }
+        .cta-card h2 { font-family:'Harmony', -apple-system, sans-serif; font-size:clamp(26px,3.5vw,40px); font-weight:400; color:var(--bg); margin-bottom:12px; letter-spacing:-0.3px; }
         .cta-card > p { font-size:15px; color:rgba(245,242,235,0.45); margin-bottom:32px; line-height:1.65; }
-        .cta-coming { display:inline-flex; align-items:center; gap:10px; background:rgba(245,242,235,0.08); border:1px solid rgba(245,242,235,0.12); border-radius:12px; padding:14px 28px; font-size:14px; font-weight:600; color:rgba(245,242,235,0.35); font-family:inherit; margin-bottom:24px; }
+        .cta-coming { display:inline-flex; align-items:center; gap:10px; background:rgba(245,242,235,0.08); border:1px solid rgba(245,242,235,0.12); border-radius:12px; padding:14px 28px; font-size:14px; font-weight:600; color:rgba(245,242,235,0.35); font-family:'Inter',sans-serif; margin-bottom:24px; }
         .cta-coming .pill { font-size:9px; font-weight:700; letter-spacing:0.08em; background:var(--accent); color:white; border-radius:4px; padding:3px 7px; text-transform:uppercase; }
 
         /* FOOTER */
         .footer { border-top:1px solid var(--border); padding:28px 48px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
         .footer-logo { display:flex; align-items:center; gap:8px; }
-        .footer-logo img { width:20px; height:20px; border-radius:5px; opacity:0.4; }
+        .footer-logo-text { font-family:'Humane',sans-serif; font-weight:500; font-size:18px; letter-spacing:0.04em; color:var(--text-muted); padding-top:1px; }
         .footer p { font-size:13px; color:var(--text-dim); }
 
         @media (max-width:640px) {
@@ -84,8 +117,8 @@ export default function LandingPage() {
       {/* NAV */}
       <nav className="nav">
         <a href="/" className="nav-logo">
-          <img src="/icon.svg" alt="MindVault" />
-          <span>MindVault</span>
+          <MindVaultIcon size={28} />
+          <span className="nav-logo-text">MindVault</span>
         </a>
         <div className="nav-right">
           <span className="nav-badge">Beta soon</span>
@@ -188,8 +221,8 @@ export default function LandingPage() {
       {/* FOOTER */}
       <footer className="footer">
         <div className="footer-logo">
-          <img src="/icon.svg" alt="MindVault" />
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)' }}>MindVault</span>
+          <MindVaultIcon size={22} />
+          <span className="footer-logo-text">MindVault</span>
         </div>
         <p>Built for creatives who collect ideas.</p>
         <p style={{ color: 'var(--text-dim)', fontSize: 12 }}>© 2026</p>
