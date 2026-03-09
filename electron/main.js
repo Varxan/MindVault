@@ -650,6 +650,10 @@ function createWindow() {
           label: 'Terms of Service',
           click: () => shell.openExternal('https://mindvault.ch/terms'),
         },
+        {
+          label: 'Open Source Licenses',
+          click: () => shell.openExternal('https://mindvault.ch/licenses'),
+        },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
