@@ -166,6 +166,15 @@ export default function SharePage() {
         id = data.id || null;
         if (id) setSavedId(id);
       }
+      // If no id was returned (Supabase insert failed), save offline instead of
+      // leaving the user stuck on 'queued' with no active poll.
+      if (!id) {
+        const q = loadQueue();
+        q.push({ ...shareData, tags: tagInput.trim() || null, space: selectedSpace });
+        saveQueue(q);
+        setPhase('offline');
+        return;
+      }
       setPhase('queued');
       startPolling(id);
     } catch {

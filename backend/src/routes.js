@@ -254,6 +254,14 @@ router.post('/links', async (req, res) => {
 
     const detectedSource = source || detectSource(url);
 
+    // ── Dedup: return existing link if URL already exists ─────────────────────
+    // Prevents ghost Supabase queue entries from re-importing deleted links.
+    const existingLink = db.prepare('SELECT * FROM links WHERE url = ?').get(url);
+    if (existingLink) {
+      console.log(`[Links] URL already exists (id=${existingLink.id}), skipping insert`);
+      return res.status(200).json(existingLink);
+    }
+
     // ── Insert immediately with whatever info we have ─────────────────────────
     // Metadata (thumbnail, rich title) is fetched async in the background.
     // This makes the Chrome extension + PWA share feel instant even for Vimeo/
@@ -294,14 +302,18 @@ router.post('/links', async (req, res) => {
           localThumb = await downloadThumbnail(finalThumbUrl);
         }
 
-        // Update link with fetched metadata
+        // Update link with fetched metadata — only fill in fields still empty
+        // (re-check current state to avoid overwriting a concurrent update)
+        const current = db.prepare('SELECT title, description, thumbnail_url, local_thumbnail, author_url FROM links WHERE id = ?').get(linkId);
+        if (!current) return; // link was deleted in the meantime
+
         const updates = [];
         const params  = [];
-        if (!title && meta.title)       { updates.push('title = ?');         params.push(meta.title); }
-        if (!description && meta.description) { updates.push('description = ?'); params.push(meta.description); }
-        if (!thumbnail_url && finalThumbUrl)  { updates.push('thumbnail_url = ?'); params.push(finalThumbUrl); }
-        if (localThumb)                 { updates.push('local_thumbnail = ?'); params.push(localThumb); }
-        if (meta.author_url)            { updates.push('author_url = ?');     params.push(meta.author_url); }
+        if (!current.title && meta.title)             { updates.push('title = ?');          params.push(meta.title); }
+        if (!current.description && meta.description) { updates.push('description = ?');    params.push(meta.description); }
+        if (!current.thumbnail_url && finalThumbUrl)  { updates.push('thumbnail_url = ?');  params.push(finalThumbUrl); }
+        if (!current.local_thumbnail && localThumb)   { updates.push('local_thumbnail = ?'); params.push(localThumb); }
+        if (!current.author_url && meta.author_url)   { updates.push('author_url = ?');     params.push(meta.author_url); }
         if (updates.length > 0) {
           params.push(linkId);
           db.prepare(`UPDATE links SET ${updates.join(', ')} WHERE id = ?`).run(...params);
