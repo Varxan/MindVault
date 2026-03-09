@@ -65,19 +65,19 @@ async function init() {
   // Anon client for Realtime subscription (WebSocket)
   supabase = createClient(url, anonKey || adminKey, { auth: { persistSession: false } });
 
-  // ── Subscribe to INSERT + UPDATE on share_queue for this device ──────────
+  // ── Subscribe to INSERT + UPDATE on share_queue (all rows, filter client-side) ──
+  // Note: Supabase Realtime filters don't support OR conditions, so we receive
+  // all events and filter in handleRow(). This is safe — single-user app.
   channel = supabase
     .channel('share-queue')
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'share_queue',
-        filter: deviceId ? `user_id=eq.${deviceId}` : undefined },
+      { event: 'INSERT', schema: 'public', table: 'share_queue' },
       (payload) => handleRow(payload.new, 'INSERT'),
     )
     .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'share_queue',
-        filter: deviceId ? `user_id=eq.${deviceId}` : undefined },
+      { event: 'UPDATE', schema: 'public', table: 'share_queue' },
       (payload) => handleRow(payload.new, 'UPDATE'),
     )
     .subscribe((status, err) => {
@@ -148,13 +148,13 @@ async function checkExisting(silent = false) {
   if (!supabaseAdmin) return;
 
   try {
-    let query = supabaseAdmin
+    // Single-user app: process ALL unprocessed entries regardless of user_id.
+    // device_id filtering was causing silent drops when PWA/desktop IDs drifted.
+    const query = supabaseAdmin
       .from('share_queue')
       .select('*')
       .eq('processed', false)
       .order('created_at', { ascending: true });
-
-    if (deviceId) query = query.eq('user_id', deviceId);
 
     const { data, error } = await query;
     if (error) {

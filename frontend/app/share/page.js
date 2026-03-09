@@ -73,7 +73,10 @@ export default function SharePage() {
     pollRef.current = setInterval(async () => {
       if (Date.now() > deadline) {
         clearInterval(pollRef.current);
-        return; // timed out — leave in 'queued' state
+        // Link is safely saved in the queue — desktop just wasn't open.
+        // Show "saved" so the user isn't left with an infinite spinner.
+        setPhase('saved');
+        return;
       }
       try {
         const r = await fetch('/api/share-queue');
@@ -370,7 +373,7 @@ export default function SharePage() {
               Saved to MindVault
             </div>
             <div style={{ color:'#444', fontSize:'13px' }}>
-              Available in your library
+              Will appear in your library when MindVault is open
             </div>
           </div>
         )}
