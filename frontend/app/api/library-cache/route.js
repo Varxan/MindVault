@@ -6,6 +6,10 @@
  * device_id is the Primary Key — each user has exactly one row.
  */
 
+// Run on Cloudflare Workers Edge Runtime (V8 isolate — no Node.js).
+// Supabase-JS v2 is fully Edge-compatible (uses fetch internally).
+export const runtime = 'edge';
+
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 

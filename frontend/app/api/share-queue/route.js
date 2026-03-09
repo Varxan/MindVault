@@ -19,6 +19,10 @@
  * Body (mark processed):  { id, processed: true }
  */
 
+// Run on Cloudflare Workers Edge Runtime (V8 isolate — no Node.js).
+// Supabase-JS v2 is fully Edge-compatible (uses fetch internally).
+export const runtime = 'edge';
+
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 

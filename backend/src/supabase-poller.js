@@ -25,7 +25,9 @@ const { createClient } = require('@supabase/supabase-js');
 
 const TAG_TIMEOUT_MS = 120_000;  // 2 min — import even if user never added tags
 const BACKEND_URL    = process.env.BACKEND_URL || 'http://localhost:3001';
-const VERCEL_URL     = process.env.VERCEL_URL  || 'https://mind-vault-chi.vercel.app';
+// APP_URL points to the deployed web frontend (Cloudflare Pages after migration).
+// VERCEL_URL kept as fallback so existing .env files don't break.
+const APP_URL = process.env.APP_URL || process.env.VERCEL_URL || 'https://mind-vault-chi.vercel.app';
 
 let supabase      = null;  // anon key — Realtime subscription
 let supabaseAdmin = null;  // service_role key — SELECT/UPDATE (bypasses RLS)

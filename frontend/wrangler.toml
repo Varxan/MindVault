@@ -1,0 +1,13 @@
+name = "mindvault"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Output directory produced by @cloudflare/next-on-pages
+pages_build_output_dir = ".vercel/output/static"
+
+# -------------------------------------------------------
+# Local dev only (wrangler pages dev):
+# Copy .dev.vars.example → .dev.vars and fill in secrets.
+# Production secrets are set via the Cloudflare Pages
+# dashboard (Settings → Environment Variables).
+# -------------------------------------------------------

@@ -1,0 +1,14 @@
+# Cloudflare Pages — local dev secrets
+# Copy this file to .dev.vars (gitignored) and fill in real values.
+# These are the secrets needed by the Edge API routes.
+#
+# Production values are set in the Cloudflare Pages dashboard:
+#   Settings → Environment Variables → Production + Preview
+#
+# Public vars (NEXT_PUBLIC_*) can also be set in the dashboard;
+# they are safe to commit to wrangler.toml but we keep them here
+# alongside the secrets for convenience.
+
+NEXT_PUBLIC_SUPABASE_URL=https://wfguqsrdcnalcdgcgzfe.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
