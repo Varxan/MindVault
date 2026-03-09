@@ -254,76 +254,94 @@ router.post('/links', async (req, res) => {
 
     const detectedSource = source || detectSource(url);
 
-    // Fetch metadata — use yt-dlp for video platforms (correct aspect ratio)
-    let meta = { title: null, description: null, thumbnail_url: null, author_url: null };
-    if (!title || !thumbnail_url) {
-      meta = await fetchSmartMetadata(url, detectedSource);
-    }
-
-    const finalThumbUrl = thumbnail_url || meta.thumbnail_url || null;
-
-    // Download thumbnail locally
-    let localThumb = null;
-    if (finalThumbUrl) {
-      localThumb = await downloadThumbnail(finalThumbUrl);
-    }
-
+    // ── Insert immediately with whatever info we have ─────────────────────────
+    // Metadata (thumbnail, rich title) is fetched async in the background.
+    // This makes the Chrome extension + PWA share feel instant even for Vimeo/
+    // YouTube where yt-dlp can take 20s+.
     const result = insertLink.run({
       url,
       source: detectedSource,
-      title: title || meta.title || null,
-      description: description || meta.description || null,
-      thumbnail_url: finalThumbUrl,
-      tags: JSON.stringify(tags || []),
-      note: note || null,
+      title:       title       || null,
+      description: description || null,
+      thumbnail_url: thumbnail_url || null,
+      tags:  JSON.stringify(tags || []),
+      note:  note  || null,
       space: space || 'eye',
     });
 
     const linkId = result.lastInsertRowid;
-
-    // Save local thumbnail path + author URL
-    if (localThumb) {
-      db.prepare('UPDATE links SET local_thumbnail = ? WHERE id = ?').run(localThumb, linkId);
-    }
-    if (meta.author_url) {
-      db.prepare('UPDATE links SET author_url = ? WHERE id = ?').run(meta.author_url, linkId);
-    }
-
-    // AI-Analyse async (nicht blockierend)
-    // Use local thumbnail file if available (remote URLs are often blocked)
-    const aiImageSource = localThumb
-      ? path.join(THUMB_DIR, localThumb)
-      : finalThumbUrl;
-    if (aiImageSource) { // always run AI — mergeAITags() preserves user tags
-      analyzeContent(aiImageSource, {
-        title: title || meta.title,
-        description: description || meta.description,
-        source: detectedSource,
-        url,
-      }).then((aiResult) => {
-        if (aiResult.tags.length > 0) {
-          mergeAITags(linkId, aiResult.tags);
-          console.log(`[AI] Tags für Link ${linkId}: ${aiResult.tags.join(', ')}`);
-        }
-        if (aiResult.description && !description && !meta.description) {
-          db.prepare('UPDATE links SET description = ? WHERE id = ?')
-            .run(aiResult.description, linkId);
-        }
-      }).catch(err => {
-        console.log(`[AI] Analyse fehlgeschlagen für Link ${linkId}: ${err.message}`);
-      }).finally(() => {
-        // Generate semantic embedding after AI (so description/tags are already set)
-        generateAndStoreEmbedding(linkId);
-      });
-    } else {
-      // No image source — embed from metadata alone
-      generateAndStoreEmbedding(linkId);
-    }
-
     const newLink = getLinkById.get({ id: linkId });
+
+    // Respond immediately — client doesn't have to wait for metadata
     res.status(201).json(newLink);
     scheduleSync(); // push to PWA
     pushEvent('link-added', { id: linkId });
+
+    // ── Background: fetch metadata + thumbnail + AI + embeddings ─────────────
+    setImmediate(async () => {
+      try {
+        // Skip metadata fetch if caller already provided both title and thumbnail
+        let meta = { title: null, description: null, thumbnail_url: null, author_url: null };
+        if (!title || !thumbnail_url) {
+          meta = await fetchSmartMetadata(url, detectedSource);
+        }
+
+        const finalThumbUrl = thumbnail_url || meta.thumbnail_url || null;
+
+        // Download thumbnail locally
+        let localThumb = null;
+        if (finalThumbUrl) {
+          localThumb = await downloadThumbnail(finalThumbUrl);
+        }
+
+        // Update link with fetched metadata
+        const updates = [];
+        const params  = [];
+        if (!title && meta.title)       { updates.push('title = ?');         params.push(meta.title); }
+        if (!description && meta.description) { updates.push('description = ?'); params.push(meta.description); }
+        if (!thumbnail_url && finalThumbUrl)  { updates.push('thumbnail_url = ?'); params.push(finalThumbUrl); }
+        if (localThumb)                 { updates.push('local_thumbnail = ?'); params.push(localThumb); }
+        if (meta.author_url)            { updates.push('author_url = ?');     params.push(meta.author_url); }
+        if (updates.length > 0) {
+          params.push(linkId);
+          db.prepare(`UPDATE links SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+          pushEvent('link-updated', { id: linkId });
+          scheduleSync();
+        }
+
+        // AI-Analyse (nicht blockierend)
+        const aiImageSource = localThumb
+          ? path.join(THUMB_DIR, localThumb)
+          : finalThumbUrl;
+        if (aiImageSource) {
+          analyzeContent(aiImageSource, {
+            title: title || meta.title,
+            description: description || meta.description,
+            source: detectedSource,
+            url,
+          }).then((aiResult) => {
+            if (aiResult.tags.length > 0) {
+              mergeAITags(linkId, aiResult.tags);
+              console.log(`[AI] Tags für Link ${linkId}: ${aiResult.tags.join(', ')}`);
+            }
+            if (aiResult.description && !description && !meta.description) {
+              db.prepare('UPDATE links SET description = ? WHERE id = ?')
+                .run(aiResult.description, linkId);
+            }
+          }).catch(err => {
+            console.log(`[AI] Analyse fehlgeschlagen für Link ${linkId}: ${err.message}`);
+          }).finally(() => {
+            generateAndStoreEmbedding(linkId);
+          });
+        } else {
+          generateAndStoreEmbedding(linkId);
+        }
+      } catch (bgErr) {
+        console.log(`[Metadata] Background fetch failed for ${url}: ${bgErr.message}`);
+        // Link already saved — just no metadata. Not critical.
+        generateAndStoreEmbedding(linkId);
+      }
+    });
 
     // ── Auto-transcription for Mind links (background, invisible to user) ──────
     // Downloads audio-only, transcribes, deletes audio, stores in hidden
