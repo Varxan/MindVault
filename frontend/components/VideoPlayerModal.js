@@ -327,9 +327,27 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   // "Save As" — sets one-shot flag in main process then triggers download
   // so the will-download handler shows the native Save As dialog instead of auto-saving
   const handleSaveAs = async (url, filename, onSuccess) => {
+    // Main process shows native Save dialog, then streams file directly — no race condition
     setShowDownloadMenu(false);
-    await window.electron?.triggerSaveAs?.();
-    forceDownload(url, filename, onSuccess);
+    if (!window.electron?.saveAsFile) return;
+    try {
+      const baseName    = url.split('/').pop();
+      let type;
+      if (url.includes('/files/gifs/'))             type = 'gifs';
+      else if (url.includes('/files/clips/'))       type = 'clips';
+      else if (url.includes('/files/screenshots/')) type = 'screenshots';
+      const downloadUrl = type ? `${getApiBase()}/download-file/${type}/${baseName}` : url;
+
+      const result = await window.electron.saveAsFile(downloadUrl, filename);
+      if (!result.canceled) {
+        onSuccess?.();
+        setDownloadSuccess(`✓ Saved: ${result.filename}`);
+        setTimeout(() => setDownloadSuccess(null), 3000);
+      }
+    } catch (err) {
+      setDownloadSuccess(`Error saving file`);
+      setTimeout(() => setDownloadSuccess(null), 4000);
+    }
   };
 
   // Close dropdown when clicking outside

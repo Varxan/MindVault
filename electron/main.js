@@ -580,42 +580,37 @@ function saveDownloadFolder(folder) {
 }
 
 // Register IPC handlers for download folder
-// Flag: next download shows Save As dialog instead of auto-saving
-let nextDownloadSaveAs = false;
-
 function registerDownloadHandlers() {
   // Get current folder
   ipcMain.handle('download:getFolder', () => loadDownloadFolder());
 
-  // Mark the NEXT download to show a Save As dialog (one-shot)
-  ipcMain.handle('download:saveAs', () => { nextDownloadSaveAs = true; });
+  // Save As: show native Save dialog, then stream the file from the backend
+  // directly to the chosen path — no will-download race condition.
+  ipcMain.handle('download:saveAs', async (_, { url, filename }) => {
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title:       'Save As',
+      defaultPath: path.join(loadDownloadFolder(), filename),
+      buttonLabel: 'Save',
+    });
+    if (result.canceled || !result.filePath) return { canceled: true };
+
+    const destPath = result.filePath;
+    await new Promise((resolve, reject) => {
+      const fileStream = fs.createWriteStream(destPath);
+      http.get(url, (response) => {
+        response.pipe(fileStream);
+        fileStream.on('finish', () => { fileStream.close(); resolve(); });
+        fileStream.on('error', (err) => { fs.unlink(destPath, () => {}); reject(err); });
+      }).on('error', (err) => { fs.unlink(destPath, () => {}); reject(err); });
+    });
+
+    return { canceled: false, path: destPath, filename: path.basename(destPath) };
+  });
 }
 
-// Set up the will-download handler:
-// - Normally: auto-saves to ~/Downloads (no dialog)
-// - If nextDownloadSaveAs flag is set: shows native Save As dialog (one-shot)
+// Set up the will-download handler: always auto-saves to ~/Downloads, no dialog.
 function setupAutoDownload(session) {
   session.on('will-download', (event, item) => {
-    if (nextDownloadSaveAs) {
-      nextDownloadSaveAs = false; // reset — one-shot only
-      // Let Electron show the native Save As dialog
-      item.setSaveDialogOptions({
-        title:       'Save As',
-        defaultPath: path.join(loadDownloadFolder(), item.getFilename()),
-        buttonLabel: 'Save',
-      });
-      // Toast on completion
-      item.on('done', (_, state) => {
-        if (state === 'completed') {
-          const finalPath = item.getSavePath();
-          mainWindow?.webContents.executeJavaScript(
-            `window.dispatchEvent(new CustomEvent('mv:download-done', { detail: ${JSON.stringify({ path: finalPath, filename: path.basename(finalPath) })} }));`
-          ).catch(() => {});
-        }
-      });
-      return;
-    }
-
     // Auto-save to configured folder
     const folder   = loadDownloadFolder();
     const filename = item.getFilename();
