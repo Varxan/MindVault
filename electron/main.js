@@ -584,27 +584,37 @@ function registerDownloadHandlers() {
   // Get current folder
   ipcMain.handle('download:getFolder', () => loadDownloadFolder());
 
-  // Save As: show native Save dialog, then stream the file from the backend
-  // directly to the chosen path — no will-download race condition.
+  // Save As: show native Save dialog, then stream the file from the backend.
   ipcMain.handle('download:saveAs', async (_, { url, filename }) => {
-    const result = await dialog.showSaveDialog(mainWindow, {
-      title:       'Save As',
-      defaultPath: path.join(loadDownloadFolder(), filename),
-      buttonLabel: 'Save',
-    });
-    if (result.canceled || !result.filePath) return { canceled: true };
+    try {
+      const result = await dialog.showSaveDialog(mainWindow, {
+        title:       'Save As',
+        defaultPath: path.join(loadDownloadFolder(), filename),
+        buttonLabel: 'Save',
+      });
+      if (result.canceled || !result.filePath) return { canceled: true };
 
-    const destPath = result.filePath;
-    await new Promise((resolve, reject) => {
-      const fileStream = fs.createWriteStream(destPath);
-      http.get(url, (response) => {
-        response.pipe(fileStream);
-        fileStream.on('finish', () => { fileStream.close(); resolve(); });
-        fileStream.on('error', (err) => { fs.unlink(destPath, () => {}); reject(err); });
-      }).on('error', (err) => { fs.unlink(destPath, () => {}); reject(err); });
-    });
+      const destPath = result.filePath;
+      await new Promise((resolve, reject) => {
+        const fileStream = fs.createWriteStream(destPath);
+        http.get(url, (response) => {
+          if (response.statusCode !== 200) {
+            fileStream.close();
+            fs.unlink(destPath, () => {});
+            reject(new Error(`Backend returned ${response.statusCode}`));
+            return;
+          }
+          response.pipe(fileStream);
+          fileStream.on('finish', () => { fileStream.close(); resolve(); });
+          fileStream.on('error', (err) => { fs.unlink(destPath, () => {}); reject(err); });
+        }).on('error', (err) => { fs.unlink(destPath, () => {}); reject(err); });
+      });
 
-    return { canceled: false, path: destPath, filename: path.basename(destPath) };
+      return { canceled: false, path: destPath, filename: path.basename(destPath) };
+    } catch (err) {
+      log(`[Download] saveAs error: ${err.message}`);
+      throw err; // re-throw so renderer catch block handles it
+    }
   });
 }
 
