@@ -580,42 +580,49 @@ function saveDownloadFolder(folder) {
 }
 
 // Register IPC handlers for download folder
+// Flag: next download shows Save As dialog instead of auto-saving
+let nextDownloadSaveAs = false;
+
 function registerDownloadHandlers() {
   // Get current folder
   ipcMain.handle('download:getFolder', () => loadDownloadFolder());
 
-  // Open native folder picker and save choice
-  ipcMain.handle('download:setFolder', async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
-      title:       'Choose Download Folder',
-      defaultPath: loadDownloadFolder(),
-      properties:  ['openDirectory', 'createDirectory'],
-    });
-    if (result.canceled || !result.filePaths[0]) return null;
-    const folder = result.filePaths[0];
-    saveDownloadFolder(folder);
-    return folder;
-  });
-
-  // Reveal the download folder in Finder
-  ipcMain.handle('download:revealFolder', () => {
-    shell.openPath(loadDownloadFolder());
-  });
+  // Mark the NEXT download to show a Save As dialog (one-shot)
+  ipcMain.handle('download:saveAs', () => { nextDownloadSaveAs = true; });
 }
 
-// Set up the will-download handler so files go straight to the download folder
-// without showing a native Save As dialog.
+// Set up the will-download handler:
+// - Normally: auto-saves to ~/Downloads (no dialog)
+// - If nextDownloadSaveAs flag is set: shows native Save As dialog (one-shot)
 function setupAutoDownload(session) {
   session.on('will-download', (event, item) => {
-    const folder = loadDownloadFolder();
-    const filename = item.getFilename();
-    const savePath = path.join(folder, filename);
+    if (nextDownloadSaveAs) {
+      nextDownloadSaveAs = false; // reset — one-shot only
+      // Let Electron show the native Save As dialog
+      item.setSaveDialogOptions({
+        title:       'Save As',
+        defaultPath: path.join(loadDownloadFolder(), item.getFilename()),
+        buttonLabel: 'Save',
+      });
+      // Toast on completion
+      item.on('done', (_, state) => {
+        if (state === 'completed') {
+          const finalPath = item.getSavePath();
+          mainWindow?.webContents.executeJavaScript(
+            `window.dispatchEvent(new CustomEvent('mv:download-done', { detail: ${JSON.stringify({ path: finalPath, filename: path.basename(finalPath) })} }));`
+          ).catch(() => {});
+        }
+      });
+      return;
+    }
 
-    // Resolve filename collision: append _1, _2, … if file already exists
-    let finalPath = savePath;
-    let counter   = 1;
-    const ext     = path.extname(filename);
-    const base    = path.basename(filename, ext);
+    // Auto-save to configured folder
+    const folder   = loadDownloadFolder();
+    const filename = item.getFilename();
+    let finalPath  = path.join(folder, filename);
+    let counter    = 1;
+    const ext      = path.extname(filename);
+    const base     = path.basename(filename, ext);
     while (fs.existsSync(finalPath)) {
       finalPath = path.join(folder, `${base}_${counter}${ext}`);
       counter++;
@@ -625,7 +632,6 @@ function setupAutoDownload(session) {
 
     item.on('done', (_, state) => {
       if (state === 'completed') {
-        // Notify renderer that download finished
         mainWindow?.webContents.executeJavaScript(
           `window.dispatchEvent(new CustomEvent('mv:download-done', { detail: ${JSON.stringify({ path: finalPath, filename: path.basename(finalPath) })} }));`
         ).catch(() => {});

@@ -6,7 +6,6 @@ import { createCollection, updateCollection } from '../lib/api';
 export default function CollectionForm({ collection, onClose, onSaved }) {
   const isEdit = !!collection;
   const [name, setName] = useState(collection?.name || '');
-  const [description, setDescription] = useState(collection?.description || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -18,9 +17,9 @@ export default function CollectionForm({ collection, onClose, onSaved }) {
       setSaving(true);
       setError(null);
       if (isEdit) {
-        await updateCollection(collection.id, { name: name.trim(), description: description.trim() || null });
+        await updateCollection(collection.id, { name: name.trim() });
       } else {
-        await createCollection({ name: name.trim(), description: description.trim() || null });
+        await createCollection({ name: name.trim() });
       }
       onSaved();
     } catch (err) {
@@ -50,16 +49,6 @@ export default function CollectionForm({ collection, onClose, onSaved }) {
               required
             />
           </div>
-          <div className="add-form-group">
-            <input
-              className="add-form-input"
-              type="text"
-              placeholder="Description (optional)..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
           {error && <div className="collection-form-error">{error}</div>}
 
           <button

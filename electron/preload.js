@@ -15,8 +15,7 @@ contextBridge.exposeInMainWorld('electron', {
   platform: process.platform,
   // License activation (trial → licensed)
   activateLicense: (key) => ipcRenderer.invoke('activation:activateLicenseExpired', key),
-  // Download folder management
-  getDownloadFolder: ()       => ipcRenderer.invoke('download:getFolder'),
-  setDownloadFolder: ()       => ipcRenderer.invoke('download:setFolder'),
-  revealDownloadFolder: ()    => ipcRenderer.invoke('download:revealFolder'),
+  // Download
+  getDownloadFolder: () => ipcRenderer.invoke('download:getFolder'),
+  triggerSaveAs:     () => ipcRenderer.invoke('download:saveAs'),
 });

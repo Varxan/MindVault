@@ -322,15 +322,14 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
 
   // Change the download folder via Electron native picker
   const handleChangeDownloadFolder = async () => {
-    setShowDownloadMenu(false);
-    if (!window.electron?.setDownloadFolder) return;
-    const folder = await window.electron?.setDownloadFolder?.();
-    if (folder) setDownloadFolder(folder);
   };
 
-  const handleRevealFolder = () => {
+  // "Save As" — sets one-shot flag in main process then triggers download
+  // so the will-download handler shows the native Save As dialog instead of auto-saving
+  const handleSaveAs = async (url, filename, onSuccess) => {
     setShowDownloadMenu(false);
-    window.electron?.revealDownloadFolder?.(); // no-op if old preload
+    await window.electron?.triggerSaveAs?.();
+    forceDownload(url, filename, onSuccess);
   };
 
   // Close dropdown when clicking outside
@@ -723,12 +722,11 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
                   </button>
                   {showDownloadMenu && (
                     <div className="vp-download-menu">
-                      <button className="vp-download-menu-item" onClick={handleChangeDownloadFolder}>
-                        <span className="vp-dmenu-icon">📁</span> Change folder…
-                        {downloadFolder && <span className="vp-dmenu-sub">{downloadFolder.replace(/.*\//, '~/')}</span>}
-                      </button>
-                      <button className="vp-download-menu-item" onClick={handleRevealFolder}>
-                        <span className="vp-dmenu-icon">🔍</span> Reveal in Finder
+                      <button
+                        className="vp-download-menu-item"
+                        onClick={() => handleSaveAs(`${getApiBase()}${exportResult.clipUrl}`, exportResult.filename, () => setExportResult(null))}
+                      >
+                        <span className="vp-dmenu-icon">📁</span> Save As…
                       </button>
                     </div>
                   )}
@@ -760,12 +758,14 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
                   </button>
                   {showDownloadMenu && (
                     <div className="vp-download-menu">
-                      <button className="vp-download-menu-item" onClick={handleChangeDownloadFolder}>
-                        <span className="vp-dmenu-icon">📁</span> Change folder…
-                        {downloadFolder && <span className="vp-dmenu-sub">{downloadFolder.replace(/.*\//, '~/')}</span>}
-                      </button>
-                      <button className="vp-download-menu-item" onClick={handleRevealFolder}>
-                        <span className="vp-dmenu-icon">🔍</span> Reveal in Finder
+                      <button
+                        className="vp-download-menu-item"
+                        onClick={() => {
+                          const url = `${getApiBase()}${gifResult.gifUrl?.replace('/api', '') || ''}`;
+                          handleSaveAs(url, gifResult.filename, () => setGifResult(null));
+                        }}
+                      >
+                        <span className="vp-dmenu-icon">📁</span> Save As…
                       </button>
                     </div>
                   )}

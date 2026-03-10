@@ -3135,7 +3135,8 @@ code {
 /* Dropdown menu */
 .vp-download-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  bottom: calc(100% + 4px);  /* opens ABOVE the button — no scrollbar */
+  top: auto;
   right: 0;
   background: #0f1f0f;
   border: 1px solid #2a4a2a;
