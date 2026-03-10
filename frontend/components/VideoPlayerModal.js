@@ -55,6 +55,7 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   const [downloadSuccess, setDownloadSuccess] = useState(null); // brief success toast after download
   const [downloadFolder, setDownloadFolder] = useState(null);  // cached current download folder
   const [showDownloadMenu, setShowDownloadMenu] = useState(false); // split-button dropdown
+  const [isElectron, setIsElectron] = useState(false); // set after mount — avoids SSR/hydration mismatch
   const [gifFps, setGifFps] = useState(25);
   const [gifWidth, setGifWidth] = useState(480);
   const [gifQuality, setGifQuality] = useState(256);
@@ -76,7 +77,9 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
 
   // Load download folder from Electron (only when running inside Electron)
   useEffect(() => {
-    if (window.electron?.getDownloadFolder) {
+    // Must run after mount so window.electron is available (avoids SSR mismatch)
+    if (window.electron?.setDownloadFolder) {
+      setIsElectron(true);
       window.electron.getDownloadFolder().then(setDownloadFolder).catch(() => {});
     }
     // Listen for download-done events to show toast
@@ -325,7 +328,7 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   // Change the download folder via Electron native picker
   const handleChangeDownloadFolder = async () => {
     setShowDownloadMenu(false);
-    if (!window.electron?.setDownloadFolder) return;
+    if (!isElectron) return;
     const folder = await window.electron.setDownloadFolder();
     if (folder) setDownloadFolder(folder);
   };
@@ -716,7 +719,7 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
                   >
                     ↓ DOWNLOAD
                   </button>
-                  {window.electron?.setDownloadFolder && (
+                  {isElectron && (
                     <button
                       className="vp-result-download vp-split-arrow"
                       onClick={() => setShowDownloadMenu(m => !m)}
@@ -755,7 +758,7 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
                   >
                     ↓ DOWNLOAD
                   </button>
-                  {window.electron?.setDownloadFolder && (
+                  {isElectron && (
                     <button
                       className="vp-result-download vp-split-arrow"
                       onClick={() => setShowDownloadMenu(m => !m)}
