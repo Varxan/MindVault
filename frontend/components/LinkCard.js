@@ -5,6 +5,7 @@ import VideoPlayerModal from './VideoPlayerModal';
 import PreviewModal from './PreviewModal';
 import SourceLogo from './SourceLogo';
 import { fetchCollectionsForLink, addLinksToCollection, removeLinkFromCollection } from '../lib/api';
+import CollectionForm from './CollectionForm';
 import { getApiBase } from '../lib/config';
 
 
@@ -23,6 +24,7 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
   const [allCollections, setAllCollections] = useState([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const [newCollectionOpen, setNewCollectionOpen] = useState(false);
   const collectionsMenuRef = useRef(null);
 
   useEffect(() => {
@@ -188,6 +190,30 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
     }
   };
 
+  const handleNewCollectionSaved = async () => {
+    setNewCollectionOpen(false);
+    // Reload collections list and auto-add the new one to this link
+    try {
+      const [linkCols, res] = await Promise.all([
+        fetchCollectionsForLink(link.id),
+        fetch(`${getApiBase()}/collections`, { cache: 'no-store' }).then(r => r.json()),
+      ]);
+      setAllCollections(res);
+      const currentIds = linkCols.map(c => c.id);
+      // The newest collection is the last one — add it to this link automatically
+      const newCol = res[res.length - 1];
+      if (newCol && !currentIds.includes(newCol.id)) {
+        await addLinksToCollection(newCol.id, [link.id]);
+        setLinkCollections([...currentIds, newCol.id]);
+      } else {
+        setLinkCollections(currentIds);
+      }
+      onRefresh?.();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
   const handleToggleCollection = async (collectionId) => {
     const isIn = linkCollections.includes(collectionId);
     try {
@@ -321,13 +347,28 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
               </label>
             ))
           )}
-          <button
-            className="card-collections-close"
-            onClick={(e) => { e.stopPropagation(); setCollectionsMenuOpen(false); }}
-          >
-            Done
-          </button>
+          <div className="card-collections-footer">
+            <button
+              className="card-collections-new"
+              onClick={(e) => { e.stopPropagation(); setNewCollectionOpen(true); }}
+            >
+              + New collection
+            </button>
+            <button
+              className="card-collections-close"
+              onClick={(e) => { e.stopPropagation(); setCollectionsMenuOpen(false); }}
+            >
+              Done
+            </button>
+          </div>
         </div>
+      )}
+
+      {newCollectionOpen && (
+        <CollectionForm
+          onClose={() => setNewCollectionOpen(false)}
+          onSaved={handleNewCollectionSaved}
+        />
       )}
 
       {/* Carousel file picker */}
