@@ -53,6 +53,8 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   const [gifResult, setGifResult] = useState(null);
   const [gifError, setGifError] = useState(null);
   const [downloadSuccess, setDownloadSuccess] = useState(null); // brief success toast after download
+  const [downloadFolder, setDownloadFolder] = useState(null);  // cached current download folder
+  const [showDownloadMenu, setShowDownloadMenu] = useState(false); // split-button dropdown
   const [gifFps, setGifFps] = useState(25);
   const [gifWidth, setGifWidth] = useState(480);
   const [gifQuality, setGifQuality] = useState(256);
@@ -70,6 +72,21 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  // Load download folder from Electron (only when running inside Electron)
+  useEffect(() => {
+    if (window.electron?.getDownloadFolder) {
+      window.electron.getDownloadFolder().then(setDownloadFolder).catch(() => {});
+    }
+    // Listen for download-done events to show toast
+    const onDone = (e) => {
+      const name = e.detail?.filename || 'File';
+      setDownloadSuccess(`✓ Saved: ${name}`);
+      setTimeout(() => setDownloadSuccess(null), 3000);
+    };
+    window.addEventListener('mv:download-done', onDone);
+    return () => window.removeEventListener('mv:download-done', onDone);
   }, []);
 
   // Load existing GIFs
@@ -305,20 +322,46 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
     }
   };
 
-  // Download via native browser anchor — shows in Chrome download bar, deletes backend copy after streaming
+  // Change the download folder via Electron native picker
+  const handleChangeDownloadFolder = async () => {
+    setShowDownloadMenu(false);
+    if (!window.electron?.setDownloadFolder) return;
+    const folder = await window.electron.setDownloadFolder();
+    if (folder) setDownloadFolder(folder);
+  };
+
+  const handleRevealFolder = () => {
+    setShowDownloadMenu(false);
+    window.electron?.revealDownloadFolder?.();
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!showDownloadMenu) return;
+    const close = (e) => {
+      if (!e.target.closest('.vp-download-split')) setShowDownloadMenu(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [showDownloadMenu]);
+
+  // Download a file — in Electron the will-download handler auto-saves to the
+  // chosen folder with no dialog. In the browser it falls back to a normal
+  // anchor-click download.
   const forceDownload = (url, filename, onSuccess) => {
-    // Determine file type from URL to route to the streaming endpoint
+    // Route through streaming endpoint so backend can clean up the temp file
     let type;
-    if (url.includes('/files/gifs/'))        type = 'gifs';
-    else if (url.includes('/files/clips/'))  type = 'clips';
+    if (url.includes('/files/gifs/'))             type = 'gifs';
+    else if (url.includes('/files/clips/'))       type = 'clips';
     else if (url.includes('/files/screenshots/')) type = 'screenshots';
 
-    const baseName = url.split('/').pop();
+    const baseName   = url.split('/').pop();
     const downloadUrl = type
       ? `${getApiBase()}/download-file/${type}/${baseName}`
       : url;
 
-    // Native anchor click → Chrome intercepts Content-Disposition: attachment → download bar shows
+    // Anchor click — Electron's will-download handler intercepts this and
+    // saves directly to the download folder without showing a dialog.
     const a = document.createElement('a');
     a.href = downloadUrl;
     a.download = filename;
@@ -326,8 +369,14 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
     a.click();
     document.body.removeChild(a);
 
-    // Update UI right away — server deletes backend copy after stream completes
+    // Update UI immediately — server deletes the temp file after streaming
     if (onSuccess) onSuccess();
+
+    // In-browser (non-Electron) fallback: show a brief success toast
+    if (!window.electron) {
+      setDownloadSuccess(`✓ Downloading: ${filename}`);
+      setTimeout(() => setDownloadSuccess(null), 3000);
+    }
   };
 
   const handleDeleteGif = async (filename) => {
@@ -659,13 +708,35 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
             {mode === 'clip' && exportResult && (
               <div className="vp-result-bar">
                 <span>Clip created ({formatSize(exportResult.size)})</span>
-                <button
-                  className="vp-result-download"
-                  style={{ marginLeft: 'auto' }}
-                  onClick={() => forceDownload(`${getApiBase()}${exportResult.clipUrl}`, exportResult.filename, () => setExportResult(null))}
-                >
-                  Download
-                </button>
+                <div className="vp-download-split" style={{ marginLeft: 'auto' }}>
+                  <button
+                    className="vp-result-download vp-split-main"
+                    onClick={() => forceDownload(`${getApiBase()}${exportResult.clipUrl}`, exportResult.filename, () => setExportResult(null))}
+                    title={downloadFolder ? `Save to: ${downloadFolder}` : 'Save to Downloads'}
+                  >
+                    ↓ DOWNLOAD
+                  </button>
+                  {window.electron?.setDownloadFolder && (
+                    <button
+                      className="vp-result-download vp-split-arrow"
+                      onClick={() => setShowDownloadMenu(m => !m)}
+                      title="Download options"
+                    >
+                      ▾
+                    </button>
+                  )}
+                  {showDownloadMenu && (
+                    <div className="vp-download-menu">
+                      <button className="vp-download-menu-item" onClick={handleChangeDownloadFolder}>
+                        <span className="vp-dmenu-icon">📁</span> Change folder…
+                        {downloadFolder && <span className="vp-dmenu-sub">{downloadFolder.replace(/.*\//, '~/')}</span>}
+                      </button>
+                      <button className="vp-download-menu-item" onClick={handleRevealFolder}>
+                        <span className="vp-dmenu-icon">🔍</span> Reveal in Finder
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -673,16 +744,38 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
             {mode === 'gif' && gifResult && (
               <div className="vp-result-bar">
                 <span>GIF created ({formatSize(gifResult.size)})</span>
-                <button
-                  className="vp-result-download"
-                  style={{ marginLeft: 'auto' }}
-                  onClick={() => {
-                    const url = `${getApiBase()}${gifResult.gifUrl?.replace('/api', '') || ''}`;
-                    forceDownload(url, gifResult.filename, () => setGifResult(null));
-                  }}
-                >
-                  Download
-                </button>
+                <div className="vp-download-split" style={{ marginLeft: 'auto' }}>
+                  <button
+                    className="vp-result-download vp-split-main"
+                    onClick={() => {
+                      const url = `${getApiBase()}${gifResult.gifUrl?.replace('/api', '') || ''}`;
+                      forceDownload(url, gifResult.filename, () => setGifResult(null));
+                    }}
+                    title={downloadFolder ? `Save to: ${downloadFolder}` : 'Save to Downloads'}
+                  >
+                    ↓ DOWNLOAD
+                  </button>
+                  {window.electron?.setDownloadFolder && (
+                    <button
+                      className="vp-result-download vp-split-arrow"
+                      onClick={() => setShowDownloadMenu(m => !m)}
+                      title="Download options"
+                    >
+                      ▾
+                    </button>
+                  )}
+                  {showDownloadMenu && (
+                    <div className="vp-download-menu">
+                      <button className="vp-download-menu-item" onClick={handleChangeDownloadFolder}>
+                        <span className="vp-dmenu-icon">📁</span> Change folder…
+                        {downloadFolder && <span className="vp-dmenu-sub">{downloadFolder.replace(/.*\//, '~/')}</span>}
+                      </button>
+                      <button className="vp-download-menu-item" onClick={handleRevealFolder}>
+                        <span className="vp-dmenu-icon">🔍</span> Reveal in Finder
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

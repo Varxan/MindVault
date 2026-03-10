@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, shell, Menu, dialog, ipcMain, Notification } = require('electron');
+const { app, BrowserWindow, shell, Menu, dialog, ipcMain, Notification, session: electronSession } = require('electron');
 const { fork, execSync } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -558,6 +558,82 @@ function createWindow() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// ── Download Folder Preference ────────────────────────────────────────────────
+// Persists the user's preferred download folder in userData/download-prefs.json
+// Falls back to ~/Downloads if not set.
+
+function getDownloadPrefsPath() {
+  return path.join(app.getPath('userData'), 'download-prefs.json');
+}
+
+function loadDownloadFolder() {
+  try {
+    const raw = fs.readFileSync(getDownloadPrefsPath(), 'utf-8');
+    const prefs = JSON.parse(raw);
+    if (prefs.folder && fs.existsSync(prefs.folder)) return prefs.folder;
+  } catch (_) {}
+  return path.join(os.homedir(), 'Downloads');
+}
+
+function saveDownloadFolder(folder) {
+  fs.writeFileSync(getDownloadPrefsPath(), JSON.stringify({ folder }), 'utf-8');
+}
+
+// Register IPC handlers for download folder
+function registerDownloadHandlers() {
+  // Get current folder
+  ipcMain.handle('download:getFolder', () => loadDownloadFolder());
+
+  // Open native folder picker and save choice
+  ipcMain.handle('download:setFolder', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title:       'Choose Download Folder',
+      defaultPath: loadDownloadFolder(),
+      properties:  ['openDirectory', 'createDirectory'],
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    const folder = result.filePaths[0];
+    saveDownloadFolder(folder);
+    return folder;
+  });
+
+  // Reveal the download folder in Finder
+  ipcMain.handle('download:revealFolder', () => {
+    shell.openPath(loadDownloadFolder());
+  });
+}
+
+// Set up the will-download handler so files go straight to the download folder
+// without showing a native Save As dialog.
+function setupAutoDownload(session) {
+  session.on('will-download', (event, item) => {
+    const folder = loadDownloadFolder();
+    const filename = item.getFilename();
+    const savePath = path.join(folder, filename);
+
+    // Resolve filename collision: append _1, _2, … if file already exists
+    let finalPath = savePath;
+    let counter   = 1;
+    const ext     = path.extname(filename);
+    const base    = path.basename(filename, ext);
+    while (fs.existsSync(finalPath)) {
+      finalPath = path.join(folder, `${base}_${counter}${ext}`);
+      counter++;
+    }
+
+    item.setSavePath(finalPath);
+
+    item.on('done', (_, state) => {
+      if (state === 'completed') {
+        // Notify renderer that download finished
+        mainWindow?.webContents.executeJavaScript(
+          `window.dispatchEvent(new CustomEvent('mv:download-done', { detail: ${JSON.stringify({ path: finalPath, filename: path.basename(finalPath) })} }));`
+        ).catch(() => {});
+      }
+    });
+  });
+}
+
 // ── License Dialog ────────────────────────────────────────────────────────────
 
 function showLicenseDialog() {
@@ -620,6 +696,10 @@ app.whenReady().then(async () => {
 
   // Register activation IPC handlers before any window opens
   registerActivationHandlers();
+
+  // Register download IPC handlers and hook auto-save behavior
+  registerDownloadHandlers();
+  setupAutoDownload(electronSession.defaultSession);
 
   // ── Activation check ──────────────────────────────────────────────────────
   // In dev mode, skip activation (so you can work without a license)
