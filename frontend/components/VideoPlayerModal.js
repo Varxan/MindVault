@@ -77,10 +77,12 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
 
   // Load download folder from Electron (only when running inside Electron)
   useEffect(() => {
-    // Must run after mount so window.electron is available (avoids SSR mismatch)
-    if (window.electron?.setDownloadFolder) {
+    // Must run after mount so window.electron is available (avoids SSR mismatch).
+    // Check for window.electron.platform (present since v1) — not setDownloadFolder
+    // which may be absent in older preload builds due to asar caching.
+    if (window.electron?.platform) {
       setIsElectron(true);
-      window.electron.getDownloadFolder().then(setDownloadFolder).catch(() => {});
+      window.electron.getDownloadFolder?.().then(setDownloadFolder).catch(() => {});
     }
     // Listen for download-done events to show toast
     const onDone = (e) => {
@@ -329,13 +331,13 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   const handleChangeDownloadFolder = async () => {
     setShowDownloadMenu(false);
     if (!isElectron) return;
-    const folder = await window.electron.setDownloadFolder();
+    const folder = await window.electron?.setDownloadFolder?.();
     if (folder) setDownloadFolder(folder);
   };
 
   const handleRevealFolder = () => {
     setShowDownloadMenu(false);
-    window.electron?.revealDownloadFolder?.();
+    window.electron?.revealDownloadFolder?.(); // no-op if old preload
   };
 
   // Close dropdown when clicking outside
