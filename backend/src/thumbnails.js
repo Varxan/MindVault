@@ -2,9 +2,22 @@ const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { execSync } = require('child_process');
 
 const DATA_ROOT = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
 const THUMB_DIR = path.join(DATA_ROOT, 'thumbnails');
+
+// Resolve ffmpeg — bundled binary takes priority over system install
+function findFfmpeg() {
+  if (process.env.BUNDLED_BIN_PATH) {
+    const bundled = path.join(process.env.BUNDLED_BIN_PATH, 'ffmpeg');
+    if (fs.existsSync(bundled)) return bundled;
+  }
+  if (fs.existsSync('/opt/homebrew/bin/ffmpeg')) return '/opt/homebrew/bin/ffmpeg';
+  if (fs.existsSync('/usr/local/bin/ffmpeg')) return '/usr/local/bin/ffmpeg';
+  return 'ffmpeg';
+}
+const FFMPEG = findFfmpeg();
 
 // Ensure thumbnail directory exists
 if (!fs.existsSync(THUMB_DIR)) {
@@ -108,10 +121,15 @@ function generateVideoThumbnail(videoPath) {
     const filepath = path.join(THUMB_DIR, filename);
 
     // Extract a single frame
-    execSync(
-      `ffmpeg -y -ss ${seekTo} -i "${videoPath}" -vframes 1 -q:v 2 "${filepath}" 2>/dev/null`,
-      { encoding: 'utf-8', stdio: 'pipe' }
-    );
+    try {
+      execSync(
+        `"${FFMPEG}" -y -ss ${seekTo} -i "${videoPath}" -vframes 1 -q:v 2 "${filepath}"`,
+        { encoding: 'utf-8', stdio: 'pipe' }
+      );
+    } catch (e) {
+      console.log(`[Thumb] ffmpeg error: ${e.stderr || e.message}`);
+      return null;
+    }
 
     if (fs.existsSync(filepath) && fs.statSync(filepath).size > 500) {
       console.log(`[Thumb] Video thumbnail generated: ${filename}`);

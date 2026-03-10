@@ -71,16 +71,24 @@ async function createGif(videoPath, startTime, endTime, fps = 25, width = 480, c
     const paletteFile = path.join(GIF_DIR, `palette-${timestamp}.png`);
 
     // Generate palette for better quality GIFs (colors control compression)
-    const paletteCmd = `${FFMPEG} -y -ss ${startTime} -t ${duration} -i "${videoPath}" -vf "fps=${fps},scale=${width}:-1:flags=lanczos,palettegen=max_colors=${maxColors}" "${paletteFile}" 2>/dev/null`;
+    const paletteCmd = `"${FFMPEG}" -y -ss ${startTime} -t ${duration} -i "${videoPath}" -vf "fps=${fps},scale=${width}:-1:flags=lanczos,palettegen=max_colors=${maxColors}" "${paletteFile}"`;
 
     console.log(`[GIF Creator] Generating palette (${maxColors} colors)...`);
-    execSync(paletteCmd, { encoding: 'utf-8', stdio: 'pipe' });
+    try {
+      execSync(paletteCmd, { encoding: 'utf-8', stdio: 'pipe' });
+    } catch (e) {
+      throw new Error(`ffmpeg palette error: ${e.stderr || e.message}`);
+    }
 
     // Generate GIF using palette
-    const gifCmd = `${FFMPEG} -y -ss ${startTime} -t ${duration} -i "${videoPath}" -i "${paletteFile}" -lavfi "fps=${fps},scale=${width}:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=sierra2_4a" "${filepath}" 2>/dev/null`;
+    const gifCmd = `"${FFMPEG}" -y -ss ${startTime} -t ${duration} -i "${videoPath}" -i "${paletteFile}" -lavfi "fps=${fps},scale=${width}:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=sierra2_4a" "${filepath}"`;
 
     console.log(`[GIF Creator] Generating GIF...`);
-    execSync(gifCmd, { encoding: 'utf-8', stdio: 'pipe' });
+    try {
+      execSync(gifCmd, { encoding: 'utf-8', stdio: 'pipe' });
+    } catch (e) {
+      throw new Error(`ffmpeg gif error: ${e.stderr || e.message}`);
+    }
 
     // Clean up palette file
     if (fs.existsSync(paletteFile)) {
@@ -275,13 +283,17 @@ async function createClip(videoPath, startTime, endTime, options = {}) {
       console.log(`  - Target video bitrate: ${videoBitrateKbps}k (audio: ${audioBitrate}k)`);
 
       // Two-pass would be ideal but single-pass with constrained bitrate is faster
-      cmd = `${FFMPEG} -y -ss ${startTime} -t ${duration} -i "${videoPath}" -c:v libx264 -preset slow -b:v ${videoBitrateKbps}k -maxrate ${videoBitrateKbps}k -bufsize ${Math.floor(videoBitrateKbps * 2)}k -c:a aac -b:a ${audioBitrate}k -movflags +faststart "${filepath}" 2>/dev/null`;
+      cmd = `"${FFMPEG}" -y -ss ${startTime} -t ${duration} -i "${videoPath}" -c:v libx264 -preset slow -b:v ${videoBitrateKbps}k -maxrate ${videoBitrateKbps}k -bufsize ${Math.floor(videoBitrateKbps * 2)}k -c:a aac -b:a ${audioBitrate}k -movflags +faststart "${filepath}"`;
     } else {
       // Default quality-based encoding
-      cmd = `${FFMPEG} -y -ss ${startTime} -t ${duration} -i "${videoPath}" -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 192k -movflags +faststart "${filepath}" 2>/dev/null`;
+      cmd = `"${FFMPEG}" -y -ss ${startTime} -t ${duration} -i "${videoPath}" -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 192k -movflags +faststart "${filepath}"`;
     }
 
-    execSync(cmd, { encoding: 'utf-8', stdio: 'pipe', timeout: 300000 });
+    try {
+      execSync(cmd, { encoding: 'utf-8', stdio: 'pipe', timeout: 300000 });
+    } catch (e) {
+      throw new Error(`ffmpeg clip error: ${e.stderr || e.message}`);
+    }
 
     if (!fs.existsSync(filepath)) {
       throw new Error('Clip creation failed - file was not created');
