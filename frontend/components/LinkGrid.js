@@ -834,9 +834,9 @@ export default function LinkGrid() {
                   <div className="collections-dropdown-divider" />
                   <button
                     className="collections-dropdown-item collections-dropdown-manage"
-                    onClick={() => { setCollectionsDropdownOpen(false); router.push('/collections'); }}
+                    onClick={() => { setCollectionsDropdownOpen(false); setShowCollectionForm(true); }}
                   >
-                    Manage collections →
+                    + New collection
                   </button>
                 </div>
               </>
