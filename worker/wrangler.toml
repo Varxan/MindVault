@@ -1,0 +1,13 @@
+name = "mindvault-activation"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+# Custom domain: api.mindvault.ch
+# Set up in Cloudflare dashboard → Workers → mindvault-activation → Triggers → Custom Domains
+# Add: api.mindvault.ch
+
+# Secrets (set via CLI — never stored in this file):
+#   wrangler secret put APP_SECRET
+#   wrangler secret put SUPABASE_URL
+#   wrangler secret put SUPABASE_SERVICE_KEY
+#   wrangler secret put SUPABASE_ANON_KEY
