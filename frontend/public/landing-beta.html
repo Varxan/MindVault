@@ -7,8 +7,8 @@
 <meta name="description" content="Turn endless scrolling into a curated visual library. References, mood boards and ideas, always at hand. Built for filmmakers, DoPs and treatment designers."/>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-@font-face{font-family:'Harmony';src:url('frontend/public/fonts/Harmony.otf') format('opentype');}
-@font-face{font-family:'Humane';src:url('frontend/public/fonts/Humane-Medium.ttf') format('truetype');font-weight:500;}
+@font-face{font-family:'Harmony';src:url('/fonts/Harmony.otf') format('opentype');}
+@font-face{font-family:'Humane';src:url('/fonts/Humane-Medium.ttf') format('truetype');font-weight:500;}
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -155,7 +155,7 @@ body{background:var(--bg);color:var(--text);font-family:'Harmony',Georgia,serif;
 <!-- NAV -->
 <nav class="nav">
   <a href="/" class="nav-logo">
-    <img src="frontend/public/icon-512x512.png" alt=""/>
+    <img src="/icon-512x512.png" alt=""/>
     <span class="nav-logo-text">MindVault</span>
   </a>
   <div class="nav-right">
@@ -271,7 +271,7 @@ body{background:var(--bg);color:var(--text);font-family:'Harmony',Georgia,serif;
 <!-- FOOTER -->
 <footer class="footer">
   <div class="footer-logo">
-    <img src="frontend/public/icon-512x512.png" width="20" height="20" style="border-radius:4px;" alt=""/>
+    <img src="/icon-512x512.png" width="20" height="20" style="border-radius:4px;" alt=""/>
     <span class="footer-logo-text">MindVault</span>
   </div>
   <p>Built for people who collect ideas.</p>
