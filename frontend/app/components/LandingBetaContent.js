@@ -131,22 +131,98 @@ body{background:#faf8f4!important;color:#1a1a18;font-family:'Harmony',Georgia,se
 .lp-footer p,.lp-footer a{font-family:'Harmony',serif;font-size:13px;color:var(--lp-text-dim);text-decoration:none;}
 .lp-footer-links{display:flex;gap:24px;}
 
+/* ── Tablet & Mobile (≤ 768px) ──────────────────────────────── */
 @media(max-width:768px){
+
+  /* NAV */
   .lp-nav{padding:14px 20px;}
-  .lp-hero{padding:60px 20px 0;}
-  .lp-hero h1{font-size:clamp(60px,18vw,120px);}
-  .lp-hero-sub-row{flex-direction:column;align-items:flex-start;gap:32px;}
-  .lp-signup-col{align-items:flex-start;width:100%;}
-  .lp-signup-form{width:100%;}
-  .lp-signup-input{min-width:0;flex:1;}
-  .lp-bf-label{padding:14px 20px;}
-  .lp-features{padding:60px 20px;}
-  .lp-feat-row{grid-template-columns:1fr;gap:12px;}
-  .lp-feat-n{display:none;}
+
+  /* HERO */
+  .lp-hero{padding:48px 20px 0;}
+  .lp-hero-meta{flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:24px;}
+  .lp-hero h1{
+    font-size:clamp(52px,17vw,96px);
+    white-space:normal;        /* allow wrapping — critical on mobile */
+    line-height:0.85;
+    letter-spacing:0.03em;
+  }
+  .lp-hero-sub-row{
+    flex-direction:column;align-items:flex-start;
+    gap:28px;padding:28px 0 44px;
+  }
+  .lp-hero-sub{font-size:18px;max-width:100%;}
+
+  /* EMAIL FORM — vertical stack */
+  .lp-signup-col{align-items:stretch;width:100%;}
+  .lp-signup-form{
+    flex-direction:column;width:100%;
+    border-radius:14px;overflow:hidden;
+  }
+  .lp-signup-input{min-width:0;width:100%;padding:15px 18px;font-size:16px;} /* 16px prevents iOS zoom */
+  .lp-signup-btn{padding:15px 18px;text-align:center;font-size:14px;}
+  .lp-signup-note{text-align:left;font-size:12px;}
+
+  /* BUILT FOR — fade hint on right edge */
+  .lp-built-for{position:relative;}
+  .lp-built-for::after{
+    content:'';position:absolute;top:0;right:0;bottom:0;width:40px;
+    background:linear-gradient(to right,transparent,#faf8f4);
+    pointer-events:none;
+  }
+  .lp-bf-label{padding:13px 20px;font-size:9px;}
+  .lp-bf-item{padding:13px 20px;font-size:13px;}
+
+  /* FEATURES */
+  .lp-features{padding:64px 20px;}
+  .lp-feat-row{
+    grid-template-columns:1fr;gap:14px;padding:32px 0;
+  }
+  .lp-feat-title{font-size:clamp(34px,9vw,48px);}
+  .lp-feat-desc{font-size:16px;line-height:1.75;}
+  .lp-feat-n{
+    display:block;
+    text-align:left;padding-top:0;
+    order:-1;                  /* number appears above title on mobile */
+    font-size:10px;letter-spacing:0.12em;
+  }
+
+  /* EYE / MIND */
   .lp-eyemind{padding:60px 20px;}
-  .lp-em-cards{grid-template-columns:1fr;}
-  .lp-cta{padding:60px 20px;}
-  .lp-footer{padding:20px;flex-direction:column;align-items:flex-start;}
+  .lp-eyemind-header{margin-bottom:40px;}
+  .lp-eyemind-header h2{font-size:clamp(52px,14vw,88px);}
+  .lp-eyemind-header p{font-size:15px;max-width:100%;}
+  .lp-em-cards{grid-template-columns:1fr;gap:2px;}
+  .lp-em-card{padding:36px 28px;}
+  .lp-em-card-label{font-size:56px;}
+  .lp-em-card-title{font-size:16px;}
+  .lp-em-card p{font-size:14px;}
+
+  /* PLATFORMS */
+  .lp-platforms{padding:16px 20px;gap:8px;}
+
+  /* CTA */
+  .lp-cta{padding:72px 20px;}
+  .lp-cta h2{font-size:clamp(60px,16vw,96px);}
+  .lp-cta-sub{font-size:17px;max-width:100%;}
+  .lp-cta-form{
+    flex-direction:column;max-width:100%;
+    border-radius:14px;
+  }
+  .lp-cta-input{padding:15px 18px;font-size:16px;} /* 16px prevents iOS zoom */
+  .lp-cta-btn{padding:15px 18px;text-align:center;}
+
+  /* FOOTER */
+  .lp-footer{padding:24px 20px;flex-direction:column;align-items:flex-start;gap:16px;}
+  .lp-footer-links{gap:20px;}
+}
+
+/* ── Small phones (≤ 390px) ─────────────────────────────────── */
+@media(max-width:390px){
+  .lp-hero h1{font-size:clamp(44px,15vw,72px);}
+  .lp-cta h2{font-size:clamp(52px,15vw,76px);}
+  .lp-eyemind-header h2{font-size:clamp(44px,13vw,68px);}
+  .lp-feat-title{font-size:clamp(30px,8vw,42px);}
+  .lp-em-card{padding:28px 20px;}
 }
 `;
 

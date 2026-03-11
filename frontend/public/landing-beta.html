@@ -148,6 +148,55 @@ body{background:var(--bg);color:var(--text);font-family:'Harmony',Georgia,serif;
 .footer-logo-text{font-family:'Humane',sans-serif;font-size:18px;letter-spacing:0.06em;color:var(--text-muted);}
 .footer p,.footer a{font-family:'Harmony',serif;font-size:13px;color:var(--text-dim);text-decoration:none;}
 .footer-links{display:flex;gap:24px;}
+
+/* ── Mobile (≤ 768px) ────────────────────────── */
+@media(max-width:768px){
+  .nav{padding:14px 20px;}
+  .hero{padding:48px 20px 0;}
+  .hero-meta{flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:24px;}
+  .hero h1{font-size:clamp(52px,17vw,96px);white-space:normal;line-height:0.85;letter-spacing:0.03em;}
+  .hero-sub-row{flex-direction:column;align-items:flex-start;gap:28px;padding:28px 0 44px;}
+  .hero-sub{font-size:18px;max-width:100%;}
+  .signup-col{align-items:stretch;width:100%;}
+  .signup-form{flex-direction:column;width:100%;border-radius:14px;}
+  .signup-input{min-width:0;width:100%;padding:15px 18px;font-size:16px;}
+  .signup-btn{padding:15px 18px;text-align:center;}
+  .signup-note{text-align:left;}
+  .built-for{position:relative;}
+  .built-for::after{content:'';position:absolute;top:0;right:0;bottom:0;width:40px;background:linear-gradient(to right,transparent,#faf8f4);pointer-events:none;}
+  .bf-label{padding:13px 20px;font-size:9px;}
+  .bf-item{padding:13px 20px;font-size:13px;}
+  .features{padding:64px 20px;}
+  .feat-row{grid-template-columns:1fr;gap:14px;padding:32px 0;}
+  .feat-title{font-size:clamp(34px,9vw,48px);}
+  .feat-desc{font-size:16px;}
+  .feat-n{display:block;text-align:left;padding-top:0;order:-1;font-size:10px;letter-spacing:0.12em;}
+  .eyemind{padding:60px 20px;}
+  .eyemind-header{margin-bottom:40px;}
+  .eyemind-header h2{font-size:clamp(52px,14vw,88px);}
+  .eyemind-header p{font-size:15px;max-width:100%;}
+  .em-cards{grid-template-columns:1fr;gap:2px;}
+  .em-card{padding:36px 28px;}
+  .em-card-label{font-size:56px;}
+  .em-card-title{font-size:16px;}
+  .em-card p{font-size:14px;}
+  .platforms{padding:16px 20px;gap:8px;}
+  .cta{padding:72px 20px;}
+  .cta h2{font-size:clamp(60px,16vw,96px);}
+  .cta-sub{font-size:17px;max-width:100%;}
+  .cta-form{flex-direction:column;max-width:100%;border-radius:14px;}
+  .cta-input{padding:15px 18px;font-size:16px;}
+  .cta-btn{padding:15px 18px;text-align:center;}
+  .footer{padding:24px 20px;flex-direction:column;align-items:flex-start;gap:16px;}
+  .footer-links{gap:20px;}
+}
+@media(max-width:390px){
+  .hero h1{font-size:clamp(44px,15vw,72px);}
+  .cta h2{font-size:clamp(52px,15vw,76px);}
+  .eyemind-header h2{font-size:clamp(44px,13vw,68px);}
+  .feat-title{font-size:clamp(30px,8vw,42px);}
+  .em-card{padding:28px 20px;}
+}
 </style>
 </head>
 <body>
