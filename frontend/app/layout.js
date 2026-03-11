@@ -1,4 +1,14 @@
 import './globals.css';
+import { Inter } from 'next/font/google';
+
+// next/font downloads Inter at BUILD TIME and serves it from your own domain.
+// No requests to Google at runtime — fully GDPR compliant, no cookie banner needed.
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-inter',
+  display: 'swap',
+});
 
 export const metadata = {
   title: 'MindVault',
@@ -16,7 +26,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <head>
         {/* PWA Meta Tags */}
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -40,7 +50,6 @@ export default function RootLayout({ children }) {
               var theme = localStorage.getItem('mv-theme') || 'dark';
               document.documentElement.setAttribute('data-theme', theme);
             } catch(e) {}
-            // Detect Electron via user-agent and add class for CSS drag/padding rules
             if (typeof navigator !== 'undefined' && navigator.userAgent.indexOf('Electron') !== -1) {
               document.documentElement.classList.add('is-electron');
             }
@@ -56,6 +65,14 @@ export default function RootLayout({ children }) {
               });
             });
           }
+        `}} />
+
+        {/* PWA Install Prompt */}
+        <script dangerouslySetInnerHTML={{__html: `
+          window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            window.__pwaInstallPrompt = e;
+          });
         `}} />
       </head>
       <body>{children}</body>

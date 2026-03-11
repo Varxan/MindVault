@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 const css = `
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+/* Inter is injected via next/font — no Google Fonts request needed */
 /* Scoped landing-page variables — override any global theme */
 :root,[data-theme],[data-theme="dark"],[data-theme="light"]{
   --lp-bg:#faf8f4;
@@ -30,7 +31,7 @@ body{background:#faf8f4!important;color:#1a1a18;font-family:'Harmony',Georgia,se
 .lp-nav-logo img{width:26px;height:26px;border-radius:6px;}
 .lp-nav-logo-text{font-family:'Humane',sans-serif;font-weight:500;font-size:20px;letter-spacing:0.06em;}
 .lp-nav-badge{
-  font-family:'Inter',sans-serif;font-size:11px;font-weight:600;
+  font-family:var(--font-inter,'Inter'),sans-serif;font-size:11px;font-weight:600;
   letter-spacing:0.1em;text-transform:uppercase;
   color:var(--lp-accent);background:rgba(200,134,30,0.10);
   padding:5px 12px;border-radius:100px;
@@ -38,7 +39,7 @@ body{background:#faf8f4!important;color:#1a1a18;font-family:'Harmony',Georgia,se
 
 .lp-hero{padding:80px 40px 0;overflow:hidden;}
 .lp-hero-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px;}
-.lp-hero-eyebrow{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--lp-accent);}
+.lp-hero-eyebrow{font-family:var(--font-inter,'Inter'),sans-serif;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--lp-accent);}
 .lp-hero-mac{font-family:'Harmony',serif;font-size:13px;color:var(--lp-text-dim);font-style:italic;}
 .lp-hero h1{
   font-family:'Humane',sans-serif;font-weight:500;
@@ -68,7 +69,7 @@ body{background:#faf8f4!important;color:#1a1a18;font-family:'Harmony',Georgia,se
 }
 .lp-signup-input::placeholder{color:var(--lp-text-dim);}
 .lp-signup-btn{
-  font-family:'Inter',sans-serif;font-size:13px;font-weight:700;
+  font-family:var(--font-inter,'Inter'),sans-serif;font-size:13px;font-weight:700;
   color:#fff;background:var(--lp-text);
   border:none;cursor:pointer;padding:13px 22px;
   white-space:nowrap;transition:opacity 0.2s;
@@ -80,18 +81,18 @@ body{background:#faf8f4!important;color:#1a1a18;font-family:'Harmony',Georgia,se
 .lp-signup-error{font-family:'Harmony',serif;font-size:13px;color:#e05c5c;margin-top:6px;}
 
 .lp-built-for{display:flex;align-items:center;overflow-x:auto;border-bottom:1px solid var(--lp-border);}
-.lp-bf-label{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--lp-text-dim);padding:16px 40px;flex-shrink:0;border-right:1px solid var(--lp-border);}
+.lp-bf-label{font-family:var(--font-inter,'Inter'),sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--lp-text-dim);padding:16px 40px;flex-shrink:0;border-right:1px solid var(--lp-border);}
 .lp-bf-items{display:flex;overflow-x:auto;}
 .lp-bf-item{font-family:'Harmony',serif;font-size:14px;color:var(--lp-text-muted);padding:16px 28px;border-right:1px solid var(--lp-border);white-space:nowrap;flex-shrink:0;}
 
 .lp-features{max-width:1100px;margin:0 auto;padding:100px 40px;}
-.lp-section-label{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--lp-text-dim);margin-bottom:48px;}
+.lp-section-label{font-family:var(--font-inter,'Inter'),sans-serif;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--lp-text-dim);margin-bottom:48px;}
 .lp-feat-rows{display:flex;flex-direction:column;}
 .lp-feat-row{display:grid;grid-template-columns:260px 1fr 40px;gap:48px;align-items:start;padding:44px 0;border-top:1px solid var(--lp-border);}
 .lp-feat-row:last-child{border-bottom:1px solid var(--lp-border);}
 .lp-feat-title{font-family:'Humane',sans-serif;font-size:clamp(38px,4vw,54px);font-weight:500;text-transform:uppercase;letter-spacing:0.02em;color:var(--lp-text);line-height:1;padding-top:4px;}
 .lp-feat-desc{font-family:'Harmony',Georgia,serif;font-size:17px;color:#4a4a44;line-height:1.8;max-width:540px;}
-.lp-feat-n{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--lp-text-dim);padding-top:8px;text-align:right;}
+.lp-feat-n{font-family:var(--font-inter,'Inter'),sans-serif;font-size:11px;font-weight:600;letter-spacing:0.08em;color:var(--lp-text-dim);padding-top:8px;text-align:right;}
 
 .lp-eyemind{background:var(--lp-text);padding:80px 40px;}
 .lp-eyemind-inner{max-width:1100px;margin:0 auto;}
@@ -107,7 +108,7 @@ body{background:#faf8f4!important;color:#1a1a18;font-family:'Harmony',Georgia,se
 .lp-em-card p{font-family:'Harmony',Georgia,serif;font-size:15px;color:rgba(245,242,235,0.4);line-height:1.75;}
 
 .lp-platforms{display:flex;align-items:center;gap:12px;padding:20px 40px;flex-wrap:wrap;border-bottom:1px solid var(--lp-border);background:var(--lp-bg);}
-.lp-pl-label{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--lp-text-dim);margin-right:4px;}
+.lp-pl-label{font-family:var(--font-inter,'Inter'),sans-serif;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--lp-text-dim);margin-right:4px;}
 .lp-pl{font-family:'Harmony',serif;font-size:13px;color:var(--lp-text-muted);background:var(--lp-surface);border:1px solid var(--lp-border);border-radius:100px;padding:4px 14px;}
 
 .lp-cta{padding:100px 40px;text-align:center;background:var(--lp-bg);}
@@ -117,7 +118,7 @@ body{background:#faf8f4!important;color:#1a1a18;font-family:'Harmony',Georgia,se
 .lp-cta-form{display:flex;gap:0;border:1px solid var(--lp-border);border-radius:12px;overflow:hidden;background:#fff;max-width:420px;margin:0 auto;}
 .lp-cta-input{font-family:'Harmony',serif;font-size:15px;color:var(--lp-text);border:none;outline:none;background:transparent;padding:15px 20px;flex:1;}
 .lp-cta-input::placeholder{color:var(--lp-text-dim);}
-.lp-cta-btn{font-family:'Inter',sans-serif;font-size:13px;font-weight:700;color:#fff;background:var(--lp-text);border:none;cursor:pointer;padding:15px 24px;white-space:nowrap;transition:opacity 0.2s;}
+.lp-cta-btn{font-family:var(--font-inter,'Inter'),sans-serif;font-size:13px;font-weight:700;color:#fff;background:var(--lp-text);border:none;cursor:pointer;padding:15px 24px;white-space:nowrap;transition:opacity 0.2s;}
 .lp-cta-btn:hover{opacity:0.82;}
 .lp-cta-btn:disabled{opacity:0.6;cursor:default;}
 .lp-cta-note{font-family:'Harmony',serif;font-style:italic;font-size:13px;color:var(--lp-text-dim);margin-top:14px;}

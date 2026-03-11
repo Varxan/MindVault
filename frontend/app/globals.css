@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
 
 @font-face {
   font-family: 'Harmony';
@@ -32,7 +32,7 @@
   --danger: #e74c3c;
   --radius: 10px;
   --font-display: 'Harmony', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: var(--font-inter, 'Inter'), -apple-system, BlinkMacSystemFont, sans-serif;
   --shadow: 0 2px 12px rgba(0,0,0,0.4);
   --header-bg: rgba(10, 10, 10, 0.85);
 }
