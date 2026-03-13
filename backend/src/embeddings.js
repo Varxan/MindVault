@@ -19,15 +19,13 @@ const { execFile } = require('child_process');
 function getEmbedPython() {
   const os = require('os');
   const candidates = [
-    // 1. Bundled venv — created by build-clip-bundle.sh, included in DMG
-    //    dev:        <project>/backend/clip-env/bin/python3
-    //    production: <app>/Contents/Resources/backend/clip-env/bin/python3
+    // 1. Standalone Python — portable, no venv issues, works on any Mac
+    path.join(__dirname, '..', 'python-standalone', 'bin', 'python3'),
+    // 2. Legacy: old clip-env venv (older builds)
     path.join(__dirname, '..', 'clip-env', 'bin', 'python3'),
-    // 2. Legacy: userData venv from old setup-clip.sh installs
-    path.join(os.homedir(), 'Library', 'Application Support', 'MindVault', 'clip-env', 'bin', 'python3'),
     path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'clip-env', 'bin', 'python3'),
     process.env.DATA_PATH
-      ? path.join(process.env.DATA_PATH, '..', 'clip-env', 'bin', 'python3')
+      ? path.join(process.env.DATA_PATH, '..', 'python-standalone', 'bin', 'python3')
       : null,
     '/opt/homebrew/bin/python3',
   ].filter(Boolean);

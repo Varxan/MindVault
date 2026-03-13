@@ -88,7 +88,9 @@ router.get('/events', (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // === File Upload Setup ===
-const DATA_ROOT = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+const os = require('os');
+const DEV_DATA_ROOT = path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
+const DATA_ROOT = process.env.DATA_PATH || DEV_DATA_ROOT;
 const UPLOAD_DIR = path.join(DATA_ROOT, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -307,10 +309,14 @@ router.post('/links', async (req, res) => {
         const current = db.prepare('SELECT title, description, thumbnail_url, local_thumbnail, author_url FROM links WHERE id = ?').get(linkId);
         if (!current) return; // link was deleted in the meantime
 
+        // For video platforms, always prefer the metadata title over any share-provided title.
+        // iOS share sheets often send Telegram/app notification text as "title" which is wrong.
+        const isVideoPlatform = ['youtube', 'vimeo', 'tiktok', 'instagram'].includes(detectedSource);
+
         const updates = [];
         const params  = [];
-        if (!current.title && meta.title)             { updates.push('title = ?');          params.push(meta.title); }
-        if (!current.description && meta.description) { updates.push('description = ?');    params.push(meta.description); }
+        if (meta.title && (!current.title || isVideoPlatform)) { updates.push('title = ?');          params.push(meta.title); }
+        if (!current.description && meta.description)          { updates.push('description = ?');    params.push(meta.description); }
         if (!current.thumbnail_url && finalThumbUrl)  { updates.push('thumbnail_url = ?');  params.push(finalThumbUrl); }
         if (!current.local_thumbnail && localThumb)   { updates.push('local_thumbnail = ?'); params.push(localThumb); }
         if (!current.author_url && meta.author_url)   { updates.push('author_url = ?');     params.push(meta.author_url); }
@@ -2177,8 +2183,8 @@ router.post('/import', (req, res) => {
 
     // Step 2: Insert links — include local_thumbnail so cards show immediately
     const insertOrIgnore = db.prepare(`
-      INSERT OR IGNORE INTO links (url, source, title, description, thumbnail_url, local_thumbnail, tags, note, created_at, updated_at, author_url)
-      VALUES (@url, @source, @title, @description, @thumbnail_url, @local_thumbnail, @tags, @note, @created_at, @updated_at, @author_url)
+      INSERT OR IGNORE INTO links (url, source, title, description, thumbnail_url, local_thumbnail, tags, note, created_at, updated_at, author_url, space, media_path, media_type, media_saved, file_path)
+      VALUES (@url, @source, @title, @description, @thumbnail_url, @local_thumbnail, @tags, @note, @created_at, @updated_at, @author_url, COALESCE(@space, 'eye'), @media_path, @media_type, @media_saved, @file_path)
     `);
 
     const importTransaction = db.transaction(() => {
@@ -2202,6 +2208,11 @@ router.post('/import', (req, res) => {
           created_at: link.created_at || new Date().toISOString(),
           updated_at: link.updated_at || new Date().toISOString(),
           author_url: link.author_url || null,
+          space: link.space || 'eye',
+          media_path: link.media_path || null,
+          media_type: link.media_type || null,
+          media_saved: link.media_saved || 0,
+          file_path: link.file_path || null,
         });
 
         if (result.changes > 0) {
@@ -2390,12 +2401,53 @@ router.post('/repair-thumbnails', async (req, res) => {
       }
 
       try {
-        const newFile = await downloadThumbnail(fallbackUrl);
+        let newFile = await downloadThumbnail(fallbackUrl);
+
+        // If URL download failed (e.g. expired Instagram CDN URL),
+        // try generating thumbnail from downloaded media file
+        if (!newFile && link.media_path) {
+          const localMedia = path.join(MEDIA_DIR, link.media_path);
+          if (fs.existsSync(localMedia)) {
+            const ext = path.extname(localMedia).toLowerCase();
+            if (['.mp4', '.webm', '.mov', '.mkv', '.avi'].includes(ext)) {
+              console.log(`[Repair] URL expired, generating thumbnail from local video: ${link.media_path}`);
+              newFile = generateVideoThumbnail(localMedia);
+            } else if (['.jpg', '.jpeg', '.png', '.webp', '.gif'].includes(ext)) {
+              console.log(`[Repair] URL expired, using local image as thumbnail: ${link.media_path}`);
+              const hash = require('crypto').createHash('md5').update(localMedia).digest('hex');
+              const thumbName = `${hash}.jpg`;
+              const thumbPath = path.join(THUMB_DIR, thumbName);
+              try {
+                fs.copyFileSync(localMedia, thumbPath);
+                newFile = thumbName;
+              } catch {}
+            }
+          }
+        }
+
+        // Last resort: try yt-dlp to re-fetch a fresh thumbnail URL
+        if (!newFile && link.url && (link.url.includes('instagram.com') || link.url.includes('youtube.com') || link.url.includes('vimeo.com'))) {
+          try {
+            console.log(`[Repair] Trying yt-dlp thumbnail extraction for: ${link.url}`);
+            const { execSync } = require('child_process');
+            const ytdlpPath = process.env.BUNDLED_BIN_PATH
+              ? path.join(process.env.BUNDLED_BIN_PATH, 'yt-dlp')
+              : 'yt-dlp';
+            const thumbUrl = execSync(
+              `"${ytdlpPath}" --get-thumbnail "${link.url}" 2>/dev/null`,
+              { encoding: 'utf-8', timeout: 15000 }
+            ).trim();
+            if (thumbUrl && thumbUrl.startsWith('http')) {
+              newFile = await downloadThumbnail(thumbUrl);
+            }
+          } catch {}
+        }
+
         if (newFile) {
           updateThumb.run(newFile, link.id);
           results.fixed++;
           results.details.push({ id: link.id, url: link.url, status: 'fixed', file: newFile });
-          console.log(`🔧 Repaired thumbnail [${link.id}]: ${link.url}`);
+          console.log(`[Repair] Repaired thumbnail [${link.id}]: ${link.url}`);
         } else {
           results.failed++;
           results.details.push({ id: link.id, url: link.url, status: 'download_failed' });
@@ -2467,12 +2519,16 @@ router.get('/clip-debug', async (req, res) => {
     report.settings_error = e.message;
   }
 
-  // 2. Python path resolution
+  // 2. Python path resolution (same order as ai.js / embeddings.js / whisper.js)
   const candidates = [
-    path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'clip-env', 'bin', 'python3'),
-    path.join(os.homedir(), 'Library', 'Application Support', 'MindVault', 'clip-env', 'bin', 'python3'),
-    process.env.DATA_PATH ? path.join(process.env.DATA_PATH, '..', 'clip-env', 'bin', 'python3') : null,
+    // Bundled python-standalone (primary — works in dev and DMG)
+    path.join(__dirname, '..', 'python-standalone', 'bin', 'python3'),
+    // Legacy clip-env (older builds)
     path.join(__dirname, '..', 'clip-env', 'bin', 'python3'),
+    path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'clip-env', 'bin', 'python3'),
+    // DATA_PATH sibling (edge case)
+    process.env.DATA_PATH ? path.join(process.env.DATA_PATH, '..', 'python-standalone', 'bin', 'python3') : null,
+    // System Python fallback
     '/opt/homebrew/bin/python3',
   ].filter(Boolean);
   report.python_candidates = candidates.map(p => ({ path: p, exists: require('fs').existsSync(p) }));
@@ -2538,6 +2594,67 @@ router.get('/clip-debug', async (req, res) => {
     });
   } else if (!report.latest_thumbnail) {
     report.clip_tagger_result = 'SKIPPED — no thumbnail found to test with';
+  }
+
+  res.json(report);
+});
+
+// GET /api/whisper-debug
+// Diagnostic endpoint: checks if Whisper is available and functional.
+router.get('/whisper-debug', async (req, res) => {
+  const { execFile } = require('child_process');
+  const os = require('os');
+  const report = {};
+
+  // 1. Python path resolution (same as whisper.js)
+  const candidates = [
+    path.join(__dirname, '..', 'python-standalone', 'bin', 'python3'),
+    process.env.DATA_PATH ? path.join(process.env.DATA_PATH, '..', 'python-standalone', 'bin', 'python3') : null,
+    path.join(__dirname, '..', 'clip-env', 'bin', 'python3'),
+    '/opt/homebrew/bin/python3',
+  ].filter(Boolean);
+  const pythonCmd = candidates.find(p => require('fs').existsSync(p)) || 'python3';
+  report.python_resolved = pythonCmd;
+
+  // 2. Can whisper be imported?
+  await new Promise(resolve => {
+    execFile(pythonCmd, ['-c', 'import whisper; print(f"whisper {whisper.__version__}")'], { timeout: 15000 }, (err, stdout) => {
+      report.whisper_import = err ? `FAIL: ${err.message}` : stdout.trim();
+      resolve();
+    });
+  });
+
+  // 3. Can torch be used with MPS?
+  await new Promise(resolve => {
+    execFile(pythonCmd, ['-c', 'import torch; print(f"torch {torch.__version__}, mps={torch.backends.mps.is_available()}")'], { timeout: 10000 }, (err, stdout) => {
+      report.torch_mps = err ? `FAIL: ${err.message}` : stdout.trim();
+      resolve();
+    });
+  });
+
+  // 4. Check whisper_transcriber.py exists
+  const scriptPath = path.join(__dirname, 'whisper_transcriber.py');
+  report.transcriber_script = fs.existsSync(scriptPath) ? 'exists' : 'MISSING';
+
+  // 5. Check ffmpeg available (needed for whisper audio extraction)
+  await new Promise(resolve => {
+    execFile('ffmpeg', ['-version'], { timeout: 5000 }, (err, stdout) => {
+      report.ffmpeg = err ? `FAIL: ${err.message}` : stdout.split('\n')[0];
+      resolve();
+    });
+  });
+
+  // 6. Quick test: transcribe a short silent segment if a media file exists
+  try {
+    const mediaDir = MEDIA_DIR;
+    if (fs.existsSync(mediaDir)) {
+      const videos = fs.readdirSync(mediaDir).filter(f => /\.(mp4|webm|mov)$/i.test(f));
+      report.media_dir = mediaDir;
+      report.video_count = videos.length;
+      report.sample_video = videos.length > 0 ? videos[0] : null;
+    }
+  } catch (e) {
+    report.media_error = e.message;
   }
 
   res.json(report);

@@ -161,13 +161,13 @@ export default function CollectionsGrid() {
         <div className="loading"><div className="spinner" /></div>
       ) : error ? (
         <div className="empty">
-          <div className="empty-icon">⚡</div>
+          <div className="empty-icon" style={{fontSize: 24, opacity: 0.3}}>—</div>
           <h2>Backend not reachable</h2>
           <p>Start the backend with:<br /><code>cd backend && npm run dev</code></p>
         </div>
       ) : collections.length === 0 ? (
         <div className="empty">
-          <div className="empty-icon">📁</div>
+          <div className="empty-icon" style={{fontSize: 24, opacity: 0.3}}>—</div>
           <h2>No collections yet</h2>
           <p>Create your first collection to group links.</p>
           <button className="collection-create-btn" onClick={() => setShowForm(true)} style={{ marginTop: '1rem' }}>

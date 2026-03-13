@@ -1,6 +1,17 @@
 /** @type {import('next').NextConfig} */
 const path = require('path');
 
+// Load SENTRY_DSN from backend/.env so it's available at Next.js build time.
+// NEXT_PUBLIC_* vars are baked into the JS bundle during `next build`.
+try { require('dotenv').config({ path: path.join(__dirname, '..', 'backend', '.env') }); } catch (_) {}
+if (process.env.SENTRY_DSN)         process.env.NEXT_PUBLIC_SENTRY_DSN     = process.env.SENTRY_DSN;
+if (process.env.LS_CHECKOUT_URL)    process.env.NEXT_PUBLIC_LS_CHECKOUT_URL = process.env.LS_CHECKOUT_URL;
+
+// @sentry/nextjs is optional — gracefully degrade if not installed yet
+const withSentryConfig = (() => {
+  try { return require('@sentry/nextjs').withSentryConfig; } catch (_) { return (c) => c; }
+})();
+
 // CF_PAGES=1 is set automatically by Cloudflare Pages during build.
 // In Electron / local dev this variable is not set, so standalone mode stays active.
 const isCloudflare = process.env.CF_PAGES === '1';
@@ -32,4 +43,11 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withSentryConfig(nextConfig, {
+  // Sentry webpack plugin options (only active when @sentry/nextjs is installed)
+  silent:             true,  // suppress verbose build output
+  hideSourceMaps:     true,  // don't expose source maps to users
+  disableLogger:      true,
+  // Skip Sentry build steps if DSN not configured
+  dryRun:             !process.env.SENTRY_DSN,
+});

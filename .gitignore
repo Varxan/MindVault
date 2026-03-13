@@ -18,6 +18,9 @@ backend/data/
 dist/
 out/
 
+# Generierte License Keys — nie auf GitHub!
+keys/
+
 # CLIP bundle — build artifacts, nicht in git
 # Erstellen mit: bash backend/scripts/build-clip-bundle.sh
 backend/clip-env/

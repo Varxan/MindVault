@@ -3,7 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const { MEDIA_DIR } = require('./downloader');
 
-const DATA_ROOT = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+const os = require('os');
+const DEV_DATA_ROOT = path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
+const DATA_ROOT = process.env.DATA_PATH || DEV_DATA_ROOT;
 const GIF_DIR = path.join(DATA_ROOT, 'gifs');
 
 // Resolve ffmpeg/ffprobe — bundled binary takes priority over system install

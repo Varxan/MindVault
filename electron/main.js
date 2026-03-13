@@ -8,7 +8,68 @@ const https = require('https');
 const fs = require('fs');
 const os = require('os');
 
-// Kill any process occupying our ports before starting servers
+// ── Sentry (Main Process) ─────────────────────────────────────────────────────
+// Lightweight error reporting using built-in https — no extra npm package needed.
+// Reads SENTRY_DSN from backend/.env at runtime. Silently skipped in dev mode
+// or when DSN is not configured.
+
+function parseSentryDsn(dsn) {
+  try {
+    const url = new URL(dsn);
+    return { publicKey: url.username, projectId: url.pathname.replace('/', '') };
+  } catch (_) { return null; }
+}
+
+function sentryReport(error, extra = {}) {
+  const dsn = loadEnvVar('SENTRY_DSN');
+  if (!dsn || isDev) return;
+  const parsed = parseSentryDsn(dsn);
+  if (!parsed) return;
+
+  try {
+    const { randomUUID } = require('crypto');
+    const frames = (error.stack || '').split('\n').slice(1).map(line => {
+      const m = line.trim().match(/at (.+) \((.+):(\d+):(\d+)\)/) ||
+                line.trim().match(/at (.+):(\d+):(\d+)/);
+      if (!m) return null;
+      return { function: m[1], filename: m[2] || m[1], lineno: parseInt(m[3] || m[2]) };
+    }).filter(Boolean).reverse();
+
+    const body = JSON.stringify({
+      event_id:    randomUUID().replace(/-/g, ''),
+      timestamp:   new Date().toISOString(),
+      platform:    'node',
+      level:       'error',
+      release:     `mindvault@${app.getVersion?.() || '1.0.0'}`,
+      environment: 'production',
+      exception:   { values: [{ type: error.name || 'Error', value: error.message, stacktrace: { frames } }] },
+      extra,
+    });
+
+    const req = https.request(`https://sentry.io/api/${parsed.projectId}/store/`, {
+      method:  'POST',
+      headers: {
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        'X-Sentry-Auth':  `Sentry sentry_version=7, sentry_client=mindvault/1.0, sentry_key=${parsed.publicKey}`,
+      },
+    });
+    req.on('error', () => {}); // never crash from error reporting
+    req.write(body);
+    req.end();
+    log(`[Sentry] Reported: ${error.message}`);
+  } catch (_) {}
+}
+
+function initSentry() {
+  const dsn = loadEnvVar('SENTRY_DSN');
+  if (!dsn || isDev) return;
+  process.on('uncaughtException',  (err) => { log(`[Crash] ${err.message}`); sentryReport(err, { source: 'uncaughtException' }); });
+  process.on('unhandledRejection', (err) => { log(`[Crash] ${err?.message || err}`); sentryReport(err instanceof Error ? err : new Error(String(err)), { source: 'unhandledRejection' }); });
+  log('[Sentry] Main process error monitoring active');
+}
+
+// ── Kill any process occupying our ports before starting servers ──────────────
 // Prevents EADDRINUSE crashes when a previous MindVault instance didn't exit cleanly
 function freePort(port) {
   try {
@@ -581,47 +642,41 @@ function saveDownloadFolder(folder) {
 
 // Register IPC handlers for download folder
 function registerDownloadHandlers() {
-  // Get current folder
   ipcMain.handle('download:getFolder', () => loadDownloadFolder());
-
-  // Save As: show native Save dialog, then stream the file from the backend.
-  ipcMain.handle('download:saveAs', async (_, { url, filename }) => {
-    try {
-      const result = await dialog.showSaveDialog(mainWindow, {
-        title:       'Save As',
-        defaultPath: path.join(loadDownloadFolder(), filename),
-        buttonLabel: 'Save',
-      });
-      if (result.canceled || !result.filePath) return { canceled: true };
-
-      const destPath = result.filePath;
-      await new Promise((resolve, reject) => {
-        const fileStream = fs.createWriteStream(destPath);
-        http.get(url, (response) => {
-          if (response.statusCode !== 200) {
-            fileStream.close();
-            fs.unlink(destPath, () => {});
-            reject(new Error(`Backend returned ${response.statusCode}`));
-            return;
-          }
-          response.pipe(fileStream);
-          fileStream.on('finish', () => { fileStream.close(); resolve(); });
-          fileStream.on('error', (err) => { fs.unlink(destPath, () => {}); reject(err); });
-        }).on('error', (err) => { fs.unlink(destPath, () => {}); reject(err); });
-      });
-
-      return { canceled: false, path: destPath, filename: path.basename(destPath) };
-    } catch (err) {
-      log(`[Download] saveAs error: ${err.message}`);
-      throw err; // re-throw so renderer catch block handles it
-    }
-  });
 }
 
-// Set up the will-download handler: always auto-saves to ~/Downloads, no dialog.
+// Set up the will-download handler.
+// Detects Save As mode by checking for ?saveAs=1 in the download URL —
+// no preload IPC needed, works regardless of preload version.
+// Normal download: auto-saves directly to the configured folder (no dialog).
+// Save As:  shows native macOS Save dialog, user picks location.
 function setupAutoDownload(session) {
   session.on('will-download', (event, item) => {
-    // Auto-save to configured folder
+    const downloadUrl = item.getURL();
+    const isSaveAs    = downloadUrl.includes('saveAs=1');
+
+    if (isSaveAs) {
+      log(`[Download] Save As mode — showing native Save dialog`);
+      // Suggest a sensible default path; user can change folder + filename
+      item.setSaveDialogOptions({
+        title:       'Save As',
+        defaultPath: path.join(loadDownloadFolder(), item.getFilename()),
+        buttonLabel: 'Save',
+      });
+      // Do NOT call setSavePath() — Electron shows the dialog automatically
+      item.on('done', (_, state) => {
+        if (state === 'completed') {
+          const savedPath = item.getSavePath();
+          log(`[Download] Save As completed: ${savedPath}`);
+          mainWindow?.webContents.executeJavaScript(
+            `window.dispatchEvent(new CustomEvent('mv:download-done', { detail: ${JSON.stringify({ path: savedPath, filename: path.basename(savedPath) })} }));`
+          ).catch(() => {});
+        }
+      });
+      return;
+    }
+
+    // Normal download: auto-save to configured folder, no dialog
     const folder   = loadDownloadFolder();
     const filename = item.getFilename();
     let finalPath  = path.join(folder, filename);
@@ -637,6 +692,7 @@ function setupAutoDownload(session) {
 
     item.on('done', (_, state) => {
       if (state === 'completed') {
+        log(`[Download] Auto-saved: ${finalPath}`);
         mainWindow?.webContents.executeJavaScript(
           `window.dispatchEvent(new CustomEvent('mv:download-done', { detail: ${JSON.stringify({ path: finalPath, filename: path.basename(finalPath) })} }));`
         ).catch(() => {});
@@ -678,8 +734,8 @@ function showLicenseDialog() {
       type:    'info',
       title:   'License',
       message: days > 0 ? `Trial — ${days} day${days !== 1 ? 's' : ''} remaining` : 'Trial expired',
-      detail:  'Enter your license key to unlock MindVault.\nGet a license at mindvault.app',
-      buttons: ['Enter License Key', 'Cancel'],
+      detail:  'Enter your license key to unlock MindVault.\nGet a license at mindvault.ch',
+      buttons: ['Enter License Key', 'Buy a License', 'Cancel'],
       defaultId: 0,
       cancelId:  1,
     });
@@ -687,6 +743,8 @@ function showLicenseDialog() {
       mainWindow?.webContents.executeJavaScript(
         'window.dispatchEvent(new CustomEvent("mv:show-license-activation"));'
       ).catch(() => {});
+    } else if (response === 1) {
+      shell.openExternal('https://mind-vault.lemonsqueezy.com/checkout/buy/f07a3606-960c-4a05-9881-28586b688e99');
     }
   }
 }
@@ -699,6 +757,7 @@ app.whenReady().then(async () => {
   DATA_PATH = path.join(app.getPath('userData'), 'data');
 
   initLog();
+  initSentry();
   log(`[Electron] Starting MindVault (${isDev ? 'dev' : 'production'})…`);
   log(`[Electron] Electron version: ${process.versions.electron}`);
   log(`[Electron] Node version: ${process.versions.node}`);
@@ -732,13 +791,13 @@ app.whenReady().then(async () => {
 
 function runClipSetupIfNeeded() {
   const bundledPython = isDev
-    ? path.join(__dirname, '..', 'backend', 'clip-env', 'bin', 'python3')
-    : path.join(process.resourcesPath, 'backend', 'clip-env', 'bin', 'python3');
+    ? path.join(__dirname, '..', 'backend', 'python-standalone', 'bin', 'python3')
+    : path.join(process.resourcesPath, 'backend', 'python-standalone', 'bin', 'python3');
 
   if (fs.existsSync(bundledPython)) {
-    log('[CLIP] ✅ Bundled clip-env found — CLIP ready.');
+    log('[CLIP] Bundled python-standalone found — CLIP + Whisper ready.');
   } else {
-    log('[CLIP] ⚠️  Bundled clip-env NOT found. Was build-clip-bundle.sh run before npm run dist?');
+    log('[CLIP] Bundled python-standalone NOT found. Was build-clip-bundle.sh run before npm run dist?');
     // Non-fatal: backend will fall back to userData clip-env or system python if available
   }
 }

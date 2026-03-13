@@ -22,13 +22,13 @@ function getWhisperPython() {
   const os = require('os');
 
   const candidates = [
-    // 1. Preferred: venv installed by setup-clip.sh into userData (DMG + dev)
-    path.join(os.homedir(), 'Library', 'Application Support', 'MindVault', 'clip-env', 'bin', 'python3'),
+    // 1. Standalone Python — portable, no venv issues, works on any Mac
+    path.join(__dirname, '..', 'python-standalone', 'bin', 'python3'),
     // 2. DATA_PATH sibling (set by Electron)
     process.env.DATA_PATH
-      ? path.join(process.env.DATA_PATH, '..', 'clip-env', 'bin', 'python3')
+      ? path.join(process.env.DATA_PATH, '..', 'python-standalone', 'bin', 'python3')
       : null,
-    // 3. Dev mode: clip-env inside backend/ project folder
+    // 3. Legacy: old clip-env venv (older builds)
     path.join(__dirname, '..', 'clip-env', 'bin', 'python3'),
     // 4. Homebrew Python as last resort
     '/opt/homebrew/bin/python3',

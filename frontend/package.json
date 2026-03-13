@@ -11,6 +11,7 @@
     "preview": "npx wrangler pages dev .vercel/output/static"
   },
   "dependencies": {
+    "@sentry/nextjs": "^8.0.0",
     "@supabase/supabase-js": "^2.49.2",
     "fuse.js": "^7.1.0",
     "next": "^15.0.0",

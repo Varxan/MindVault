@@ -16,6 +16,5 @@ contextBridge.exposeInMainWorld('electron', {
   // License activation (trial → licensed)
   activateLicense: (key) => ipcRenderer.invoke('activation:activateLicenseExpired', key),
   // Download
-  getDownloadFolder: ()               => ipcRenderer.invoke('download:getFolder'),
-  saveAsFile:        (url, filename)  => ipcRenderer.invoke('download:saveAs', { url, filename }),
+  getDownloadFolder: () => ipcRenderer.invoke('download:getFolder'),
 });

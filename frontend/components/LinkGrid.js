@@ -712,10 +712,10 @@ export default function LinkGrid() {
                                                        '#94a3b8',
         }}>
           <span style={{ fontSize: '15px' }}>
-            {aiStatus.errorType === 'rate_limit' ? '⏳' :
-             aiStatus.errorType === 'auth'       ? '🔑' :
-             aiStatus.errorType === 'billing'    ? '💳' :
-             aiStatus.errorType === 'network'    ? '📡' : '⚠️'}
+            {aiStatus.errorType === 'rate_limit' ? '·' :
+             aiStatus.errorType === 'auth'       ? '·' :
+             aiStatus.errorType === 'billing'    ? '·' :
+             aiStatus.errorType === 'network'    ? '·' : '·'}
           </span>
           <span>
             <strong>AI tagging paused</strong> — {aiStatus.message}
@@ -892,7 +892,7 @@ export default function LinkGrid() {
                     <div className="settings-section-label">Data</div>
                     <button className="settings-item" onClick={() => { setSettingsPage('backup'); setSettingsActioned(false); }}>
                       Backup
-                      <span className="settings-item-sub">{settingsStatus.cloud_backup_path ? '☁️ Cloud sync active' : 'Backup & Import'}</span>
+                      <span className="settings-item-sub">{settingsStatus.cloud_backup_path ? 'Cloud sync active' : 'Backup & Import'}</span>
                     </button>
                     <div className="settings-divider" />
                     <button className="settings-item" onClick={() => { importRef.current?.click(); }}>

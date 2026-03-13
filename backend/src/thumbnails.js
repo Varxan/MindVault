@@ -4,7 +4,9 @@ const path = require('path');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 
-const DATA_ROOT = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+const os = require('os');
+const DEV_DATA_ROOT_TH = path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
+const DATA_ROOT = process.env.DATA_PATH || DEV_DATA_ROOT_TH;
 const THUMB_DIR = path.join(DATA_ROOT, 'thumbnails');
 
 // Resolve ffmpeg — bundled binary takes priority over system install

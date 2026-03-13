@@ -28,37 +28,47 @@ echo "  clip-env:    $VENV_DIR"
 echo "  clip-models: $MODELS_DIR"
 echo ""
 
-# ── Find Python 3 ─────────────────────────────────────────────────────────────
-PYTHON=""
-for cmd in /opt/homebrew/bin/python3 /usr/local/bin/python3 python3; do
-  if command -v "$cmd" &>/dev/null; then
-    VER=$("$cmd" -c "import sys; print(sys.version_info.major)" 2>/dev/null)
-    if [ "$VER" = "3" ]; then
-      PYTHON="$cmd"
-      break
-    fi
-  fi
-done
+# ── Download & use standalone Python (portable, no Homebrew dependency) ────────
+# python-build-standalone creates a self-contained Python binary that works
+# on any macOS without Homebrew, Xcode, or any system Python installed.
+# This is critical for the DMG to work on Beta-Tester machines.
 
-if [ -z "$PYTHON" ]; then
-  echo "❌ Python 3 not found. Install via: brew install python"
-  exit 1
+STANDALONE_DIR="$BACKEND_DIR/python-standalone"
+STANDALONE_PYTHON="$STANDALONE_DIR/bin/python3"
+PYTHON_VERSION="3.11.10"
+PYTHON_DATE="20241016"
+PYTHON_ARCHIVE="cpython-${PYTHON_VERSION}+${PYTHON_DATE}-aarch64-apple-darwin-install_only.tar.gz"
+PYTHON_URL="https://github.com/astral-sh/python-build-standalone/releases/download/${PYTHON_DATE}/${PYTHON_ARCHIVE}"
+
+if [ ! -f "$STANDALONE_PYTHON" ]; then
+  echo "📥 Downloading standalone Python ${PYTHON_VERSION} (portable, ~50 MB)…"
+  echo "   Source: $PYTHON_URL"
+  mkdir -p "$STANDALONE_DIR"
+  TMP_ARCHIVE="/tmp/${PYTHON_ARCHIVE}"
+  curl -L --progress-bar "$PYTHON_URL" -o "$TMP_ARCHIVE"
+  tar -xzf "$TMP_ARCHIVE" -C "$STANDALONE_DIR" --strip-components=1
+  rm -f "$TMP_ARCHIVE"
+  echo "   ✅ Standalone Python at $STANDALONE_PYTHON"
+else
+  echo "✅ Standalone Python already present: $STANDALONE_PYTHON"
 fi
 
-echo "✅ Python: $PYTHON ($($PYTHON --version))"
+PYTHON="$STANDALONE_PYTHON"
+echo "   Version: $($PYTHON --version)"
 
-# ── Create venv ────────────────────────────────────────────────────────────────
+# ── Install packages directly into standalone Python (no venv — fully portable)
+# A venv creates absolute symlinks that break on other Macs.
+# Installing directly into python-standalone means the Python binary
+# is self-contained and works anywhere — no path issues, no pyvenv.cfg.
 echo ""
-echo "📁 Creating virtual environment…"
-rm -rf "$VENV_DIR"
-"$PYTHON" -m venv "$VENV_DIR"
-VENV_PYTHON="$VENV_DIR/bin/python3"
-echo "   ✅ venv at $VENV_DIR"
+echo "📦 Installing packages into standalone Python (portable, no venv)…"
+rm -rf "$VENV_DIR"  # Remove any old venv
+VENV_PYTHON="$STANDALONE_PYTHON"
+"$VENV_PYTHON" -m pip install --upgrade pip --quiet
 
 # ── Install PyTorch ────────────────────────────────────────────────────────────
 echo ""
 echo "📦 Installing PyTorch (~500 MB)…"
-"$VENV_PYTHON" -m pip install --upgrade pip --quiet
 "$VENV_PYTHON" -m pip install torch torchvision --quiet 2>&1 | tail -3
 echo "   ✅ PyTorch installed"
 
@@ -77,18 +87,22 @@ echo "📦 Installing sentence-transformers (~90 MB)…"
 "$VENV_PYTHON" -m pip install sentence-transformers --quiet 2>&1 | tail -3
 echo "   ✅ sentence-transformers installed"
 
-# ── Prune unnecessary packages (not needed for inference) ─────────────────────
-# These get pulled in as transitive deps but are only needed for training/math.
-# Removing them reduces clip-env size by ~140 MB without breaking CLIP or embeddings.
+# ── Install OpenAI Whisper ────────────────────────────────────────────────────
+echo ""
+echo "📦 Installing OpenAI Whisper (local speech-to-text)…"
+"$VENV_PYTHON" -m pip install openai-whisper --quiet 2>&1 | tail -3
+echo "   ✅ Whisper installed"
+
+# ── Prune unnecessary packages ────────────────────────────────────────────────
 echo ""
 echo "🧹 Pruning unused packages to reduce bundle size…"
-"$VENV_PYTHON" -m pip uninstall -y sympy networkx 2>/dev/null || true
-echo "   ✅ Pruned: sympy, networkx"
+"$VENV_PYTHON" -m pip uninstall -y networkx 2>/dev/null || true
+echo "   ✅ Pruned: networkx"
 
-# Remove __pycache__, test dirs, and dist-info to further reduce size
-find "$VENV_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-find "$VENV_DIR" -type d -name "tests" -path "*/site-packages/*" -exec rm -rf {} + 2>/dev/null || true
-find "$VENV_DIR" -name "*.pyc" -delete 2>/dev/null || true
+# Remove __pycache__ and .pyc files
+find "$STANDALONE_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+find "$STANDALONE_DIR" -type d -name "tests" -path "*/site-packages/*" -exec rm -rf {} + 2>/dev/null || true
+find "$STANDALONE_DIR" -name "*.pyc" -delete 2>/dev/null || true
 echo "   ✅ Removed __pycache__ and .pyc files"
 
 # ── Pre-download model weights into clip-models/ (optional, skipped in CI) ───

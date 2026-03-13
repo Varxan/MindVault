@@ -1,9 +1,36 @@
 const { execFile, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const fetch = require('node-fetch');
 
-const DATA_ROOT = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+/**
+ * Detect which browser's cookies yt-dlp can use on this machine.
+ * Returns e.g. ['--cookies-from-browser', 'firefox'] or [] if none found.
+ *
+ * Why: python-build-standalone ships without a cookie database.
+ * `--cookies-from-browser` requires that the browser's profile folder exists
+ * on the CURRENT USER's machine. On a fresh Mac account it doesn't, which
+ * causes yt-dlp to abort with "could not find … cookies database".
+ * We check before adding the flag so downloads work on any account.
+ */
+function getCookieArgs() {
+  const home = os.homedir();
+  const candidates = [
+    { browser: 'firefox', path: path.join(home, 'Library', 'Application Support', 'Firefox', 'Profiles') },
+    { browser: 'chrome',  path: path.join(home, 'Library', 'Application Support', 'Google', 'Chrome', 'Default') },
+    { browser: 'chromium',path: path.join(home, 'Library', 'Application Support', 'Chromium', 'Default') },
+  ];
+  for (const { browser, path: p } of candidates) {
+    try {
+      if (fs.existsSync(p)) return ['--cookies-from-browser', browser];
+    } catch {}
+  }
+  return []; // no supported browser found — proceed without cookies
+}
+
+const DEV_DATA_ROOT = path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
+const DATA_ROOT = process.env.DATA_PATH || DEV_DATA_ROOT;
 const MEDIA_DIR = path.join(DATA_ROOT, 'media');
 
 // Ensure media directory exists
@@ -28,7 +55,7 @@ function findYtdlp() {
     '/opt/homebrew/bin/yt-dlp',      // Homebrew on Apple Silicon
     '/usr/local/bin/yt-dlp',         // Homebrew on Intel
     '/usr/bin/yt-dlp',               // system install
-    path.join(process.env.HOME || '', '.local/bin/yt-dlp'), // pip --user install
+    path.join(os.homedir(), '.local/bin/yt-dlp'), // pip --user install
   ].filter(Boolean);
 
   for (const p of candidates) {
@@ -76,7 +103,7 @@ function getMediaInfo(url) {
       '--no-download',
       '--no-warnings',
       '--playlist-items', '1',
-      '--cookies-from-browser', 'firefox',
+      ...getCookieArgs(),
       '--sleep-requests', '1',
       cleanUrl,
     ], { timeout: 30000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
@@ -118,7 +145,7 @@ function probeUrl(cleanUrl) {
   return new Promise((resolve, reject) => {
     execFile(YTDLP, [
       '--dump-json', '--no-download', '--no-warnings',
-      '--cookies-from-browser', 'firefox',
+      ...getCookieArgs(),
       cleanUrl,
     ], { timeout: 30000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
       if (err) return reject(err);
@@ -376,7 +403,7 @@ function downloadMedia(url, linkId) {
       '-o', outputTemplate,
       '--no-warnings',
       '--restrict-filenames',
-      '--cookies-from-browser', 'firefox',
+      ...getCookieArgs(),
       // Best quality video+audio, max 1080p
       '-f', 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best',
       '--merge-output-format', 'mp4',

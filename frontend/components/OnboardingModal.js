@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import MobileQRSection from './MobileQRSection';
 import { getApiBase } from '../lib/config';
 
@@ -11,10 +11,12 @@ export default function OnboardingModal({ onComplete }) {
   const [telegramToken, setTelegramToken] = useState('');
   const [savingToken, setSavingToken] = useState(false);
   const [tokenSaved, setTokenSaved] = useState(false);
+  const [wantsTelegram, setWantsTelegram] = useState(null); // null = not answered, true/false
   const [apiKey, setApiKey] = useState('');
   const [apiProvider, setApiProvider] = useState('openai');
   const [savingApi, setSavingApi] = useState(false);
   const [apiSaved, setApiSaved] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const progress = ((step - 1) / (TOTAL_STEPS - 1)) * 100;
 
@@ -221,13 +223,25 @@ export default function OnboardingModal({ onComplete }) {
         {step === 1 && (
           <>
             <div className="ob-body">
-              <div className="ob-step-label">Step 1 of {TOTAL_STEPS} — Welcome</div>
+              <div className="ob-step-label">Step 1 of {TOTAL_STEPS}</div>
               <div className="ob-title">Welcome to MindVault</div>
               <div className="ob-desc">
-                MindVault is your personal visual reference library — built for filmmakers, directors, and creative professionals.<br /><br />
-                It has two spaces:<br />
-                <strong style={{ color: 'var(--text)' }}>EYE</strong> — save visual inspiration: images, videos, clips, moods.<br />
-                <strong style={{ color: 'var(--text)' }}>MIND</strong> — save knowledge: articles, tutorials, references, transcripts.<br /><br />
+                MindVault is your personal visual reference library, built for filmmakers, directors, and creative professionals.<br /><br />
+                It has two spaces:
+              </div>
+              <div className="ob-backup-info" style={{marginBottom: 12}}>
+                <div className="ob-backup-text">
+                  <strong>Eye</strong><br />
+                  For visual inspiration: images, stills, clips, moods. The AI analyzes your content visually and tags it based on what it sees.
+                </div>
+              </div>
+              <div className="ob-backup-info" style={{marginBottom: 16}}>
+                <div className="ob-backup-text">
+                  <strong>Mind</strong><br />
+                  For knowledge: articles, tutorials, references. The AI goes deeper and also analyzes the actual content, not just what it looks like.
+                </div>
+              </div>
+              <div className="ob-desc" style={{marginBottom: 0}}>
                 Everything is stored locally on your machine. Nothing leaves your computer unless you choose to back it up.
               </div>
             </div>
@@ -242,12 +256,19 @@ export default function OnboardingModal({ onComplete }) {
         {step === 2 && (
           <>
             <div className="ob-body">
-              <div className="ob-step-label">Step 2 of {TOTAL_STEPS} — Mobile App</div>
+              <div className="ob-step-label">Step 2 of {TOTAL_STEPS}</div>
               <div className="ob-title">Connect your phone</div>
               <div className="ob-desc">
-                MindVault has a companion mobile app (PWA). Scan the QR code below to install it on your phone — no App Store needed. Once connected, you can save links and browse your library on the go.
+                MindVault has a companion mobile app (PWA). Scan the QR code below to install it on your phone, no App Store needed.
               </div>
               <MobileQRSection />
+              <div className="ob-backup-info" style={{marginTop: 16}}>
+                <span className="ob-backup-icon" style={{fontSize: 11, fontWeight: 600, color: '#c8a84b'}}>tip</span>
+                <div className="ob-backup-text">
+                  <strong>Tip: Add MindVault to your share favorites</strong><br />
+                  On your phone, open any content and tap the <strong>Share</strong> button. Find MindVault in the app row — on iOS tap <strong>More</strong> to add it to favorites, on Android long-press to pin it. This way MindVault always shows up first when you share something.
+                </div>
+              </div>
             </div>
             <div className="ob-footer">
               <button className="ob-btn-skip" onClick={() => setStep(3)}>Skip for now</button>
@@ -256,89 +277,148 @@ export default function OnboardingModal({ onComplete }) {
           </>
         )}
 
-        {/* ── Step 3: Telegram Bot ── */}
+        {/* ── Step 3: Telegram Bot (Optional) ── */}
         {step === 3 && (
           <>
             <div className="ob-body">
-              <div className="ob-step-label">Step 3 of {TOTAL_STEPS} — Telegram Bot</div>
+              <div className="ob-step-label">Step 3 of {TOTAL_STEPS} (Optional)</div>
               <div className="ob-title">Save links via Telegram</div>
-              <div className="ob-desc">
-                Connect a Telegram bot to send links directly to MindVault from any device — just forward a message or paste a URL.
-              </div>
-              <ul className="ob-instruction-list">
-                <li>
-                  <span className="ob-step-num">1</span>
-                  <span>Open Telegram and search for <strong style={{color:'var(--text)'}}>@BotFather</strong></span>
-                </li>
-                <li>
-                  <span className="ob-step-num">2</span>
-                  <span>Send <code style={{background:'var(--bg)',padding:'1px 5px',borderRadius:'4px',fontSize:'11px'}}>/newbot</code> and follow the prompts</span>
-                </li>
-                <li>
-                  <span className="ob-step-num">3</span>
-                  <span>Copy the token (e.g. <code style={{background:'var(--bg)',padding:'2px 6px',borderRadius:'4px',fontSize:'10px',letterSpacing:'-0.02em'}}>123456789:AAFxx…</code>) and paste it below</span>
-                </li>
-                <li>
-                  <span className="ob-step-num">4</span>
-                  <span>Open your bot in Telegram and send <code style={{background:'var(--bg)',padding:'1px 5px',borderRadius:'4px',fontSize:'11px'}}>/start</code></span>
-                </li>
-              </ul>
-              <input
-                className="ob-input"
-                type="text"
-                placeholder="Paste your bot token here..."
-                value={telegramToken}
-                onChange={e => setTelegramToken(e.target.value)}
-              />
-              {tokenSaved ? (
-                <div className="ob-saved-badge">✓ Bot connected successfully</div>
+              {wantsTelegram === null ? (
+                <>
+                  <div className="ob-desc">
+                    You can connect a Telegram bot to send links directly to MindVault from any device. This is completely optional.
+                  </div>
+                  <div className="ob-desc" style={{fontWeight: 600, color: 'var(--text)', marginBottom: 16}}>
+                    Do you want to set up a Telegram bot?
+                  </div>
+                  <div style={{display: 'flex', gap: 10}}>
+                    <button
+                      className="ob-btn-primary"
+                      style={{flex: 1, background: 'rgba(200,168,75,0.15)', color: '#c8a84b'}}
+                      onClick={() => setWantsTelegram(true)}
+                    >
+                      Yes, set it up
+                    </button>
+                    <button
+                      className="ob-btn-primary"
+                      style={{flex: 1, background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)'}}
+                      onClick={() => setStep(4)}
+                    >
+                      No, skip this
+                    </button>
+                  </div>
+                </>
               ) : (
-                <button
-                  className="ob-btn-primary"
-                  style={{ fontSize: '12px', padding: '8px 18px' }}
-                  onClick={handleSaveTelegram}
-                  disabled={savingToken || !telegramToken.trim()}
-                >
-                  {savingToken ? 'Connecting…' : 'Connect Bot'}
-                </button>
+                <>
+                  <div className="ob-desc">
+                    Great! Follow these steps to create your bot:
+                  </div>
+                  <ul className="ob-instruction-list">
+                    <li>
+                      <span className="ob-step-num">1</span>
+                      <span>Open Telegram and search for <strong style={{color:'var(--text)'}}>@BotFather</strong></span>
+                    </li>
+                    <li>
+                      <span className="ob-step-num">2</span>
+                      <span>Send <code style={{background:'var(--bg)',padding:'1px 5px',borderRadius:'4px',fontSize:'11px'}}>/newbot</code> and follow the prompts</span>
+                    </li>
+                    <li>
+                      <span className="ob-step-num">3</span>
+                      <span>Copy the token and paste it below</span>
+                    </li>
+                    <li>
+                      <span className="ob-step-num">4</span>
+                      <span>Open your bot in Telegram and send <code style={{background:'var(--bg)',padding:'1px 5px',borderRadius:'4px',fontSize:'11px'}}>/start</code></span>
+                    </li>
+                  </ul>
+                  <input
+                    className="ob-input"
+                    type="text"
+                    placeholder="Paste your bot token here..."
+                    value={telegramToken}
+                    onChange={e => setTelegramToken(e.target.value)}
+                  />
+                  {tokenSaved ? (
+                    <div className="ob-saved-badge">✓ Bot connected successfully</div>
+                  ) : (
+                    <button
+                      className="ob-btn-primary"
+                      style={{ fontSize: '12px', padding: '8px 18px' }}
+                      onClick={handleSaveTelegram}
+                      disabled={savingToken || !telegramToken.trim()}
+                    >
+                      {savingToken ? 'Connecting…' : 'Connect Bot'}
+                    </button>
+                  )}
+                </>
               )}
             </div>
             <div className="ob-footer">
-              <button className="ob-btn-skip" onClick={() => setStep(4)}>Skip for now</button>
-              <button className="ob-btn-primary" onClick={() => setStep(4)}>
-                {tokenSaved ? 'Next →' : 'Skip →'}
-              </button>
+              {wantsTelegram !== null ? (
+                <>
+                  <button className="ob-btn-skip" onClick={() => setStep(4)}>Skip</button>
+                  <button className="ob-btn-primary" onClick={() => setStep(4)}>
+                    {tokenSaved ? 'Next →' : 'Continue →'}
+                  </button>
+                </>
+              ) : <span />}
             </div>
           </>
         )}
 
-        {/* ── Step 4: Backup ── */}
+        {/* ── Step 4: Backup & Terms ── */}
         {step === 4 && (
           <>
             <div className="ob-body">
-              <div className="ob-step-label">Step 4 of {TOTAL_STEPS} — Backup</div>
+              <div className="ob-step-label">Step 4 of {TOTAL_STEPS}</div>
               <div className="ob-title">Your data, your control</div>
               <div className="ob-desc">
                 All your links, tags, and media are stored <strong style={{color:'var(--text)'}}>locally on your Mac</strong>. Nothing is sent to any server by default.
               </div>
               <div className="ob-backup-info">
-                <span className="ob-backup-icon">🔒</span>
+                <span className="ob-backup-icon" style={{fontSize: 14, color: 'var(--text-muted)', fontFamily: 'var(--font-body)'}}>—</span>
                 <div className="ob-backup-text">
                   <strong>Local storage</strong><br />
-                  Your database lives at <code style={{fontSize:'10px'}}>~/Library/Application Support/MindVault/</code>. It&apos;s yours — you can open, copy, or migrate it anytime.
+                  Your database lives in <code style={{fontSize:'10px'}}>~/Library/Application Support/mindvault/</code>. It&apos;s yours. You can open, copy, or migrate it anytime.
                 </div>
               </div>
               <div className="ob-backup-info">
-                <span className="ob-backup-icon">☁️</span>
+                <span className="ob-backup-icon" style={{fontSize: 14, color: 'var(--text-muted)', fontFamily: 'var(--font-body)'}}>—</span>
                 <div className="ob-backup-text">
                   <strong>Cloud Backup (optional)</strong><br />
-                  Point MindVault to a folder inside your Google Drive, iCloud, or Dropbox and it will automatically copy your database there on a regular basis. Set this up in <strong>Settings → Backup Path</strong> at any time.
+                  Point MindVault to a folder inside your Google Drive, iCloud, or Dropbox and it will automatically save backups there. Set this up in <strong>Settings → Backup Path</strong> at any time.
                 </div>
               </div>
+              <div className="ob-backup-info" style={{borderColor: 'rgba(200,168,75,0.3)', background: 'rgba(200,168,75,0.05)'}}>
+                <span className="ob-backup-icon" style={{fontSize: 14, color: '#c8a84b', fontFamily: 'var(--font-body)'}}>—</span>
+                <div className="ob-backup-text">
+                  <strong>Please note</strong><br />
+                  MindVault stores everything locally on your computer. While we do our best to keep your data safe, we cannot guarantee against data loss. We strongly recommend setting up a cloud backup. By continuing, you acknowledge that you are responsible for backing up your own data.
+                </div>
+              </div>
+              {!termsAccepted && (
+                <button
+                  className="ob-btn-primary"
+                  style={{width: '100%', marginTop: 8}}
+                  onClick={() => setTermsAccepted(true)}
+                >
+                  I understand, let&apos;s go
+                </button>
+              )}
+              {termsAccepted && (
+                <div className="ob-saved-badge" style={{marginTop: 8}}>✓ Accepted</div>
+              )}
             </div>
             <div className="ob-footer">
               <span />
-              <button className="ob-btn-primary" onClick={() => setStep(5)}>Got it →</button>
+              <button
+                className="ob-btn-primary"
+                onClick={() => setStep(5)}
+                disabled={!termsAccepted}
+                style={{opacity: termsAccepted ? 1 : 0.4, cursor: termsAccepted ? 'pointer' : 'not-allowed'}}
+              >
+                Next →
+              </button>
             </div>
           </>
         )}
@@ -347,16 +427,16 @@ export default function OnboardingModal({ onComplete }) {
         {step === 5 && (
           <>
             <div className="ob-body">
-              <div className="ob-step-label">Step 5 of {TOTAL_STEPS} — AI Tagging</div>
+              <div className="ob-step-label">Step 5 of {TOTAL_STEPS}</div>
               <div className="ob-title">Smart tagging with AI</div>
               <div className="ob-desc">
                 MindVault automatically tags your saved content using AI. You can use the <strong style={{color:'var(--text)'}}>local CLIP model</strong> (no internet, no key needed) or connect an API for more powerful tagging.
               </div>
               <div className="ob-backup-info" style={{marginBottom: 20}}>
-                <span className="ob-backup-icon">🖥️</span>
+                <span className="ob-backup-icon" style={{fontSize: 14, color: 'var(--text-muted)', fontFamily: 'var(--font-body)'}}>—</span>
                 <div className="ob-backup-text">
-                  <strong>Local CLIP</strong> — works offline, no cost, good quality. Runs on your machine.<br />
-                  <strong>API (OpenAI / Anthropic)</strong> — higher accuracy, custom tags, video understanding.
+                  <strong>Local CLIP</strong> works offline, no cost, good quality. Runs on your machine.<br />
+                  <strong>API (OpenAI / Anthropic)</strong> higher accuracy, custom tags, video understanding.
                 </div>
               </div>
               <div className="ob-provider-tabs">
@@ -394,33 +474,34 @@ export default function OnboardingModal({ onComplete }) {
         {step === 6 && (
           <>
             <div className="ob-body">
-              <div className="ob-step-label">Step 6 of {TOTAL_STEPS} — Browser Extension</div>
-              <div className="ob-title">Save from anywhere</div>
+              <div className="ob-step-label">Step 6 of {TOTAL_STEPS}</div>
+              <div className="ob-title">Browser Extension</div>
               <div className="ob-desc">
-                The MindVault browser extension lets you save any page, image, or video to your library with one click — without leaving your browser.
+                The MindVault browser extension lets you save any page, image, or video to your library with one click, without leaving your browser.
               </div>
-              <ul className="ob-instruction-list">
-                <li>
-                  <span className="ob-step-num">1</span>
-                  <span>Open <strong style={{color:'var(--text)'}}>Chrome</strong> and go to <code style={{background:'var(--bg)',padding:'1px 5px',borderRadius:'4px',fontSize:'11px'}}>chrome://extensions</code></span>
-                </li>
-                <li>
-                  <span className="ob-step-num">2</span>
-                  <span>Enable <strong style={{color:'var(--text)'}}>Developer Mode</strong> (top right toggle)</span>
-                </li>
-                <li>
-                  <span className="ob-step-num">3</span>
-                  <span>Click <strong style={{color:'var(--text)'}}>Load unpacked</strong> and select the <code style={{background:'var(--bg)',padding:'1px 5px',borderRadius:'4px',fontSize:'11px'}}>browser-extension/</code> folder inside your MindVault installation</span>
-                </li>
-                <li>
-                  <span className="ob-step-num">4</span>
-                  <span>Pin the extension to your toolbar and use <strong style={{color:'var(--text)'}}>⌘⇧E</strong> / <strong style={{color:'var(--text)'}}>⌘⇧M</strong> to save pages instantly</span>
-                </li>
-              </ul>
+              <div className="ob-backup-info" style={{marginBottom: 12}}>
+                <span className="ob-backup-icon" style={{fontSize: 14, color: 'var(--text-muted)', fontFamily: 'var(--font-body)'}}>—</span>
+                <div className="ob-backup-text">
+                  <strong>Chrome &amp; Edge</strong><br />
+                  Click the button below to install the extension. After installing, pin it to your toolbar for quick access. Use <strong>⌘⇧E</strong> (Eye) or <strong>⌘⇧M</strong> (Mind) to save pages instantly.
+                </div>
+              </div>
+              <button
+                className="ob-btn-primary"
+                style={{width: '100%', marginBottom: 12, padding: '12px 24px'}}
+                onClick={() => {
+                  window.open('https://mindvault.ch/extension', '_blank');
+                }}
+              >
+                Download Browser Extension
+              </button>
+              <div style={{fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, textAlign: 'center'}}>
+                Works with Chrome, Edge, Brave, and other Chromium browsers.
+              </div>
             </div>
             <div className="ob-footer">
               <button className="ob-btn-skip" onClick={() => setStep(7)}>Skip for now</button>
-              <button className="ob-btn-primary" onClick={() => setStep(7)}>Done, installed →</button>
+              <button className="ob-btn-primary" onClick={() => setStep(7)}>Next →</button>
             </div>
           </>
         )}
@@ -431,8 +512,8 @@ export default function OnboardingModal({ onComplete }) {
             <div className="ob-body" style={{textAlign:'center', paddingTop: 52}}>
               <div className="ob-title" style={{textAlign:'center'}}>You&apos;re all set</div>
               <div className="ob-desc" style={{textAlign:'center'}}>
-                MindVault is ready. Start saving links, building collections, and letting AI tag your references automatically.<br /><br />
-                You can revisit any of these settings at any time from the <strong style={{color:'var(--text)'}}>Settings panel</strong>.
+                MindVault is ready. Start saving links, building collections, and let AI tag your references automatically.<br /><br />
+                You can change any of these settings at any time from the <strong style={{color:'var(--text)'}}>Settings panel</strong>.
               </div>
             </div>
             <div className="ob-footer" style={{justifyContent:'center'}}>

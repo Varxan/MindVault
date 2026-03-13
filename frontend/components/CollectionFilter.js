@@ -5,7 +5,7 @@ export default function CollectionFilter({ collections, active, onChange }) {
 
   return (
     <div className="collection-filter">
-      <span className="collection-filter-label">📁</span>
+      <span className="collection-filter-label" style={{fontSize: 11, fontWeight: 600, opacity: 0.4}}>Collection</span>
       <button
         className={`source-btn ${!active ? 'active' : ''}`}
         onClick={() => onChange(null)}

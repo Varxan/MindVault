@@ -324,35 +324,12 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   const handleChangeDownloadFolder = async () => {
   };
 
-  // "Save As" — shows native macOS Save dialog, then streams file to chosen path.
-  // Falls back to regular download if saveAsFile IPC is unavailable (older preload).
-  const handleSaveAs = async (url, filename, onSuccess) => {
+  // "Save As" — passes saveAs=true to forceDownload, which appends ?saveAs=1
+  // to the URL. The main process will-download handler reads the URL directly —
+  // no preload IPC needed, no caching issues.
+  const handleSaveAs = (url, filename, onSuccess) => {
     setShowDownloadMenu(false);
-
-    // Build streaming download URL
-    const baseName = url.split('/').pop();
-    let type;
-    if (url.includes('/files/gifs/'))             type = 'gifs';
-    else if (url.includes('/files/clips/'))       type = 'clips';
-    else if (url.includes('/files/screenshots/')) type = 'screenshots';
-    const downloadUrl = type ? `${getApiBase()}/download-file/${type}/${baseName}` : url;
-
-    if (typeof window.electron?.saveAsFile === 'function') {
-      try {
-        const result = await window.electron.saveAsFile(downloadUrl, filename);
-        if (!result?.canceled) {
-          onSuccess?.();
-          setDownloadSuccess(`✓ Saved: ${result.filename}`);
-          setTimeout(() => setDownloadSuccess(null), 3000);
-        }
-        return;
-      } catch (err) {
-        // Fall through to regular download below
-      }
-    }
-
-    // Fallback: regular auto-download to ~/Downloads
-    forceDownload(downloadUrl, filename, onSuccess);
+    forceDownload(url, filename, onSuccess, true);
   };
 
   // Close dropdown when clicking outside
@@ -366,19 +343,20 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   }, [showDownloadMenu]);
 
   // Download a file — in Electron the will-download handler auto-saves to the
-  // chosen folder with no dialog. In the browser it falls back to a normal
-  // anchor-click download.
-  const forceDownload = (url, filename, onSuccess) => {
+  // chosen folder with no dialog. Pass saveAs=true to append ?saveAs=1 to the
+  // URL so the main process shows the native Save dialog for that one download.
+  const forceDownload = (url, filename, onSuccess, saveAs = false) => {
     // Route through streaming endpoint so backend can clean up the temp file
     let type;
     if (url.includes('/files/gifs/'))             type = 'gifs';
     else if (url.includes('/files/clips/'))       type = 'clips';
     else if (url.includes('/files/screenshots/')) type = 'screenshots';
 
-    const baseName   = url.split('/').pop();
-    const downloadUrl = type
+    const baseName   = url.split('/').pop().split('?')[0]; // strip any existing query params
+    const baseUrl    = type
       ? `${getApiBase()}/download-file/${type}/${baseName}`
-      : url;
+      : url.split('?')[0];
+    const downloadUrl = saveAs ? `${baseUrl}?saveAs=1` : baseUrl;
 
     // Anchor click — Electron's will-download handler intercepts this and
     // saves directly to the download folder without showing a dialog.
@@ -749,7 +727,7 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
                         className="vp-download-menu-item"
                         onClick={() => handleSaveAs(`${getApiBase()}${exportResult.clipUrl}`, exportResult.filename, () => setExportResult(null))}
                       >
-                        <span className="vp-dmenu-icon">📁</span> Save As…
+                        <span className="vp-dmenu-icon">↗</span> Save As…
                       </button>
                     </div>
                   )}
@@ -788,7 +766,7 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
                           handleSaveAs(url, gifResult.filename, () => setGifResult(null));
                         }}
                       >
-                        <span className="vp-dmenu-icon">📁</span> Save As…
+                        <span className="vp-dmenu-icon">↗</span> Save As…
                       </button>
                     </div>
                   )}

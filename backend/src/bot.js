@@ -1,6 +1,9 @@
 const { Telegraf } = require('telegraf');
 const path = require('path');
+const os = require('os');
 const { insertLink, db } = require('./database');
+const DEV_DATA_ROOT = path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
+const DATA_ROOT = process.env.DATA_PATH || DEV_DATA_ROOT;
 const { detectSource, fetchMetadata, fetchSmartMetadata } = require('./metadata');
 const { downloadThumbnail } = require('./thumbnails');
 const { analyzeContent } = require('./ai');
@@ -169,7 +172,7 @@ function createBot(token) {
         // AI analysis async (non-blocking)
         // Use local thumbnail file if available (remote URLs are often blocked)
         const aiImageSource = localThumb
-          ? path.join(__dirname, '..', 'data', 'thumbnails', localThumb)
+          ? path.join(DATA_ROOT, 'thumbnails', localThumb)
           : meta.thumbnail_url;
         if (aiImageSource) {
           analyzeContent(aiImageSource, {

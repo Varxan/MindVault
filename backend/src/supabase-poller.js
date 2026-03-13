@@ -42,7 +42,8 @@ function getDeviceId() {
   try {
     const fs   = require('fs');
     const path = require('path');
-    const dir  = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+    const os   = require('os');
+    const dir  = process.env.DATA_PATH || path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
     const cfg  = JSON.parse(fs.readFileSync(path.join(dir, '..', 'user.json'), 'utf8'));
     return cfg.deviceId || null;
   } catch { return null; }

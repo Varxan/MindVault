@@ -1,6 +1,6 @@
 {
   "name": "mindvault",
-  "version": "1.0.0",
+  "version": "0.9.0-beta.1",
   "description": "MindVault – Personal visual inspiration tool",
   "private": true,
   "main": "electron/main.js",
@@ -16,15 +16,21 @@
     "rebuild:native": "node scripts/rebuild-native.js",
     "electron:dev": "concurrently \"npm run backend:dev\" \"npm run frontend\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "npm run build:frontend && electron-builder",
-    "dist": "rm -rf frontend/.next && npm run build:frontend && npm run rebuild:native && electron-builder --mac --arm64",
+    "dist": "rm -rf dist frontend/.next ~/Library/Caches/electron-builder && npm run build:frontend && npm run rebuild:native && node scripts/patch-builder.js && electron-builder --mac --arm64",
+    "dist:test": "rm -rf dist frontend/.next ~/Library/Caches/electron-builder && npm run build:frontend && npm run rebuild:native && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_LINK='' electron-builder --mac --arm64 --dir --config.mac.identity=null --config.mac.hardenedRuntime=false && node scripts/create-test-dmg.js",
     "licenses:generate": "node scripts/generate-licenses.js",
     "licenses:beta": "node scripts/generate-licenses.js 20 \"Beta\"",
+    "licenses:free": "node scripts/generate-licenses.js 1",
     "clip:bundle": "bash backend/scripts/build-clip-bundle.sh",
-    "dist:full": "npm run clip:bundle && npm run dist"
+    "dist:full": "npm run clip:bundle && npm run dist",
+    "dist:resign": "node scripts/re-sign.js",
+    "dist:notarize": "node scripts/notarize-only.js"
   },
   "devDependencies": {
+    "@electron/notarize": "^2.5.0",
     "@electron/rebuild": "^3.6.0",
     "concurrently": "^8.2.2",
+    "dotenv": "^16.0.0",
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8",
     "wait-on": "^8.0.1"
@@ -48,7 +54,44 @@
           "!node_modules/**",
           "!data/**",
           "!.git/**",
-          "!clip-models/**"
+          "!clip-models/**",
+          "!clip-env/**",
+          "!python-standalone/**/__pycache__/**",
+          "!python-standalone/**/tests/**",
+          "!python-standalone/**/*.pyc",
+          "!python-standalone/**/*.pyo",
+          "!python-standalone/**/benchmarks/**",
+          "!python-standalone/**/docs/**",
+          "!python-standalone/**/*.dist-info/RECORD",
+          "!python-standalone/**/*.dist-info/WHEEL",
+          "!python-standalone/**/*.dist-info/top_level.txt",
+          "!python-standalone/**/torch/include/**",
+          "!python-standalone/bin/pip*",
+          "!python-standalone/bin/whisper",
+          "!python-standalone/bin/torchrun",
+          "!python-standalone/bin/torchfrtrace",
+          "!python-standalone/bin/numba",
+          "!python-standalone/bin/f2py",
+          "!python-standalone/bin/isympy",
+          "!python-standalone/bin/tqdm",
+          "!python-standalone/bin/ftfy",
+          "!python-standalone/bin/normalizer",
+          "!python-standalone/bin/pygmentize",
+          "!python-standalone/bin/httpx",
+          "!python-standalone/bin/hf",
+          "!python-standalone/bin/tiny-agents",
+          "!python-standalone/bin/typer",
+          "!python-standalone/bin/transformers",
+          "!python-standalone/bin/markdown-it",
+          "!python-standalone/bin/numpy-config",
+          "!python-standalone/bin/2to3*",
+          "!python-standalone/bin/idle*",
+          "!python-standalone/bin/pydoc*",
+          "!python-standalone/bin/python3-config",
+          "!python-standalone/bin/python3.11-config",
+          "!test-*.js",
+          "!src/routes.js.tmp",
+          "!src/tag-catalog.backup.js"
         ]
       },
       {
@@ -70,9 +113,15 @@
       {
         "from": "bin/mac-arm64",
         "to": "bin",
-        "filter": ["ffmpeg", "ffprobe", "yt-dlp"]
+        "filter": [
+          "ffmpeg",
+          "ffprobe",
+          "yt-dlp"
+        ]
       }
     ],
+    "afterPack": "scripts/afterPack.js",
+    "afterSign": "scripts/afterSign.js",
     "mac": {
       "target": [
         {
@@ -83,7 +132,12 @@
         }
       ],
       "icon": "electron/icons/icon.icns",
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "electron/entitlements.mac.plist",
+      "entitlementsInherit": "electron/entitlements.mac.plist",
+      "strictVerify": false
     },
     "nsis": {
       "oneClick": true,

@@ -3,8 +3,13 @@ const path = require('path');
 const fs = require('fs');
 
 // In production (Electron), DATA_PATH is set to app.getPath('userData')/data
-// In development, falls back to backend/data/ as before
-const DATA_ROOT = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+// In development, also use ~/Library/Application Support/MindVault/data/
+// so that dev and production share the same DB per user (no cross-user conflicts)
+const os = require('os');
+const DEV_DATA_ROOT = path.join(
+  os.homedir(), 'Library', 'Application Support', 'mindvault', 'data'
+);
+const DATA_ROOT = process.env.DATA_PATH || DEV_DATA_ROOT;
 const DB_PATH = path.join(DATA_ROOT, 'mindvault.db');
 
 // Ensure data directory exists

@@ -19,7 +19,8 @@ const path             = require('path');
 const os               = require('os');
 const { execFile }     = require('child_process');
 
-const DATA_ROOT  = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+const DEV_DATA_ROOT_LS = path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
+const DATA_ROOT  = process.env.DATA_PATH || DEV_DATA_ROOT_LS;
 const THUMB_DIR  = path.join(DATA_ROOT, 'thumbnails');
 
 let supabase = null;
@@ -32,7 +33,7 @@ function getDeviceId() {
   try {
     const path       = require('path');
     const fs         = require('fs');
-    const dataDir    = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+    const dataDir    = process.env.DATA_PATH || path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
     const configPath = path.join(dataDir, '..', 'user.json');
     const config     = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     return config.deviceId || null;

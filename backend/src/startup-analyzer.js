@@ -26,7 +26,8 @@ async function runStartupAnalysis() {
   // Lazy-require to avoid circular deps at module load time
   const { db }            = require('./database');
   const { analyzeContent } = require('./ai');
-  const DATA_ROOT          = process.env.DATA_PATH || path.join(__dirname, '..', 'data');
+  const os               = require('os');
+  const DATA_ROOT          = process.env.DATA_PATH || path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
   const THUMB_DIR          = path.join(DATA_ROOT, 'thumbnails');
   const MEDIA_DIR          = path.join(DATA_ROOT, 'media');
   const UPLOAD_DIR         = path.join(DATA_ROOT, 'uploads');

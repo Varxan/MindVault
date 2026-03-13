@@ -96,23 +96,23 @@ function isClipEnabled() {
 
 // Resolve the Python executable to use for CLIP.
 // Priority order:
-//   1. Bundled clip-env inside the app (backend/clip-env/) — works in both dev and DMG
-//   2. userData clip-env  → installed by old setup-clip.sh (kept as fallback)
-//   3. Homebrew python3   → last resort if user has CLIP in global env
+//   1. Bundled python-standalone inside the app (backend/python-standalone/) — portable, no Homebrew needed
+//   2. Legacy clip-env fallback (older builds)
+//   3. Homebrew python3 — last resort
 function getClipPython() {
   const os = require('os');
 
   const candidates = [
-    // 1. Bundled venv inside backend/ — created by build-clip-bundle.sh, included in DMG
-    //    In dev:        <project>/backend/clip-env/bin/python3
-    //    In production: <app>/Contents/Resources/backend/clip-env/bin/python3
+    // 1. Standalone Python — created by build-clip-bundle.sh, fully portable, no venv issues
+    //    In dev:        <project>/backend/python-standalone/bin/python3
+    //    In production: <app>/Contents/Resources/backend/python-standalone/bin/python3
+    path.join(__dirname, '..', 'python-standalone', 'bin', 'python3'),
+    // 2. Legacy: old clip-env venv (older builds)
     path.join(__dirname, '..', 'clip-env', 'bin', 'python3'),
-    // 2. Legacy: venv in userData installed by setup-clip.sh (older installs)
-    path.join(os.homedir(), 'Library', 'Application Support', 'MindVault', 'clip-env', 'bin', 'python3'),
     path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'clip-env', 'bin', 'python3'),
     // 3. DATA_PATH sibling (edge case)
     process.env.DATA_PATH
-      ? path.join(process.env.DATA_PATH, '..', 'clip-env', 'bin', 'python3')
+      ? path.join(process.env.DATA_PATH, '..', 'python-standalone', 'bin', 'python3')
       : null,
     // 4. Homebrew Python as last resort
     '/opt/homebrew/bin/python3',

@@ -79,7 +79,7 @@ export default function PWAInstallButton() {
         e.target.style.boxShadow = '0 4px 12px rgba(74, 239, 138, 0.3)';
       }}
     >
-      📥 Install App
+      Install App
     </button>
   );
 }
