@@ -70,7 +70,7 @@ async function init() {
 
   // ── Subscribe to INSERT + UPDATE on share_queue (all rows, filter client-side) ──
   // Note: Supabase Realtime filters don't support OR conditions, so we receive
-  // all events and filter in handleRow(). This is safe — single-user app.
+  // all events and filter by device_id in handleRow() for multi-user isolation.
   channel = supabase
     .channel('share-queue')
     .on(
@@ -119,6 +119,10 @@ function stop() {
 async function handleRow(entry, event) {
   if (!entry || entry.processed) return;
 
+  // Multi-user isolation: only process entries that belong to this device.
+  // user_id === null means shared before pairing (legacy / fallback) — accept those too.
+  if (entry.user_id && deviceId && entry.user_id !== deviceId) return;
+
   // Already scheduled or being imported?
   if (event === 'INSERT' && pendingTimers.has(entry.id)) return;
 
@@ -151,13 +155,19 @@ async function checkExisting(silent = false) {
   if (!supabaseAdmin) return;
 
   try {
-    // Single-user app: process ALL unprocessed entries regardless of user_id.
-    // device_id filtering was causing silent drops when PWA/desktop IDs drifted.
-    const query = supabaseAdmin
+    // Filter by this desktop's device_id so users don't pick up each other's links.
+    // Also include rows with user_id IS NULL for backward compatibility
+    // (links shared before pairing, or from older app versions).
+    let query = supabaseAdmin
       .from('share_queue')
       .select('*')
       .eq('processed', false)
       .order('created_at', { ascending: true });
+
+    if (deviceId) {
+      query = query.or(`user_id.eq.${deviceId},user_id.is.null`);
+    }
+    // If deviceId is unknown (not yet paired), fall back to all — better than dropping links.
 
     const { data, error } = await query;
     if (error) {
