@@ -1,0 +1,26 @@
+MindVault — Save any page to your personal visual reference library.
+
+Built for filmmakers, DoPs, and visual creatives who collect references across the web. MindVault organizes your links into two spaces:
+
+Eye — for visual inspiration (cinematography, photography, art direction)
+Mind — for knowledge and ideas (articles, tutorials, research)
+
+Features:
+
+One-click save from any webpage directly into MindVault.
+
+Smart space detection — YouTube, Vimeo, Instagram and other visual platforms auto-select Eye. GitHub, Medium, Wikipedia and knowledge sites auto-select Mind. You can always override manually.
+
+Keyboard shortcuts for instant saving without opening the popup:
+  Cmd+Shift+E saves to Eye
+  Cmd+Shift+M saves to Mind
+
+Connection status indicator shows whether MindVault is running on your Mac.
+
+Minimal, distraction-free design that stays out of your way.
+
+Requirements: MindVault desktop app must be running on the same computer (macOS). The extension communicates with MindVault locally — no data leaves your machine.
+
+Privacy: This extension does not collect, store, or transmit any personal data. All communication happens locally between the extension and the MindVault app on your computer.
+
+Learn more at mindvault.ch

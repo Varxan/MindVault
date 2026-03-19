@@ -41,6 +41,42 @@ async function fetchVimeoMetadata(url) {
 }
 
 /**
+ * Fetch YouTube metadata via oEmbed API (official, reliable, no yt-dlp needed).
+ * YouTube oEmbed: https://www.youtube.com/oembed?url=<url>&format=json
+ * Returns title + thumbnail. Does NOT return description or exact dimensions.
+ */
+async function fetchYouTubeMetadata(url) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+    const response = await fetch(oembedUrl, {
+      signal: controller.signal,
+      headers: { 'Accept': 'application/json' },
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+
+    return {
+      title:         data.title         || null,
+      description:   null,  // oEmbed doesn't provide description
+      thumbnail_url: data.thumbnail_url || null,
+      author_url:    null,
+      width:         data.width         || null,
+      height:        data.height        || null,
+    };
+  } catch (err) {
+    console.log(`[Metadata] YouTube oEmbed failed: ${err.message}`);
+    return null;
+  }
+}
+
+/**
  * Detect source platform from URL
  */
 function detectSource(url) {
@@ -308,6 +344,22 @@ async function fetchInstagramMediaUrl(url) {
  * For Instagram: falls back to /media/?size=l when yt-dlp fails (image-only posts).
  */
 async function fetchSmartMetadata(url, source) {
+  // YouTube: oEmbed first — fast, official, never blocked, always has real title
+  // This fixes iOS share sheets sending notification text instead of video title
+  if (source === 'youtube') {
+    const ytMeta = await fetchYouTubeMetadata(url);
+    if (ytMeta && ytMeta.title) {
+      console.log(`[Metadata] YouTube oEmbed: "${ytMeta.title}"`);
+      // Try yt-dlp additionally for better thumbnail (maxresdefault), but keep oEmbed title
+      const ytdlpMeta = await fetchVideoMetadata(url);
+      if (ytdlpMeta && ytdlpMeta.thumbnail_url) {
+        ytMeta.thumbnail_url = ytdlpMeta.thumbnail_url;
+      }
+      return ytMeta;
+    }
+    console.log(`[Metadata] YouTube oEmbed failed, falling back to yt-dlp for ${url}`);
+  }
+
   // Vimeo: use oEmbed API first (fast, official poster thumbnail)
   if (source === 'vimeo') {
     const vimeoMeta = await fetchVimeoMetadata(url);

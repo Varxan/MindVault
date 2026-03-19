@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 50px 40px;
+    gap: 50px;
+    background: #1a1a1a;
+  }
+  h2 {
+    color: #444;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+  .section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+    width: 100%;
+  }
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #333;
+    font-weight: 400;
+    width: 100%;
+    text-align: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #222;
+  }
+  .row {
+    display: flex;
+    gap: 40px;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .concept {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  /* macOS dock simulation */
+  .dock-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(20px);
+    padding: 12px 20px 10px;
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .dock-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.5;
+  }
+  .dock-icon.active { opacity: 1; transform: scale(1.1); }
+  /* Placeholder dock icons */
+  .placeholder { background: #2a2a2a; }
+  .placeholder2 { background: #1e3a5f; }
+  .placeholder3 { background: #2d1b00; }
+
+  .icon-wrap {
+    width: 110px;
+    height: 110px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .dark-bg { background: #141414; }
+  .light-bg { background: #f0ebe0; }
+  .mid-bg   { background: #1e1a12; } /* very dark warm — "leather vault" */
+
+  .label {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #444;
+    text-align: center;
+  }
+  .sublabel {
+    font-size: 9px;
+    color: #333;
+    text-align: center;
+    margin-top: -10px;
+  }
+
+  /* Wallpaper context previews */
+  .context-row {
+    display: flex;
+    gap: 24px;
+  }
+  .context {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .wallpaper {
+    width: 160px;
+    height: 110px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .wp-dark   { background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%); }
+  .wp-light  { background: linear-gradient(135deg, #e8e0d4 0%, #d4cdc0 100%); }
+  .wp-color  { background: linear-gradient(135deg, #0d1f3c 0%, #1a3a6e 100%); }
+  .wp-label {
+    font-size: 9px;
+    color: #333;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .mini-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+</style>
+</head>
+<body>
+
+<h2>Aperture & Monogram — Dark vs Light</h2>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- APERTURE -->
+<!-- ═══════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Aperture</div>
+  <div class="row">
+
+    <!-- Dark -->
+    <div class="concept">
+      <div class="icon-wrap dark-bg">
+        <svg width="70" height="70" viewBox="0 0 72 72" fill="none">
+          <g transform="translate(36,36)">
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.85" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.85" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.85" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.85" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.85" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.85" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="7" fill="#141414"/>
+          </g>
+          <circle cx="36" cy="36" r="32" stroke="#c8a84b" stroke-width="1" fill="none" opacity="0.2"/>
+        </svg>
+      </div>
+      <div class="label">Dark</div>
+    </div>
+
+    <!-- Warm Dark -->
+    <div class="concept">
+      <div class="icon-wrap mid-bg">
+        <svg width="70" height="70" viewBox="0 0 72 72" fill="none">
+          <g transform="translate(36,36)">
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#d4b05a" opacity="0.9" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#d4b05a" opacity="0.9" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#d4b05a" opacity="0.9" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#d4b05a" opacity="0.9" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#d4b05a" opacity="0.9" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#d4b05a" opacity="0.9" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="7" fill="#1e1a12"/>
+          </g>
+          <circle cx="36" cy="36" r="32" stroke="#d4b05a" stroke-width="1" fill="none" opacity="0.15"/>
+        </svg>
+      </div>
+      <div class="label">Warm Dark</div>
+    </div>
+
+    <!-- Light -->
+    <div class="concept">
+      <div class="icon-wrap light-bg">
+        <svg width="70" height="70" viewBox="0 0 72 72" fill="none">
+          <g transform="translate(36,36)">
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.8" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.8" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.8" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.8" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.8" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.8" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="7" fill="#f0ebe0"/>
+          </g>
+          <circle cx="36" cy="36" r="32" stroke="#8a6f2e" stroke-width="1" fill="none" opacity="0.15"/>
+        </svg>
+      </div>
+      <div class="label">Light</div>
+    </div>
+
+    <!-- Gold Fill -->
+    <div class="concept">
+      <div class="icon-wrap" style="background:#c8a84b">
+        <svg width="70" height="70" viewBox="0 0 72 72" fill="none">
+          <g transform="translate(36,36)">
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#141414" opacity="0.75" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#141414" opacity="0.75" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#141414" opacity="0.75" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#141414" opacity="0.75" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#141414" opacity="0.75" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#141414" opacity="0.75" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="7" fill="#c8a84b"/>
+          </g>
+        </svg>
+      </div>
+      <div class="label">Gold</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- MONOGRAM -->
+<!-- ═══════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">MV Monogram</div>
+  <div class="row">
+
+    <!-- Dark -->
+    <div class="concept">
+      <div class="icon-wrap dark-bg">
+        <svg width="70" height="70" viewBox="0 0 72 72" fill="none">
+          <path d="M14 20 L36 52 L58 20" stroke="#c8a84b" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="20" y1="33" x2="52" y2="33" stroke="#c8a84b" stroke-width="0.8" opacity="0.25"/>
+          <circle cx="36" cy="52" r="3" fill="#c8a84b"/>
+        </svg>
+      </div>
+      <div class="label">Dark</div>
+    </div>
+
+    <!-- Warm Dark -->
+    <div class="concept">
+      <div class="icon-wrap mid-bg">
+        <svg width="70" height="70" viewBox="0 0 72 72" fill="none">
+          <path d="M14 20 L36 52 L58 20" stroke="#d4b05a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="20" y1="33" x2="52" y2="33" stroke="#d4b05a" stroke-width="0.8" opacity="0.2"/>
+          <circle cx="36" cy="52" r="3" fill="#d4b05a"/>
+        </svg>
+      </div>
+      <div class="label">Warm Dark</div>
+    </div>
+
+    <!-- Light -->
+    <div class="concept">
+      <div class="icon-wrap light-bg">
+        <svg width="70" height="70" viewBox="0 0 72 72" fill="none">
+          <path d="M14 20 L36 52 L58 20" stroke="#6b5220" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="20" y1="33" x2="52" y2="33" stroke="#6b5220" stroke-width="0.8" opacity="0.2"/>
+          <circle cx="36" cy="52" r="3" fill="#6b5220"/>
+        </svg>
+      </div>
+      <div class="label">Light</div>
+    </div>
+
+    <!-- Gold Fill -->
+    <div class="concept">
+      <div class="icon-wrap" style="background:#c8a84b">
+        <svg width="70" height="70" viewBox="0 0 72 72" fill="none">
+          <path d="M14 20 L36 52 L58 20" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="36" cy="52" r="3" fill="#1a1a1a"/>
+        </svg>
+      </div>
+      <div class="label">Gold</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ -->
+<!-- WALLPAPER CONTEXT -->
+<!-- ═══════════════════════════════════════ -->
+<div class="section">
+  <div class="section-label">Im Kontext — dunkle vs helle Wallpaper</div>
+  <div class="context-row">
+
+    <!-- Dark wallpaper -->
+    <div class="context">
+      <div class="wallpaper wp-dark">
+        <div class="mini-icon dark-bg">
+          <svg width="30" height="30" viewBox="0 0 72 72" fill="none">
+            <g transform="translate(36,36)">
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(0)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(60)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(120)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(180)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(240)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(300)"/>
+              <circle cx="0" cy="0" r="7" fill="#141414"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="wp-label">Dark Wallpaper<br><span style="color:#2a2a2a">Dark Icon — verschmilzt etwas</span></div>
+    </div>
+
+    <div class="context">
+      <div class="wallpaper wp-dark">
+        <div class="mini-icon light-bg">
+          <svg width="30" height="30" viewBox="0 0 72 72" fill="none">
+            <g transform="translate(36,36)">
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(0)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(60)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(120)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(180)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(240)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(300)"/>
+              <circle cx="0" cy="0" r="7" fill="#f0ebe0"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="wp-label">Dark Wallpaper<br><span style="color:#555">Light Icon — steht gut ab</span></div>
+    </div>
+
+    <!-- Light wallpaper -->
+    <div class="context">
+      <div class="wallpaper wp-light">
+        <div class="mini-icon dark-bg">
+          <svg width="30" height="30" viewBox="0 0 72 72" fill="none">
+            <g transform="translate(36,36)">
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(0)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(60)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(120)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(180)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(240)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#c8a84b" opacity="0.9" transform="rotate(300)"/>
+              <circle cx="0" cy="0" r="7" fill="#141414"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="wp-label">Light Wallpaper<br><span style="color:#555">Dark Icon — stark</span></div>
+    </div>
+
+    <div class="context">
+      <div class="wallpaper wp-light">
+        <div class="mini-icon light-bg" style="box-shadow: 0 4px 16px rgba(0,0,0,0.15)">
+          <svg width="30" height="30" viewBox="0 0 72 72" fill="none">
+            <g transform="translate(36,36)">
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(0)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(60)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(120)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(180)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(240)"/>
+              <ellipse cx="0" cy="-13" rx="7" ry="14" fill="#8a6f2e" opacity="0.85" transform="rotate(300)"/>
+              <circle cx="0" cy="0" r="7" fill="#f0ebe0"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="wp-label">Light Wallpaper<br><span style="color:#2a2a2a">Light Icon — verschmilzt</span></div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    background: #0a0a0a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 80px 60px;
+    gap: 80px;
+  }
+  h2 { font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: #222; font-weight: 400; }
+  .section { display: flex; flex-direction: column; align-items: center; gap: 40px; }
+  .section-label { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: #1e1e1e; padding-bottom: 10px; border-bottom: 1px solid #161616; width: 700px; text-align: center; }
+  .size-row { display: flex; gap: 40px; align-items: flex-end; justify-content: center; }
+  .size-item { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .icon { display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 40px rgba(0,0,0,0.9); flex-shrink: 0; }
+  .size-label { font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; color: #1e1e1e; }
+
+  /* macOS dock simulation */
+  .dock {
+    display: flex; gap: 10px; align-items: flex-end;
+    background: rgba(255,255,255,0.06);
+    padding: 10px 18px 8px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .dock-placeholder {
+    border-radius: 10px;
+    width: 52px; height: 52px;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<h2>C4 vs C7 — Real Size Test</h2>
+
+<!-- ═══ C4 ═══ -->
+<div class="section">
+  <div class="section-label">C4 — Organic Bokeh (off-center highlight)</div>
+
+  <div class="size-row">
+
+    <!-- 512 -->
+    <div class="size-item">
+      <div class="icon" style="width:180px;height:180px;border-radius:40px;background:#0f0d0a">
+        <svg width="130" height="130" viewBox="0 0 80 80" fill="none">
+          <defs>
+            <radialGradient id="c4a_512" cx="48%" cy="42%" r="52%">
+              <stop offset="0%"   stop-color="#F0C060" stop-opacity="1"/>
+              <stop offset="35%"  stop-color="#C8861E" stop-opacity="0.8"/>
+              <stop offset="70%"  stop-color="#8a5010" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#5a3008" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="c4b_512" cx="35%" cy="35%" r="40%">
+              <stop offset="0%"   stop-color="#FFE090" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#FFE090" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="40" cy="40" r="36" fill="url(#c4a_512)"/>
+          <circle cx="34" cy="34" r="18" fill="url(#c4b_512)"/>
+          <circle cx="40" cy="40" r="35" stroke="#D4952A" stroke-width="1" fill="none" opacity="0.35"/>
+          <circle cx="37" cy="36" r="5"   fill="#FFE090" opacity="0.65"/>
+          <circle cx="37" cy="36" r="2"   fill="#FFFFFF"  opacity="0.9"/>
+        </svg>
+      </div>
+      <div class="size-label">512px</div>
+    </div>
+
+    <!-- 128 -->
+    <div class="size-item">
+      <div class="icon" style="width:96px;height:96px;border-radius:21px;background:#0f0d0a">
+        <svg width="70" height="70" viewBox="0 0 80 80" fill="none">
+          <defs>
+            <radialGradient id="c4a_128" cx="48%" cy="42%" r="52%">
+              <stop offset="0%"   stop-color="#F0C060" stop-opacity="1"/>
+              <stop offset="35%"  stop-color="#C8861E" stop-opacity="0.8"/>
+              <stop offset="70%"  stop-color="#8a5010" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#5a3008" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="c4b_128" cx="35%" cy="35%" r="40%">
+              <stop offset="0%"   stop-color="#FFE090" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#FFE090" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="40" cy="40" r="36" fill="url(#c4a_128)"/>
+          <circle cx="34" cy="34" r="18" fill="url(#c4b_128)"/>
+          <circle cx="40" cy="40" r="35" stroke="#D4952A" stroke-width="1" fill="none" opacity="0.35"/>
+          <circle cx="37" cy="36" r="5"   fill="#FFE090" opacity="0.65"/>
+          <circle cx="37" cy="36" r="2"   fill="#FFFFFF"  opacity="0.9"/>
+        </svg>
+      </div>
+      <div class="size-label">128px</div>
+    </div>
+
+    <!-- 64 — dock size -->
+    <div class="size-item">
+      <div class="icon" style="width:56px;height:56px;border-radius:12px;background:#0f0d0a">
+        <svg width="42" height="42" viewBox="0 0 80 80" fill="none">
+          <defs>
+            <radialGradient id="c4a_64" cx="48%" cy="42%" r="52%">
+              <stop offset="0%"   stop-color="#F0C060" stop-opacity="1"/>
+              <stop offset="35%"  stop-color="#C8861E" stop-opacity="0.8"/>
+              <stop offset="70%"  stop-color="#8a5010" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#5a3008" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="c4b_64" cx="35%" cy="35%" r="40%">
+              <stop offset="0%"   stop-color="#FFE090" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#FFE090" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="40" cy="40" r="36" fill="url(#c4a_64)"/>
+          <circle cx="34" cy="34" r="18" fill="url(#c4b_64)"/>
+          <circle cx="37" cy="36" r="5"   fill="#FFE090" opacity="0.65"/>
+          <circle cx="37" cy="36" r="2"   fill="#FFFFFF"  opacity="0.9"/>
+        </svg>
+      </div>
+      <div class="size-label">64px · dock</div>
+    </div>
+
+    <!-- 32 -->
+    <div class="size-item">
+      <div class="icon" style="width:32px;height:32px;border-radius:7px;background:#0f0d0a">
+        <svg width="24" height="24" viewBox="0 0 80 80" fill="none">
+          <defs>
+            <radialGradient id="c4a_32" cx="48%" cy="42%" r="52%">
+              <stop offset="0%"   stop-color="#F0C060" stop-opacity="1"/>
+              <stop offset="35%"  stop-color="#C8861E" stop-opacity="0.8"/>
+              <stop offset="70%"  stop-color="#8a5010" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#5a3008" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="40" cy="40" r="36" fill="url(#c4a_32)"/>
+          <circle cx="37" cy="36" r="7"   fill="#FFE090" opacity="0.7"/>
+          <circle cx="37" cy="36" r="3"   fill="#FFFFFF"  opacity="0.9"/>
+        </svg>
+      </div>
+      <div class="size-label">32px</div>
+    </div>
+
+    <!-- 16 — menu bar -->
+    <div class="size-item">
+      <div class="icon" style="width:16px;height:16px;border-radius:3px;background:#0f0d0a">
+        <svg width="12" height="12" viewBox="0 0 80 80" fill="none">
+          <defs>
+            <radialGradient id="c4a_16" cx="45%" cy="40%" r="55%">
+              <stop offset="0%"   stop-color="#F0C060" stop-opacity="1"/>
+              <stop offset="60%"  stop-color="#C8861E" stop-opacity="0.7"/>
+              <stop offset="100%" stop-color="#8a5010" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="40" cy="40" r="36" fill="url(#c4a_16)"/>
+          <circle cx="36" cy="35" r="10" fill="#FFE090" opacity="0.8"/>
+        </svg>
+      </div>
+      <div class="size-label">16px</div>
+    </div>
+
+  </div>
+
+  <!-- Dock simulation C4 -->
+  <div class="dock">
+    <div class="dock-placeholder" style="background:#1a3a6e"></div>
+    <div class="dock-placeholder" style="background:#2d1b00"></div>
+    <div class="icon" style="width:52px;height:52px;border-radius:11px;background:#0f0d0a">
+      <svg width="38" height="38" viewBox="0 0 80 80" fill="none">
+        <defs>
+          <radialGradient id="c4dock" cx="48%" cy="42%" r="52%">
+            <stop offset="0%"   stop-color="#F0C060" stop-opacity="1"/>
+            <stop offset="35%"  stop-color="#C8861E" stop-opacity="0.8"/>
+            <stop offset="70%"  stop-color="#8a5010" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#5a3008" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <circle cx="40" cy="40" r="36" fill="url(#c4dock)"/>
+        <circle cx="37" cy="36" r="6" fill="#FFE090" opacity="0.65"/>
+        <circle cx="37" cy="36" r="2.5" fill="#FFFFFF" opacity="0.9"/>
+      </svg>
+    </div>
+    <div class="dock-placeholder" style="background:#1c1c1c"></div>
+    <div class="dock-placeholder" style="background:#0d2010"></div>
+    <div class="dock-placeholder" style="background:#1a1a2e"></div>
+  </div>
+
+</div>
+
+<!-- ═══ C7 ═══ -->
+<div class="section">
+  <div class="section-label">C7 — Pure Light (symmetric glow)</div>
+
+  <div class="size-row">
+
+    <!-- 512 -->
+    <div class="size-item">
+      <div class="icon" style="width:180px;height:180px;border-radius:40px;background:#0d0d0d">
+        <svg width="130" height="130" viewBox="0 0 80 80" fill="none">
+          <defs>
+            <radialGradient id="c7a_512" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="#FFD080" stop-opacity="1"/>
+              <stop offset="20%"  stop-color="#E8A045" stop-opacity="0.9"/>
+              <stop offset="55%"  stop-color="#C8861E" stop-opacity="0.4"/>
+              <stop offset="80%"  stop-color="#8a5010" stop-opacity="0.1"/>
+              <stop offset="100%" stop-color="#8a5010" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="40" cy="40" r="38" fill="url(#c7a_512)"/>
+          <circle cx="40" cy="40" r="5"  fill="#FFE090" opacity="0.9"/>
+          <circle cx="40" cy="40" r="2"  fill="#FFFFFF"/>
+          <circle cx="40" cy="40" r="36" stroke="#C8861E" stroke-width="0.6" fill="none" opacity="0.2"/>
+        </svg>
+      </div>
+      <div class="size-label">512px</div>
+    </div>
+
+    <!-- 128 -->
+    <div class="size-item">
+      <div class="icon" style="width:96px;height:96px;border-radius:21px;background:#0d0d0d">
+        <svg width="70" height="70" viewBox="0 0 80 80" fill="none">
+          <defs>
+            <radialGradient id="c7a_128" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="#FFD080" stop-opacity="1"/>
+              <stop offset="20%"  stop-color="#E8A045" stop-opacity="0.9"/>
+              <stop offset="55%"  stop-color="#C8861E" stop-opacity="0.4"/>
+              <stop offset="80%"  stop-color="#8a5010" stop-opacity="0.1"/>
+              <stop offset="100%" stop-color="#8a5010" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="40" cy="40" r="38" fill="url(#c7a_128)"/>
+          <circle cx="40" cy="40" r="5"  fill="#FFE090" opacity="0.9"/>
+          <circle cx="40" cy="40" r="2"  fill="#FFFFFF"/>
+          <circle cx="40" cy="40" r="36" stroke="#C8861E" stroke-width="0.6" fill="none" opacity="0.2"/>
+        </svg>
+      </div>
+      <div class="size-label">128px</div>
+    </div>
+
+    <!-- 64 -->
+    <div class="size-item">
+      <div class="icon" style="width:56px;height:56px;border-radius:12px;background:#0d0d0d">
+        <svg width="42" height="42" viewBox="0 0 80 80" fill="none">
+          <defs>
+            <radialGradient id="c7a_64" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="#FFD080" stop-opacity="1"/>
+              <stop offset="20%"  stop-color="#E8A045" stop-opacity="0.9"/>
+              <stop offset="55%"  stop-color="#C8861E" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#8a5010" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="40" cy="40" r="38" fill="url(#c7a_64)"/>
+          <circle cx="40" cy="40" r="4"  fill="#FFE090" opacity="0.9"/>
+          <circle cx="40" cy="40" r="1.5" fill="#FFFFFF"/>
+        </svg>
+      </div>
+      <div class="size-label">64px · dock</div>
+    </div>
+
+    <!-- 32 -->
+    <div class="size-item">
+      <div class="icon" style="width:32px;height:32px;border-radius:7px;background:#0d0d0d">
+        <svg width="24" height="24" viewBox="0 0 80 80" fill="none">
+          <defs>
+            <radialGradient id="c7a_32" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="#FFD080" stop-opacity="1"/>
+              <stop offset="40%"  stop-color="#C8861E" stop-opacity="0.6"/>
+              <stop offset="100%" stop-color="#8a5010" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="40" cy="40" r="38" fill="url(#c7a_32)"/>
+          <circle cx="40" cy="40" r="3"  fill="#FFE090" opacity="0.95"/>
+        </svg>
+      </div>
+      <div class="size-label">32px</div>
+    </div>
+
+    <!-- 16 -->
+    <div class="size-item">
+      <div class="icon" style="width:16px;height:16px;border-radius:3px;background:#0d0d0d">
+        <svg width="12" height="12" viewBox="0 0 80 80" fill="none">
+          <defs>
+            <radialGradient id="c7a_16" cx="50%" cy="50%" r="50%">
+              <stop offset="0%"   stop-color="#FFD080" stop-opacity="1"/>
+              <stop offset="50%"  stop-color="#C8861E" stop-opacity="0.6"/>
+              <stop offset="100%" stop-color="#8a5010" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle cx="40" cy="40" r="38" fill="url(#c7a_16)"/>
+        </svg>
+      </div>
+      <div class="size-label">16px</div>
+    </div>
+
+  </div>
+
+  <!-- Dock simulation C7 -->
+  <div class="dock">
+    <div class="dock-placeholder" style="background:#1a3a6e"></div>
+    <div class="dock-placeholder" style="background:#2d1b00"></div>
+    <div class="icon" style="width:52px;height:52px;border-radius:11px;background:#0d0d0d">
+      <svg width="38" height="38" viewBox="0 0 80 80" fill="none">
+        <defs>
+          <radialGradient id="c7dock" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stop-color="#FFD080" stop-opacity="1"/>
+            <stop offset="25%"  stop-color="#E8A045" stop-opacity="0.9"/>
+            <stop offset="60%"  stop-color="#C8861E" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#8a5010" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <circle cx="40" cy="40" r="38" fill="url(#c7dock)"/>
+        <circle cx="40" cy="40" r="4" fill="#FFE090" opacity="0.9"/>
+        <circle cx="40" cy="40" r="1.5" fill="#FFFFFF"/>
+      </svg>
+    </div>
+    <div class="dock-placeholder" style="background:#1c1c1c"></div>
+    <div class="dock-placeholder" style="background:#0d2010"></div>
+    <div class="dock-placeholder" style="background:#1a1a2e"></div>
+  </div>
+
+</div>
+
+</body>
+</html>

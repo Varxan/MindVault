@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MindVault",
-  "version": "1.0.0",
+  "version": "0.9.0.1",
   "description": "Save links directly to MindVault — EYE or MIND space.",
   "permissions": [
     "activeTab",

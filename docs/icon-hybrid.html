@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    background: #111;
+    color: #444;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 70px 40px;
+    gap: 80px;
+  }
+  h2 {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #2e2e2e;
+    font-weight: 400;
+  }
+  .row {
+    display: flex;
+    gap: 56px;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .concept {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 4px 12px rgba(0,0,0,0.5);
+  }
+  .sm { width: 120px; height: 120px; border-radius: 27px; }
+  .lg { width: 200px; height: 200px; border-radius: 44px; }
+  .label {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #2e2e2e;
+    text-align: center;
+    line-height: 1.9;
+  }
+</style>
+</head>
+<body>
+
+<h2>Vault Lock + Aperture — Hybrid Variants</h2>
+
+<!-- Small variants -->
+<div class="row">
+
+  <!-- H1: Vault ring + very subtle aperture ghost -->
+  <div class="concept">
+    <div class="icon sm" style="background:#141414">
+      <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+        <defs>
+          <radialGradient id="h1g" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#E8A045" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#E8A045" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <!-- Subtle aperture blades — very low opacity, ghost -->
+        <g transform="translate(39,39)" opacity="0.12">
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(0)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(60)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(120)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(180)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(240)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(300)"/>
+        </g>
+        <!-- Vault outer ring -->
+        <circle cx="39" cy="39" r="30" stroke="#C8861E" stroke-width="1.8" fill="none"/>
+        <!-- Vault inner ring -->
+        <circle cx="39" cy="39" r="22" stroke="#C8861E" stroke-width="0.8" fill="none" opacity="0.3"/>
+        <!-- Vault spokes -->
+        <line x1="39" y1="9"  x2="39" y2="17" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="39" y1="61" x2="39" y2="69" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="9"  y1="39" x2="17" y2="39" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="61" y1="39" x2="69" y2="39" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="18" y1="18" x2="24" y2="24" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="54" y1="54" x2="60" y2="60" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="60" y1="18" x2="54" y2="24" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="18" y1="60" x2="24" y2="54" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <!-- Center — aperture pupil -->
+        <circle cx="39" cy="39" r="7" stroke="#C8861E" stroke-width="1" fill="none" opacity="0.5"/>
+        <circle cx="39" cy="39" r="3" fill="#C8861E"/>
+      </svg>
+    </div>
+    <div class="label">H1 — Vault dominant<br>Ghost aperture bg</div>
+  </div>
+
+  <!-- H2: Aperture classic but center replaced by vault lock mechanism -->
+  <div class="concept">
+    <div class="icon sm" style="background:#141414">
+      <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+        <defs>
+          <radialGradient id="h2g" cx="50%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="#E8A045"/>
+            <stop offset="100%" stop-color="#9a5c10"/>
+          </radialGradient>
+        </defs>
+        <!-- Classic aperture blades — solid but not overdone -->
+        <g transform="translate(39,39)">
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2g)" opacity="0.7" transform="rotate(0)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2g)" opacity="0.7" transform="rotate(60)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2g)" opacity="0.7" transform="rotate(120)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2g)" opacity="0.7" transform="rotate(180)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2g)" opacity="0.7" transform="rotate(240)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2g)" opacity="0.7" transform="rotate(300)"/>
+        </g>
+        <!-- Vault center overlaid on aperture -->
+        <circle cx="39" cy="39" r="13" fill="#141414"/>
+        <circle cx="39" cy="39" r="11" stroke="#C8861E" stroke-width="1" fill="none" opacity="0.5"/>
+        <!-- Mini vault spokes in center -->
+        <line x1="39" y1="28" x2="39" y2="31" stroke="#C8861E" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="39" y1="47" x2="39" y2="50" stroke="#C8861E" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="28" y1="39" x2="31" y2="39" stroke="#C8861E" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="47" y1="39" x2="50" y2="39" stroke="#C8861E" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="39" cy="39" r="3.5" fill="#C8861E"/>
+      </svg>
+    </div>
+    <div class="label">H2 — Aperture body<br>Vault center lock</div>
+  </div>
+
+  <!-- H3: Vault ring, aperture cuts into the ring as notches -->
+  <div class="concept">
+    <div class="icon sm" style="background:#141414">
+      <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+        <!-- Outer vault ring — thick -->
+        <circle cx="39" cy="39" r="31" stroke="#C8861E" stroke-width="2" fill="none"/>
+        <!-- Aperture blades as very faint texture inside ring -->
+        <g transform="translate(39,39)" opacity="0.08">
+          <ellipse cx="0" cy="-13" rx="8" ry="14" fill="#C8861E" transform="rotate(0)"/>
+          <ellipse cx="0" cy="-13" rx="8" ry="14" fill="#C8861E" transform="rotate(60)"/>
+          <ellipse cx="0" cy="-13" rx="8" ry="14" fill="#C8861E" transform="rotate(120)"/>
+          <ellipse cx="0" cy="-13" rx="8" ry="14" fill="#C8861E" transform="rotate(180)"/>
+          <ellipse cx="0" cy="-13" rx="8" ry="14" fill="#C8861E" transform="rotate(240)"/>
+          <ellipse cx="0" cy="-13" rx="8" ry="14" fill="#C8861E" transform="rotate(300)"/>
+        </g>
+        <!-- Vault spokes — 8 short marks on ring -->
+        <line x1="39" y1="8"  x2="39" y2="15" stroke="#C8861E" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="39" y1="63" x2="39" y2="70" stroke="#C8861E" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="8"  y1="39" x2="15" y2="39" stroke="#C8861E" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="63" y1="39" x2="70" y2="39" stroke="#C8861E" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="17" y1="17" x2="22" y2="22" stroke="#C8861E" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="56" y1="56" x2="61" y2="61" stroke="#C8861E" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="61" y1="17" x2="56" y2="22" stroke="#C8861E" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="17" y1="61" x2="22" y2="56" stroke="#C8861E" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Inner aperture ring hint -->
+        <circle cx="39" cy="39" r="16" stroke="#C8861E" stroke-width="0.7" fill="none" opacity="0.25"/>
+        <!-- Center -->
+        <circle cx="39" cy="39" r="5" stroke="#C8861E" stroke-width="1" fill="none" opacity="0.6"/>
+        <circle cx="39" cy="39" r="2" fill="#C8861E"/>
+      </svg>
+    </div>
+    <div class="label">H3 — Vault ring<br>Aperture as texture</div>
+  </div>
+
+  <!-- H4: Vault spokes = aperture blades — fully merged -->
+  <div class="concept">
+    <div class="icon sm" style="background:#0e0e0e">
+      <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+        <defs>
+          <radialGradient id="h4g" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#E8A045" stop-opacity="0.9"/>
+            <stop offset="60%" stop-color="#C8861E" stop-opacity="0.6"/>
+            <stop offset="100%" stop-color="#8a5010" stop-opacity="0.3"/>
+          </radialGradient>
+        </defs>
+        <!-- Aperture blades ARE the vault spokes — tapered lines radiating out -->
+        <g transform="translate(39,39)">
+          <!-- 6 tapered blade-spokes -->
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.5" transform="rotate(0)"/>
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.5" transform="rotate(60)"/>
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.5" transform="rotate(120)"/>
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.5" transform="rotate(180)"/>
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.5" transform="rotate(240)"/>
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.5" transform="rotate(300)"/>
+        </g>
+        <!-- Vault outer ring -->
+        <circle cx="39" cy="39" r="30" stroke="#C8861E" stroke-width="1.5" fill="none"/>
+        <!-- Vault inner ring -->
+        <circle cx="39" cy="39" r="10" fill="#0e0e0e" stroke="#C8861E" stroke-width="1" />
+        <!-- Center dot -->
+        <circle cx="39" cy="39" r="3.5" fill="#E8A045"/>
+      </svg>
+    </div>
+    <div class="label">H4 — Merged<br>Blades = spokes</div>
+  </div>
+
+</div>
+
+<!-- Large favourites -->
+<div class="row">
+
+  <!-- H1 large -->
+  <div class="concept">
+    <div class="icon lg" style="background:#141414">
+      <svg width="130" height="130" viewBox="0 0 78 78" fill="none">
+        <g transform="translate(39,39)" opacity="0.1">
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(0)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(60)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(120)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(180)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(240)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="#C8861E" transform="rotate(300)"/>
+        </g>
+        <circle cx="39" cy="39" r="30" stroke="#C8861E" stroke-width="1.8" fill="none"/>
+        <circle cx="39" cy="39" r="22" stroke="#C8861E" stroke-width="0.8" fill="none" opacity="0.3"/>
+        <line x1="39" y1="9"  x2="39" y2="17" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="39" y1="61" x2="39" y2="69" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="9"  y1="39" x2="17" y2="39" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="61" y1="39" x2="69" y2="39" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="18" y1="18" x2="24" y2="24" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="54" y1="54" x2="60" y2="60" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="60" y1="18" x2="54" y2="24" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="18" y1="60" x2="24" y2="54" stroke="#C8861E" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="39" cy="39" r="7" stroke="#C8861E" stroke-width="1" fill="none" opacity="0.5"/>
+        <circle cx="39" cy="39" r="3" fill="#C8861E"/>
+      </svg>
+    </div>
+    <div class="label">H1 Large — Vault dominant<br>Aperture barely visible</div>
+  </div>
+
+  <!-- H2 large -->
+  <div class="concept">
+    <div class="icon lg" style="background:#141414">
+      <svg width="130" height="130" viewBox="0 0 78 78" fill="none">
+        <defs>
+          <radialGradient id="h2gl" cx="50%" cy="30%" r="70%">
+            <stop offset="0%" stop-color="#E8A045"/>
+            <stop offset="100%" stop-color="#9a5c10"/>
+          </radialGradient>
+        </defs>
+        <g transform="translate(39,39)">
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2gl)" opacity="0.7" transform="rotate(0)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2gl)" opacity="0.7" transform="rotate(60)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2gl)" opacity="0.7" transform="rotate(120)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2gl)" opacity="0.7" transform="rotate(180)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2gl)" opacity="0.7" transform="rotate(240)"/>
+          <ellipse cx="0" cy="-14" rx="7" ry="15" fill="url(#h2gl)" opacity="0.7" transform="rotate(300)"/>
+        </g>
+        <circle cx="39" cy="39" r="13" fill="#141414"/>
+        <circle cx="39" cy="39" r="11" stroke="#C8861E" stroke-width="1" fill="none" opacity="0.5"/>
+        <line x1="39" y1="28" x2="39" y2="31" stroke="#C8861E" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="39" y1="47" x2="39" y2="50" stroke="#C8861E" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="28" y1="39" x2="31" y2="39" stroke="#C8861E" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="47" y1="39" x2="50" y2="39" stroke="#C8861E" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="39" cy="39" r="3.5" fill="#C8861E"/>
+      </svg>
+    </div>
+    <div class="label">H2 Large — Aperture body<br>Vault replaces center</div>
+  </div>
+
+  <!-- H4 large -->
+  <div class="concept">
+    <div class="icon lg" style="background:#0e0e0e">
+      <svg width="130" height="130" viewBox="0 0 78 78" fill="none">
+        <g transform="translate(39,39)">
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.45" transform="rotate(0)"/>
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.45" transform="rotate(60)"/>
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.45" transform="rotate(120)"/>
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.45" transform="rotate(180)"/>
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.45" transform="rotate(240)"/>
+          <path d="M0 0 L-4 -28 L4 -28 Z" fill="#C8861E" opacity="0.45" transform="rotate(300)"/>
+        </g>
+        <circle cx="39" cy="39" r="30" stroke="#C8861E" stroke-width="1.5" fill="none"/>
+        <circle cx="39" cy="39" r="10" fill="#0e0e0e" stroke="#C8861E" stroke-width="1"/>
+        <circle cx="39" cy="39" r="3.5" fill="#E8A045"/>
+      </svg>
+    </div>
+    <div class="label">H4 Large — Fully merged<br>Blades become spokes</div>
+  </div>
+
+</div>
+
+</body>
+</html>

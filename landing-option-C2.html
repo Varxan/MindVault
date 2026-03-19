@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MindVault — C2 Warm Oversized</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #faf8f4;
+    --surface: #f0ece3;
+    --ink:     #1a1916;
+    --muted:   #9a9488;
+    --accent:  #c8861e;
+    --rule:    rgba(26,25,22,0.10);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IM Fell English', Georgia, serif;
+    font-size: 18px;
+    line-height: 1.65;
+    overflow-x: hidden;
+  }
+
+  /* ─── SCROLL REVEAL BASE ─────────────────────── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.9s cubic-bezier(0.16,1,0.3,1),
+                transform 0.9s cubic-bezier(0.16,1,0.3,1);
+  }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  .reveal-scale {
+    opacity: 0;
+    transform: scale(0.97);
+    transition: opacity 1s cubic-bezier(0.16,1,0.3,1),
+                transform 1s cubic-bezier(0.16,1,0.3,1);
+  }
+  .reveal-scale.visible { opacity: 1; transform: scale(1); }
+
+  /* line draw */
+  .line-draw {
+    height: 1px;
+    background: var(--rule);
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 1.4s cubic-bezier(0.16,1,0.3,1);
+  }
+  .line-draw.visible { transform: scaleX(1); }
+
+  /* stagger */
+  .stagger > * {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s cubic-bezier(0.16,1,0.3,1), transform 0.6s cubic-bezier(0.16,1,0.3,1);
+  }
+  .stagger.visible > *:nth-child(1) { opacity:1; transform:none; transition-delay:0s; }
+  .stagger.visible > *:nth-child(2) { opacity:1; transform:none; transition-delay:0.1s; }
+  .stagger.visible > *:nth-child(3) { opacity:1; transform:none; transition-delay:0.2s; }
+  .stagger.visible > *:nth-child(4) { opacity:1; transform:none; transition-delay:0.3s; }
+  .stagger.visible > *:nth-child(5) { opacity:1; transform:none; transition-delay:0.4s; }
+  .stagger.visible > *:nth-child(6) { opacity:1; transform:none; transition-delay:0.5s; }
+
+  /* ─── SCROLL PROGRESS ────────────────────────── */
+  .progress-bar {
+    position: fixed; top: 0; left: 0;
+    height: 2px;
+    background: var(--accent);
+    width: 0%;
+    z-index: 200;
+    transition: width 0.1s linear;
+  }
+
+  /* ─── NAV ───────────────────────────────────── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 28px 60px;
+    transition: background 0.4s, padding 0.4s, box-shadow 0.4s;
+  }
+  nav.scrolled {
+    background: rgba(250,248,244,0.94);
+    backdrop-filter: blur(12px);
+    padding: 16px 60px;
+    box-shadow: 0 1px 0 var(--rule);
+  }
+  .nav-logo {
+    font-size: 16px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink);
+    text-decoration: none;
+    opacity: 0.85;
+  }
+  .nav-links { display: flex; gap: 40px; }
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+    font-family: Georgia, serif;
+  }
+  .nav-links a:hover { color: var(--ink); }
+
+  /* ─── HERO ──────────────────────────────────── */
+  .hero {
+    min-height: 100vh;
+    padding: 0 60px 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Animated background dots (very subtle) */
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(var(--rule) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    opacity: 0;
+    animation: dot-fade 2s 0.5s forwards;
+  }
+  @keyframes dot-fade {
+    to { opacity: 1; }
+  }
+
+  .hero-title {
+    font-size: clamp(100px, 14vw, 220px);
+    font-weight: normal;
+    line-height: 0.88;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 0;
+    opacity: 0;
+    animation: hero-in 1.2s 0.1s cubic-bezier(0.16,1,0.3,1) forwards;
+  }
+  .hero-title em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  @keyframes hero-in {
+    from { opacity: 0; transform: translateY(40px) skewY(1deg); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .hero-sub-row {
+    margin-top: 40px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 40px;
+    opacity: 0;
+    animation: fade-up 1s 0.7s cubic-bezier(0.16,1,0.3,1) forwards;
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .hero-sub {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 460px;
+    line-height: 1.65;
+    font-style: italic;
+  }
+  .hero-cta { display: flex; gap: 14px; }
+
+  /* ─── BUTTONS ───────────────────────────────── */
+  .btn-primary {
+    display: inline-block;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: Georgia, serif;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 15px 32px;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .btn-primary:hover { background: #2a2a26; transform: translateY(-1px); }
+
+  .btn-outline {
+    display: inline-block;
+    border: 1px solid rgba(26,25,22,0.25);
+    color: var(--muted);
+    font-family: Georgia, serif;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 15px 32px;
+    text-decoration: none;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .btn-outline:hover { color: var(--ink); border-color: var(--ink); }
+
+  /* ─── BUILT FOR ─────────────────────────────── */
+  .built-for {
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    overflow: hidden;
+  }
+  .built-for-label {
+    padding: 22px 32px;
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+    border-right: 1px solid var(--rule);
+    display: flex;
+    align-items: center;
+    font-family: Georgia, serif;
+    background: var(--surface);
+  }
+  .built-for-items {
+    display: flex;
+    overflow: hidden;
+    flex: 1;
+  }
+  .ticker-inner {
+    display: flex;
+    white-space: nowrap;
+    animation: ticker 18s linear infinite;
+  }
+  .ticker-inner:hover { animation-play-state: paused; }
+  .ticker-item {
+    padding: 22px 48px;
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    border-right: 1px solid var(--rule);
+    white-space: nowrap;
+    font-style: italic;
+    transition: color 0.2s;
+  }
+  .ticker-item:hover { color: var(--accent); }
+  @keyframes ticker {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* ─── FEATURES ──────────────────────────────── */
+  section.features { padding: 120px 60px; }
+
+  .features-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 80px;
+  }
+  .features-heading {
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: normal;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+  .features-heading em { font-style: italic; color: var(--accent); }
+
+  .feature-row {
+    display: grid;
+    grid-template-columns: 2fr 3fr 80px;
+    gap: 0 48px;
+    padding: 40px 0;
+    border-top: 1px solid var(--rule);
+    align-items: start;
+    transition: background 0.2s;
+    cursor: default;
+  }
+  .feature-row:last-child { border-bottom: 1px solid var(--rule); }
+  .feature-row:hover { background: var(--surface); margin: 0 -60px; padding: 40px 60px; }
+
+  .feature-name {
+    font-size: 24px;
+    font-weight: normal;
+    color: var(--ink);
+    line-height: 1.25;
+  }
+  .feature-desc {
+    font-size: 15px;
+    color: var(--muted);
+    line-height: 1.75;
+    font-style: italic;
+    max-width: 520px;
+  }
+  .feature-num {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-align: right;
+    padding-top: 6px;
+    font-family: Georgia, serif;
+  }
+
+  /* ─── EYE / MIND ────────────────────────────── */
+  .eye-mind-section { padding: 0; }
+
+  .eye-mind {
+    background: var(--ink);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 60vh;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Subtle texture on dark section */
+  .eye-mind::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(250,248,244,0.03) 1px, transparent 1px);
+    background-size: 32px 32px;
+    pointer-events: none;
+  }
+
+  .em-card {
+    padding: 80px 60px;
+    border-right: 1px solid rgba(250,248,244,0.08);
+    position: relative;
+  }
+  .em-card:last-child { border-right: none; }
+
+  /* Accent line that draws on scroll */
+  .em-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 1.2s cubic-bezier(0.16,1,0.3,1);
+  }
+  .em-card.visible::before { transform: scaleX(1); }
+  .em-card:last-child.visible::before { transform: scaleX(1); transition-delay: 0.15s; }
+
+  .em-label {
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 32px;
+    font-family: Georgia, serif;
+  }
+  .em-title {
+    font-size: clamp(48px, 6vw, 80px);
+    font-weight: normal;
+    color: #faf8f4;
+    line-height: 1;
+    margin-bottom: 28px;
+  }
+  .em-desc {
+    font-size: 16px;
+    color: rgba(250,248,244,0.5);
+    line-height: 1.75;
+    font-style: italic;
+    max-width: 360px;
+  }
+
+  /* ─── PLATFORMS ─────────────────────────────── */
+  .platforms { padding: 100px 60px; text-align: center; }
+  .platforms-label {
+    font-size: 10px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 40px;
+    font-family: Georgia, serif;
+  }
+  .platforms-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .platform-pill {
+    border: 1px solid var(--rule);
+    padding: 11px 24px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: Georgia, serif;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+  .platform-pill:hover { color: var(--ink); border-color: var(--ink); background: var(--surface); }
+
+  /* ─── CTA FINAL ─────────────────────────────── */
+  .cta-final {
+    background: var(--surface);
+    padding: 140px 60px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-final::before {
+    content: 'MV';
+    position: absolute;
+    font-size: 40vw;
+    font-weight: normal;
+    color: var(--rule);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    letter-spacing: -0.05em;
+    line-height: 1;
+  }
+  .cta-final-inner { position: relative; z-index: 1; }
+  .cta-final-title {
+    font-size: clamp(42px, 6vw, 80px);
+    font-weight: normal;
+    color: var(--ink);
+    margin-bottom: 16px;
+    line-height: 1.15;
+  }
+  .cta-final-title em { font-style: italic; color: var(--accent); }
+  .cta-final-sub {
+    font-size: 15px;
+    color: var(--muted);
+    margin-bottom: 48px;
+    font-style: italic;
+  }
+  .cta-btns { display: flex; gap: 16px; justify-content: center; }
+  .cta-note {
+    margin-top: 28px;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    font-family: Georgia, serif;
+  }
+
+  /* ─── FOOTER ────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--rule);
+    padding: 40px 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg);
+  }
+  footer span { font-size: 12px; color: var(--muted); font-family: Georgia, serif; }
+  footer a { color: var(--muted); text-decoration: none; font-size: 12px; font-family: Georgia, serif; }
+  footer a:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<nav id="nav">
+  <a href="#" class="nav-logo">MindVault</a>
+  <div class="nav-links">
+    <a href="#">Features</a>
+    <a href="#">Pricing</a>
+    <a href="#">Download</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <h1 class="hero-title">Mind<br><em>Vault.</em></h1>
+  <div class="hero-sub-row">
+    <p class="hero-sub">The creative memory app for filmmakers, DoPs, and treatment designers. Capture references, build boards, stay inspired.</p>
+    <div class="hero-cta">
+      <a href="#" class="btn-primary">Try Free — 30 Days</a>
+      <a href="#" class="btn-outline">Buy License — $29</a>
+    </div>
+  </div>
+</section>
+
+<!-- BUILT FOR TICKER -->
+<div class="built-for">
+  <div class="built-for-label">Built for</div>
+  <div class="built-for-items">
+    <div class="ticker-inner">
+      <span class="ticker-item">Filmmakers</span>
+      <span class="ticker-item">Directors of Photography</span>
+      <span class="ticker-item">Treatment Designers</span>
+      <span class="ticker-item">Art Directors</span>
+      <span class="ticker-item">Creative Directors</span>
+      <span class="ticker-item">Visual Artists</span>
+      <span class="ticker-item">Filmmakers</span>
+      <span class="ticker-item">Directors of Photography</span>
+      <span class="ticker-item">Treatment Designers</span>
+      <span class="ticker-item">Art Directors</span>
+      <span class="ticker-item">Creative Directors</span>
+      <span class="ticker-item">Visual Artists</span>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="features">
+  <div class="features-header">
+    <h2 class="features-heading reveal">Everything<br>you <em>need.</em><br>Nothing you don't.</h2>
+  </div>
+
+  <div class="feature-row reveal">
+    <h3 class="feature-name">Capture anything,<br>from anywhere</h3>
+    <p class="feature-desc">Save from any source in one click. Instagram reels, Vimeo films, Pinterest boards, any website. Full fidelity, no broken links, forever yours.</p>
+    <span class="feature-num">001</span>
+  </div>
+
+  <div class="feature-row reveal">
+    <h3 class="feature-name">Find it<br>instantly</h3>
+    <p class="feature-desc">Search by mood, keyword, color or project. Your entire archive surfaces exactly when you need it — not buried three folders deep.</p>
+    <span class="feature-num">002</span>
+  </div>
+
+  <div class="feature-row reveal">
+    <h3 class="feature-name">Treatment-<br>ready export</h3>
+    <p class="feature-desc">Drag boards directly into your treatments. Export with one click. The gap between inspiration and presentation simply disappears.</p>
+    <span class="feature-num">003</span>
+  </div>
+</section>
+
+<!-- EYE / MIND -->
+<section class="eye-mind-section">
+  <div class="eye-mind">
+    <div class="em-card reveal">
+      <div class="em-label">Eye</div>
+      <h2 class="em-title">What<br>you see</h2>
+      <p class="em-desc">Every frame, reference and image you collect throughout your life as a visual person. Your growing archive of influence.</p>
+    </div>
+    <div class="em-card reveal">
+      <div class="em-label">Mind</div>
+      <h2 class="em-title">What it<br>becomes</h2>
+      <p class="em-desc">The ideas, moods and intentions that grow from what you see. MindVault is where eye and mind connect — and stay connected.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PLATFORMS -->
+<section class="platforms">
+  <div class="platforms-label reveal">Captures from anywhere</div>
+  <div class="platforms-row stagger">
+    <div class="platform-pill">Instagram</div>
+    <div class="platform-pill">YouTube</div>
+    <div class="platform-pill">Vimeo</div>
+    <div class="platform-pill">TikTok</div>
+    <div class="platform-pill">Pinterest</div>
+    <div class="platform-pill">Any Website</div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="cta-final">
+  <div class="cta-final-inner">
+    <div class="reveal">
+      <h2 class="cta-final-title">Start with<br><em>30 days free.</em></h2>
+      <p class="cta-final-sub">No credit card. One-time purchase. Made for Mac.</p>
+    </div>
+    <div class="cta-btns reveal">
+      <a href="#" class="btn-primary">Download Free Trial</a>
+      <a href="#" class="btn-outline">Buy License — $29</a>
+    </div>
+    <p class="cta-note reveal">macOS 12+ · Apple Silicon & Intel</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2025 MindVault</span>
+  <div style="display:flex;gap:32px;">
+    <a href="#">Privacy</a>
+    <a href="#">Contact</a>
+  </div>
+</footer>
+
+<script>
+  // ─── SCROLL PROGRESS ────────────────────────────
+  const bar = document.getElementById('progressBar');
+  const nav = document.getElementById('nav');
+
+  window.addEventListener('scroll', () => {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    bar.style.width = (scrollTop / docHeight * 100) + '%';
+    nav.classList.toggle('scrolled', scrollTop > 80);
+  }, { passive: true });
+
+  // ─── INTERSECTION OBSERVER ───────────────────────
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal, .reveal-scale, .stagger, .em-card, .line-draw').forEach(el => {
+    observer.observe(el);
+  });
+</script>
+</body>
+</html>

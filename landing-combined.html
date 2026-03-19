@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MindVault</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --black:   #0b0b09;
+  --black2:  #131310;
+  --beige:   #faf8f4;
+  --surface: #f2ede4;
+  --gold:    #c8861e;
+  --ink:     #1a1916;
+  --muted-d: rgba(250,248,244,0.42);
+  --muted-l: #9a9488;
+  --rule-d:  rgba(250,248,244,0.09);
+  --rule-l:  rgba(26,25,22,0.10);
+}
+
+html { scroll-behavior: smooth; }
+body { background: var(--black); color: var(--beige); font-family: Georgia, 'Times New Roman', serif; overflow-x: hidden; }
+
+/* ─────────────────────────────────────────────
+   SCROLL EFFECTS
+───────────────────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(36px);
+  transition: opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1);
+}
+.reveal.in { opacity: 1; transform: none; }
+
+.reveal-x {
+  opacity: 0;
+  transform: translateX(-28px);
+  transition: opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1);
+}
+.reveal-x.in { opacity: 1; transform: none; }
+
+.delay-1 { transition-delay: 0.12s; }
+.delay-2 { transition-delay: 0.24s; }
+.delay-3 { transition-delay: 0.36s; }
+.delay-4 { transition-delay: 0.48s; }
+.delay-5 { transition-delay: 0.60s; }
+
+/* line that draws left to right */
+.draw {
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 1.4s cubic-bezier(0.16,1,0.3,1);
+}
+.draw.in { transform: scaleX(1); }
+
+/* ─────────────────────────────────────────────
+   PROGRESS BAR
+───────────────────────────────────────────── */
+#prog {
+  position: fixed; top: 0; left: 0; z-index: 300;
+  height: 1px; width: 0%;
+  background: var(--gold);
+  transition: width 0.08s linear;
+}
+
+/* ─────────────────────────────────────────────
+   NAV
+───────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 32px 64px;
+  transition: padding 0.5s, background 0.5s, border-bottom 0.5s;
+}
+nav.solid {
+  padding: 18px 64px;
+  background: rgba(11,11,9,0.88);
+  backdrop-filter: blur(16px) saturate(1.2);
+  border-bottom: 1px solid var(--rule-d);
+}
+.nav-logo {
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--beige);
+  text-decoration: none;
+  opacity: 0.8;
+}
+.nav-r { display: flex; gap: 40px; align-items: center; }
+.nav-r a {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-d);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.nav-r a:hover { color: var(--beige); }
+.nav-btn {
+  background: var(--gold);
+  color: var(--black) !important;
+  padding: 10px 22px;
+  font-size: 11px !important;
+  letter-spacing: 0.14em;
+  transition: opacity 0.2s !important;
+}
+.nav-btn:hover { opacity: 0.82; }
+
+/* ─────────────────────────────────────────────
+   HERO  — dark, full screen, title oversized
+───────────────────────────────────────────── */
+.hero {
+  background: var(--black);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0 64px 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ambient glow */
+.hero-glow {
+  position: absolute;
+  top: -30%; right: -20%;
+  width: 80vw; height: 80vw;
+  background: radial-gradient(ellipse, rgba(200,134,30,0.055) 0%, transparent 60%);
+  pointer-events: none;
+  animation: g 14s ease-in-out infinite alternate;
+}
+@keyframes g {
+  from { transform: translate(0,0) scale(1); }
+  to   { transform: translate(-4%,5%) scale(1.06); }
+}
+
+.hero-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: fu 1s 0.2s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+@keyframes fu {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:none; }
+}
+
+.hero-title {
+  font-size: clamp(96px, 13.5vw, 210px);
+  font-weight: normal;
+  line-height: 0.88;
+  letter-spacing: -0.02em;
+  color: var(--beige);
+  opacity: 0;
+  animation: fu 1.1s 0.35s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+.hero-title i { font-style: italic; color: var(--gold); }
+
+.hero-bottom {
+  margin-top: 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 40px;
+  opacity: 0;
+  animation: fu 1s 0.75s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+.hero-sub {
+  font-size: 16px;
+  color: var(--muted-d);
+  max-width: 400px;
+  line-height: 1.7;
+  font-style: italic;
+}
+.hero-ctas { display: flex; gap: 14px; flex-shrink: 0; }
+
+/* ─────────────────────────────────────────────
+   BUTTONS
+───────────────────────────────────────────── */
+.btn-gold {
+  display: inline-block;
+  background: var(--gold);
+  color: var(--black);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 15px 34px;
+  text-decoration: none;
+  transition: opacity 0.2s, transform 0.2s;
+  font-family: Georgia, serif;
+}
+.btn-gold:hover { opacity: 0.85; transform: translateY(-1px); }
+
+.btn-ghost-d {
+  display: inline-block;
+  border: 1px solid var(--rule-d);
+  color: var(--muted-d);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 15px 34px;
+  text-decoration: none;
+  transition: color 0.2s, border-color 0.2s;
+  font-family: Georgia, serif;
+}
+.btn-ghost-d:hover { color: var(--beige); border-color: rgba(250,248,244,0.35); }
+
+.btn-dark {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--beige);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 15px 34px;
+  text-decoration: none;
+  transition: background 0.2s, transform 0.2s;
+  font-family: Georgia, serif;
+}
+.btn-dark:hover { background: #2e2d29; transform: translateY(-1px); }
+
+.btn-ghost-l {
+  display: inline-block;
+  border: 1px solid var(--rule-l);
+  color: var(--muted-l);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 15px 34px;
+  text-decoration: none;
+  transition: color 0.2s, border-color 0.2s;
+  font-family: Georgia, serif;
+}
+.btn-ghost-l:hover { color: var(--ink); border-color: rgba(26,25,22,0.5); }
+
+/* ─────────────────────────────────────────────
+   BUILT-FOR STRIP  (dark)
+───────────────────────────────────────────── */
+.strip {
+  border-top: 1px solid var(--rule-d);
+  border-bottom: 1px solid var(--rule-d);
+  background: var(--black2);
+  display: flex;
+  overflow: hidden;
+}
+.strip-label {
+  padding: 20px 36px;
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border-right: 1px solid var(--rule-d);
+  display: flex; align-items: center;
+  white-space: nowrap;
+  background: var(--black2);
+  z-index: 1;
+}
+.strip-items { overflow: hidden; flex: 1; }
+.ticker {
+  display: flex;
+  white-space: nowrap;
+  animation: tick 22s linear infinite;
+}
+.ticker:hover { animation-play-state: paused; cursor: default; }
+.ticker span {
+  padding: 20px 52px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--muted-d);
+  border-right: 1px solid var(--rule-d);
+  font-style: italic;
+  transition: color 0.2s;
+}
+.ticker span:hover { color: var(--beige); }
+@keyframes tick {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ─────────────────────────────────────────────
+   FEATURES  — light / beige section
+───────────────────────────────────────────── */
+.features {
+  background: var(--beige);
+  color: var(--ink);
+  padding: 120px 64px;
+}
+.features-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 80px;
+  padding-bottom: 48px;
+  border-bottom: 1px solid var(--rule-l);
+}
+.features-title {
+  font-size: clamp(42px, 5.5vw, 72px);
+  font-weight: normal;
+  line-height: 1.05;
+  color: var(--ink);
+  max-width: 600px;
+}
+.features-title i { font-style: italic; color: var(--gold); }
+.features-intro {
+  font-size: 15px;
+  color: var(--muted-l);
+  font-style: italic;
+  max-width: 320px;
+  line-height: 1.7;
+  padding-top: 8px;
+}
+
+.feat {
+  display: grid;
+  grid-template-columns: 56px 1fr 1.6fr;
+  gap: 0 56px;
+  padding: 44px 0;
+  border-bottom: 1px solid var(--rule-l);
+  align-items: start;
+  cursor: default;
+  transition: background 0.25s, padding 0.25s, margin 0.25s;
+}
+.feat:hover {
+  background: var(--surface);
+  padding: 44px 32px;
+  margin: 0 -32px;
+}
+.feat-n {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--muted-l);
+  padding-top: 5px;
+}
+.feat-title {
+  font-size: 23px;
+  font-weight: normal;
+  line-height: 1.25;
+  color: var(--ink);
+}
+.feat-desc {
+  font-size: 15px;
+  color: var(--muted-l);
+  line-height: 1.75;
+  font-style: italic;
+  max-width: 500px;
+}
+
+/* ─────────────────────────────────────────────
+   EYE / MIND  — back to dark
+───────────────────────────────────────────── */
+.em-section {
+  background: var(--black);
+  padding: 0;
+}
+.em-eyebrow {
+  padding: 64px 64px 0;
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.em-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--rule-d);
+  margin-top: 40px;
+}
+.em-card {
+  padding: 80px 64px 96px;
+  border-right: 1px solid var(--rule-d);
+  position: relative;
+  overflow: hidden;
+}
+.em-card:last-child { border-right: none; }
+
+/* gold underline draws in */
+.em-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 1.6s 0.1s cubic-bezier(0.16,1,0.3,1);
+}
+.em-card.in::after { transform: scaleX(1); }
+.em-card:last-child::after { transition-delay: 0.25s; }
+
+.em-label {
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 36px;
+}
+.em-title {
+  font-size: clamp(48px, 6.5vw, 88px);
+  font-weight: normal;
+  line-height: 0.95;
+  color: var(--beige);
+  margin-bottom: 32px;
+}
+.em-title i { font-style: italic; }
+.em-desc {
+  font-size: 16px;
+  color: var(--muted-d);
+  line-height: 1.75;
+  font-style: italic;
+  max-width: 380px;
+}
+
+/* ─────────────────────────────────────────────
+   PLATFORMS
+───────────────────────────────────────────── */
+.platforms {
+  background: var(--beige);
+  padding: 96px 64px;
+  border-top: 1px solid var(--rule-l);
+}
+.platforms-inner {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 48px;
+}
+.platforms-lbl {
+  font-size: 9px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--muted-l);
+  white-space: nowrap;
+}
+.pills {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.pill {
+  border: 1px solid var(--rule-l);
+  padding: 10px 22px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-l);
+  font-family: Georgia, serif;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.pill:hover { color: var(--ink); border-color: var(--ink); background: var(--surface); }
+
+/* ─────────────────────────────────────────────
+   FINAL CTA  — dark, centered, large
+───────────────────────────────────────────── */
+.cta-section {
+  background: var(--black);
+  padding: 160px 64px;
+  text-align: center;
+  border-top: 1px solid var(--rule-d);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Large watermark */
+.cta-wm {
+  position: absolute;
+  font-size: 38vw;
+  font-weight: normal;
+  color: rgba(250,248,244,0.022);
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+
+.cta-inner { position: relative; z-index: 1; }
+.cta-title {
+  font-size: clamp(40px, 6vw, 88px);
+  font-weight: normal;
+  color: var(--beige);
+  line-height: 1.1;
+  margin-bottom: 18px;
+}
+.cta-title i { font-style: italic; color: var(--gold); }
+.cta-sub {
+  font-size: 15px;
+  color: var(--muted-d);
+  font-style: italic;
+  margin-bottom: 52px;
+}
+.cta-btns { display: flex; gap: 16px; justify-content: center; }
+.cta-note {
+  margin-top: 28px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(250,248,244,0.25);
+}
+
+/* ─────────────────────────────────────────────
+   FOOTER
+───────────────────────────────────────────── */
+footer {
+  background: var(--black2);
+  border-top: 1px solid var(--rule-d);
+  padding: 36px 64px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+footer span { font-size: 11px; color: rgba(250,248,244,0.28); }
+.footer-links { display: flex; gap: 32px; }
+.footer-links a { font-size: 11px; color: rgba(250,248,244,0.28); text-decoration: none; transition: color 0.2s; letter-spacing: 0.06em; }
+.footer-links a:hover { color: var(--beige); }
+</style>
+</head>
+<body>
+
+<div id="prog"></div>
+
+<!-- NAV -->
+<nav id="nav">
+  <a href="#" class="nav-logo">MindVault</a>
+  <div class="nav-r">
+    <a href="#">Features</a>
+    <a href="#">Pricing</a>
+    <a href="#" class="nav-btn">Download</a>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════
+     HERO
+════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-eyebrow">Your creative memory — Mac</div>
+  <h1 class="hero-title">Mind<br><i>Vault.</i></h1>
+  <div class="hero-bottom">
+    <p class="hero-sub">Every reference, every frame, every idea — in one place. Built for the way filmmakers and treatment designers actually think.</p>
+    <div class="hero-ctas">
+      <a href="#" class="btn-gold">Try Free — 30 Days</a>
+      <a href="#" class="btn-ghost-d">Buy License — $29</a>
+    </div>
+  </div>
+</section>
+
+<!-- STRIP -->
+<div class="strip">
+  <div class="strip-label">Built for</div>
+  <div class="strip-items">
+    <div class="ticker">
+      <span>Filmmakers</span><span>Directors of Photography</span><span>Treatment Designers</span><span>Art Directors</span><span>Creative Directors</span><span>Visual Storytellers</span><span>Filmmakers</span><span>Directors of Photography</span><span>Treatment Designers</span><span>Art Directors</span><span>Creative Directors</span><span>Visual Storytellers</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     FEATURES
+════════════════════════════════════════════ -->
+<section class="features">
+  <div class="features-head">
+    <h2 class="features-title reveal">Everything you need.<br><i>Nothing you don't.</i></h2>
+    <p class="features-intro reveal delay-2">Three things, done precisely right. No clutter, no subscriptions, no cloud lock-in.</p>
+  </div>
+
+  <div class="feat reveal">
+    <span class="feat-n">001</span>
+    <h3 class="feat-title">Capture<br>anything</h3>
+    <p class="feat-desc">Save from Instagram, Vimeo, YouTube, Pinterest, or any website in one click. No screenshots, no broken links. The original, intact, forever.</p>
+  </div>
+
+  <div class="feat reveal delay-1">
+    <span class="feat-n">002</span>
+    <h3 class="feat-title">Always<br>findable</h3>
+    <p class="feat-desc">Search by mood, keyword, color, or project. Your references surface when you need them — not buried in folders nobody opens twice.</p>
+  </div>
+
+  <div class="feat reveal delay-2">
+    <span class="feat-n">003</span>
+    <h3 class="feat-title">Treatment-<br>ready</h3>
+    <p class="feat-desc">Drag boards into your treatments and export exactly what the brief needs. The distance between inspiration and presentation disappears.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     EYE / MIND
+════════════════════════════════════════════ -->
+<section class="em-section">
+  <div class="em-eyebrow reveal-x">02 — The concept</div>
+  <div class="em-grid">
+    <div class="em-card reveal">
+      <div class="em-label">Eye</div>
+      <h2 class="em-title">What<br>you<br><i>see.</i></h2>
+      <p class="em-desc">Every frame, reference, and image you collect throughout your life as a visual person. Your growing archive of influence.</p>
+    </div>
+    <div class="em-card reveal delay-2">
+      <div class="em-label">Mind</div>
+      <h2 class="em-title">What it<br><i>becomes.</i></h2>
+      <p class="em-desc">The ideas, moods, and intentions that grow from what you see. MindVault is where eye and mind connect — and stay connected.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PLATFORMS -->
+<section class="platforms">
+  <div class="platforms-inner">
+    <span class="platforms-lbl reveal">Captures from anywhere</span>
+    <div class="pills reveal delay-1">
+      <span class="pill">Instagram</span>
+      <span class="pill">YouTube</span>
+      <span class="pill">Vimeo</span>
+      <span class="pill">TikTok</span>
+      <span class="pill">Pinterest</span>
+      <span class="pill">Any Website</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     FINAL CTA
+════════════════════════════════════════════ -->
+<section class="cta-section">
+  <div class="cta-wm">MV</div>
+  <div class="cta-inner">
+    <div class="reveal">
+      <h2 class="cta-title">Start with<br><i>30 days free.</i></h2>
+      <p class="cta-sub">No credit card. One-time purchase. Made for Mac.</p>
+    </div>
+    <div class="cta-btns reveal delay-1">
+      <a href="#" class="btn-gold">Download Free Trial</a>
+      <a href="#" class="btn-ghost-d">Buy License — $29</a>
+    </div>
+    <p class="cta-note reveal delay-2">macOS 12 or later &nbsp;·&nbsp; Apple Silicon &amp; Intel</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2025 MindVault</span>
+  <div class="footer-links">
+    <a href="#">Privacy</a>
+    <a href="#">Contact</a>
+  </div>
+</footer>
+
+<script>
+// Progress bar
+const prog = document.getElementById('prog');
+const nav  = document.getElementById('nav');
+
+window.addEventListener('scroll', () => {
+  const s = window.scrollY;
+  const h = document.documentElement.scrollHeight - window.innerHeight;
+  prog.style.width = (s / h * 100) + '%';
+  nav.classList.toggle('solid', s > 60);
+}, { passive: true });
+
+// Intersection Observer
+const io = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal, .reveal-x, .em-card, .draw').forEach(el => io.observe(el));
+</script>
+</body>
+</html>

@@ -11,3 +11,7 @@ compatibility_date = "2024-01-01"
 #   wrangler secret put SUPABASE_URL
 #   wrangler secret put SUPABASE_SERVICE_KEY
 #   wrangler secret put SUPABASE_ANON_KEY
+#
+# Lemon Squeezy + Resend (payment & email):
+#   wrangler secret put LEMON_SIGNING_SECRET   ← from LS dashboard → Store → Webhooks
+#   wrangler secret put RESEND_API_KEY         ← from resend.com/api-keys

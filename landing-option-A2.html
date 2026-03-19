@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MindVault — A2 Cinematic Dark</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #0b0b09;
+    --surface: #141410;
+    --text:    #e8e2d4;
+    --muted:   #7a7568;
+    --accent:  #c8861e;
+    --rule:    rgba(232,226,212,0.10);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IM Fell English', Georgia, serif;
+    font-size: 18px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ─── SCROLL REVEAL BASE ─────────────────────── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1),
+                transform 0.8s cubic-bezier(0.16,1,0.3,1);
+  }
+  .reveal.visible { opacity: 1; transform: none; }
+
+  .reveal-left {
+    opacity: 0;
+    transform: translateX(-40px);
+    transition: opacity 0.9s cubic-bezier(0.16,1,0.3,1),
+                transform 0.9s cubic-bezier(0.16,1,0.3,1);
+  }
+  .reveal-left.visible { opacity: 1; transform: none; }
+
+  .reveal-right {
+    opacity: 0;
+    transform: translateX(40px);
+    transition: opacity 0.9s cubic-bezier(0.16,1,0.3,1),
+                transform 0.9s cubic-bezier(0.16,1,0.3,1);
+  }
+  .reveal-right.visible { opacity: 1; transform: none; }
+
+  /* stagger children */
+  .stagger > * { opacity: 0; transform: translateY(24px); transition: opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1); }
+  .stagger.visible > *:nth-child(1) { opacity:1; transform:none; transition-delay:0s; }
+  .stagger.visible > *:nth-child(2) { opacity:1; transform:none; transition-delay:0.12s; }
+  .stagger.visible > *:nth-child(3) { opacity:1; transform:none; transition-delay:0.24s; }
+  .stagger.visible > *:nth-child(4) { opacity:1; transform:none; transition-delay:0.36s; }
+  .stagger.visible > *:nth-child(5) { opacity:1; transform:none; transition-delay:0.48s; }
+
+  /* ─── LINE DRAW ─────────────────────────────── */
+  .line-draw {
+    height: 1px;
+    background: var(--rule);
+    transform-origin: left;
+    transform: scaleX(0);
+    transition: transform 1.2s cubic-bezier(0.16,1,0.3,1);
+  }
+  .line-draw.visible { transform: scaleX(1); }
+
+  /* ─── NAV ───────────────────────────────────── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 28px 60px;
+    background: linear-gradient(to bottom, rgba(11,11,9,0.95) 0%, transparent 100%);
+    backdrop-filter: blur(0px);
+    transition: background 0.4s, backdrop-filter 0.4s;
+  }
+  nav.scrolled {
+    background: rgba(11,11,9,0.92);
+    backdrop-filter: blur(12px);
+    padding: 18px 60px;
+  }
+  .nav-logo {
+    font-family: 'IM Fell English', Georgia, serif;
+    font-size: 17px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text);
+    text-decoration: none;
+    opacity: 0.9;
+  }
+  .nav-links { display: flex; gap: 40px; }
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+    font-family: Georgia, serif;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  /* ─── HERO ──────────────────────────────────── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 0 60px 72px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Subtle grain texture overlay */
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none;
+    opacity: 0.4;
+  }
+
+  /* Ambient light blob */
+  .hero-glow {
+    position: absolute;
+    top: -20%;
+    right: -10%;
+    width: 70vw;
+    height: 70vw;
+    background: radial-gradient(ellipse, rgba(200,134,30,0.06) 0%, transparent 65%);
+    pointer-events: none;
+    animation: glow-drift 12s ease-in-out infinite alternate;
+  }
+  @keyframes glow-drift {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(-3%, 4%) scale(1.05); }
+  }
+
+  .hero-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 28px;
+    font-family: Georgia, serif;
+    opacity: 0;
+    animation: fade-up 1s 0.3s cubic-bezier(0.16,1,0.3,1) forwards;
+  }
+  .hero-title {
+    font-size: clamp(72px, 10vw, 148px);
+    font-weight: normal;
+    line-height: 0.92;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    max-width: 80vw;
+    opacity: 0;
+    animation: fade-up 1.1s 0.5s cubic-bezier(0.16,1,0.3,1) forwards;
+  }
+  .hero-title em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .hero-bottom {
+    margin-top: 48px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    opacity: 0;
+    animation: fade-up 1s 0.9s cubic-bezier(0.16,1,0.3,1) forwards;
+  }
+  .hero-sub {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 380px;
+    line-height: 1.65;
+    font-style: italic;
+    font-family: Georgia, serif;
+  }
+  .hero-cta { display: flex; gap: 16px; align-items: center; }
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── BUTTONS ───────────────────────────────── */
+  .btn-primary {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: Georgia, serif;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 14px 32px;
+    text-decoration: none;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .btn-primary:hover { opacity: 0.85; transform: translateY(-1px); }
+
+  .btn-ghost {
+    display: inline-block;
+    border: 1px solid var(--rule);
+    color: var(--muted);
+    font-family: Georgia, serif;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 14px 32px;
+    text-decoration: none;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: rgba(232,226,212,0.4); }
+
+  /* ─── SECTION GENERIC ───────────────────────── */
+  section { padding: 120px 60px; }
+
+  .section-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 56px;
+    font-family: Georgia, serif;
+  }
+
+  /* ─── FEATURES ──────────────────────────────── */
+  .features { border-top: 1px solid var(--rule); }
+
+  .feature-row {
+    display: grid;
+    grid-template-columns: 64px 1fr 2fr;
+    gap: 0 48px;
+    align-items: start;
+    padding: 48px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .feature-num {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    font-family: Georgia, serif;
+    padding-top: 4px;
+  }
+
+  .feature-name {
+    font-size: 22px;
+    font-weight: normal;
+    line-height: 1.3;
+    color: var(--text);
+  }
+
+  .feature-desc {
+    font-size: 15px;
+    color: var(--muted);
+    line-height: 1.75;
+    font-style: italic;
+    font-family: Georgia, serif;
+    max-width: 520px;
+  }
+
+  /* ─── EYE / MIND ────────────────────────────── */
+  .eye-mind {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--rule);
+  }
+
+  .em-card {
+    background: var(--surface);
+    padding: 72px 60px;
+    position: relative;
+    overflow: hidden;
+  }
+  .em-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 1.4s 0.2s cubic-bezier(0.16,1,0.3,1);
+  }
+  .em-card.visible::after { transform: scaleX(1); }
+
+  .em-label {
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 32px;
+    font-family: Georgia, serif;
+  }
+  .em-title {
+    font-size: clamp(42px, 6vw, 76px);
+    font-weight: normal;
+    line-height: 1;
+    color: var(--text);
+    margin-bottom: 28px;
+  }
+  .em-desc {
+    font-size: 16px;
+    color: var(--muted);
+    line-height: 1.75;
+    font-style: italic;
+    font-family: Georgia, serif;
+    max-width: 400px;
+  }
+
+  /* ─── PLATFORMS ─────────────────────────────── */
+  .platforms { text-align: center; }
+  .platforms-label {
+    font-size: 10px;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 40px;
+    font-family: Georgia, serif;
+  }
+  .platforms-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .platform-pill {
+    border: 1px solid var(--rule);
+    padding: 10px 22px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: Georgia, serif;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .platform-pill:hover { color: var(--text); border-color: rgba(232,226,212,0.35); }
+
+  /* ─── CTA FINAL ─────────────────────────────── */
+  .cta-final {
+    text-align: center;
+    border-top: 1px solid var(--rule);
+  }
+  .cta-final-title {
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: normal;
+    color: var(--text);
+    margin-bottom: 14px;
+    line-height: 1.15;
+  }
+  .cta-final-title em { font-style: italic; color: var(--accent); }
+  .cta-final-sub {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 48px;
+    font-family: Georgia, serif;
+    font-style: italic;
+  }
+  .cta-btns { display: flex; gap: 16px; justify-content: center; }
+  .cta-note {
+    margin-top: 24px;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    font-family: Georgia, serif;
+  }
+
+  /* ─── FOOTER ────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--rule);
+    padding: 40px 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  footer span { font-size: 12px; color: var(--muted); font-family: Georgia, serif; }
+  footer a { color: var(--muted); text-decoration: none; font-size: 12px; font-family: Georgia, serif; }
+  footer a:hover { color: var(--text); }
+
+  /* ─── SCROLL PROGRESS BAR ───────────────────── */
+  .progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 2px;
+    background: var(--accent);
+    width: 0%;
+    z-index: 200;
+    transition: width 0.1s linear;
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<nav id="nav">
+  <a href="#" class="nav-logo">MindVault</a>
+  <div class="nav-links">
+    <a href="#">Features</a>
+    <a href="#">Pricing</a>
+    <a href="#">Download</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-eyebrow">Your creative memory</div>
+  <h1 class="hero-title">Mind<br><em>Vault.</em></h1>
+  <div class="hero-bottom">
+    <p class="hero-sub">Everything you save, every reference, every idea — one place. Built for the way filmmakers actually think.</p>
+    <div class="hero-cta">
+      <a href="#" class="btn-primary">Try Free — 30 Days</a>
+      <a href="#" class="btn-ghost">Buy License — $29</a>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="section-eyebrow reveal">01 — What it does</div>
+
+  <div class="feature-row reveal">
+    <span class="feature-num">001</span>
+    <h3 class="feature-name">Capture<br>anything</h3>
+    <p class="feature-desc">Save from any source — Instagram, Vimeo, Pinterest, any website — in one click. No screenshots, no broken links. The original stays intact.</p>
+  </div>
+
+  <div class="feature-row reveal">
+    <span class="feature-num">002</span>
+    <h3 class="feature-name">Always<br>findable</h3>
+    <p class="feature-desc">Search by mood, color, keyword, or project. Your references surface when you need them — not buried in folders nobody opens.</p>
+  </div>
+
+  <div class="feature-row reveal">
+    <span class="feature-num">003</span>
+    <h3 class="feature-name">Treatment-<br>ready</h3>
+    <p class="feature-desc">Drag boards directly into your treatments. Export exactly what you need. The gap between inspiration and presentation disappears.</p>
+  </div>
+</section>
+
+<!-- EYE / MIND -->
+<section style="padding: 0 60px 120px;">
+  <div class="section-eyebrow reveal">02 — The concept</div>
+  <div class="eye-mind">
+    <div class="em-card reveal-left">
+      <div class="em-label">Eye</div>
+      <h2 class="em-title">What<br>you see</h2>
+      <p class="em-desc">Every frame, reference and image you collect throughout your life as a visual person. Your growing archive of influence.</p>
+    </div>
+    <div class="em-card reveal-right">
+      <div class="em-label">Mind</div>
+      <h2 class="em-title">What it<br>becomes</h2>
+      <p class="em-desc">The ideas, moods and intentions that grow from what you see. MindVault is where eye and mind connect — and stay connected.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PLATFORMS -->
+<section class="platforms">
+  <div class="platforms-label reveal">Captures from anywhere</div>
+  <div class="platforms-row stagger">
+    <div class="platform-pill">Instagram</div>
+    <div class="platform-pill">YouTube</div>
+    <div class="platform-pill">Vimeo</div>
+    <div class="platform-pill">TikTok</div>
+    <div class="platform-pill">Pinterest</div>
+    <div class="platform-pill">Any Website</div>
+  </div>
+</section>
+
+<!-- CTA FINAL -->
+<section class="cta-final">
+  <div class="reveal">
+    <h2 class="cta-final-title">Start with<br><em>30 days free.</em></h2>
+    <p class="cta-final-sub">No credit card required. Mac only. One-time purchase.</p>
+  </div>
+  <div class="cta-btns reveal">
+    <a href="#" class="btn-primary">Download Free Trial</a>
+    <a href="#" class="btn-ghost">Buy License — $29</a>
+  </div>
+  <p class="cta-note reveal">macOS 12+ · Apple Silicon & Intel</p>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <span>© 2025 MindVault</span>
+  <div style="display:flex;gap:32px;">
+    <a href="#">Privacy</a>
+    <a href="#">Contact</a>
+  </div>
+</footer>
+
+<script>
+  // ─── SCROLL PROGRESS ────────────────────────────
+  const bar = document.getElementById('progressBar');
+  function updateProgress() {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    bar.style.width = (scrollTop / docHeight * 100) + '%';
+  }
+
+  // ─── NAV SCROLL STATE ────────────────────────────
+  const nav = document.getElementById('nav');
+  function updateNav() {
+    nav.classList.toggle('scrolled', window.scrollY > 80);
+  }
+
+  // ─── INTERSECTION OBSERVER ───────────────────────
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -48px 0px' });
+
+  document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .stagger, .em-card, .line-draw').forEach(el => {
+    observer.observe(el);
+  });
+
+  window.addEventListener('scroll', () => {
+    updateProgress();
+    updateNav();
+  }, { passive: true });
+
+  updateProgress();
+  updateNav();
+</script>
+</body>
+</html>

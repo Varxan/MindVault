@@ -9,15 +9,18 @@
  *   POST /activation/trial      — Start 30-day free trial (new user)
  *   POST /activation/signin     — Sign in (returning user / second device)
  *   POST /activation/activate   — Activate with license key
+ *   POST /webhook/lemon         — Lemon Squeezy purchase webhook (no auth header)
  *
- * All requests must carry:
+ * All activation requests must carry:
  *   Authorization: Bearer <APP_SECRET>
  *
  * Environment variables (set via `wrangler secret put`):
- *   APP_SECRET          — shared secret between Worker and Electron app
- *   SUPABASE_URL        — e.g. https://xxxx.supabase.co
+ *   APP_SECRET           — shared secret between Worker and Electron app
+ *   SUPABASE_URL         — e.g. https://xxxx.supabase.co
  *   SUPABASE_SERVICE_KEY — Supabase service role key (bypasses RLS)
- *   SUPABASE_ANON_KEY   — Supabase anon key (for Auth endpoints)
+ *   SUPABASE_ANON_KEY    — Supabase anon key (for Auth endpoints)
+ *   LEMON_SIGNING_SECRET — Lemon Squeezy webhook signing secret
+ *   RESEND_API_KEY       — Resend.com API key for transactional email
  */
 
 const CORS_HEADERS = {
@@ -38,15 +41,20 @@ export default {
       return json({ error: 'Method not allowed' }, 405);
     }
 
-    // Verify shared secret
+    const url  = new URL(request.url);
+    const path = url.pathname;
+
+    // ── Lemon Squeezy webhook — has its own HMAC auth, no Bearer token ────────
+    if (path === '/webhook/lemon') {
+      return handleLemonWebhook(request, env);
+    }
+
+    // ── All other endpoints require the shared APP_SECRET ─────────────────────
     const authHeader = request.headers.get('Authorization') || '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
     if (!token || token !== env.APP_SECRET) {
       return json({ error: 'Unauthorized' }, 401);
     }
-
-    const url = new URL(request.url);
-    const path = url.pathname;
 
     try {
       const body = await request.json();
@@ -195,6 +203,224 @@ async function handleActivate({ email, key, deviceId }, env) {
   }
 
   return json({ success: true });
+}
+
+// ── Lemon Squeezy webhook ─────────────────────────────────────────────────────
+
+/**
+ * POST /webhook/lemon
+ *
+ * Receives Lemon Squeezy events. We care about "order_created".
+ * Flow:
+ *   1. Verify HMAC-SHA256 signature (X-Signature header)
+ *   2. Extract customer email from the order
+ *   3. Generate a new MVLT-XXXX-XXXX-XXXX license key
+ *   4. Insert into Supabase `licenses` table
+ *   5. Send key to customer via Resend email
+ */
+async function handleLemonWebhook(request, env) {
+  // Read raw body (needed for signature verification)
+  const rawBody  = await request.text();
+  const sigHeader = request.headers.get('X-Signature') || '';
+
+  // Verify HMAC-SHA256
+  if (env.LEMON_SIGNING_SECRET) {
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(env.LEMON_SIGNING_SECRET);
+    const msgData = encoder.encode(rawBody);
+
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']
+    );
+    const sigBytes = hexToBytes(sigHeader);
+    const valid = await crypto.subtle.verify('HMAC', cryptoKey, sigBytes, msgData);
+    if (!valid) {
+      console.error('[Lemon] Invalid signature');
+      return new Response('Unauthorized', { status: 401 });
+    }
+  } else {
+    console.warn('[Lemon] LEMON_SIGNING_SECRET not set — skipping signature check');
+  }
+
+  let event;
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    return new Response('Bad Request', { status: 400 });
+  }
+
+  const eventName = event?.meta?.event_name;
+  console.log('[Lemon] Event:', eventName);
+
+  // We only act on new paid orders
+  if (eventName !== 'order_created') {
+    return new Response('OK', { status: 200 });
+  }
+
+  const attrs = event?.data?.attributes;
+  if (!attrs) return new Response('OK', { status: 200 });
+
+  // Skip refunded / failed orders
+  if (attrs.status !== 'paid') {
+    console.log('[Lemon] Skipping order with status:', attrs.status);
+    return new Response('OK', { status: 200 });
+  }
+
+  const email    = attrs.user_email;
+  const name     = attrs.user_name || '';
+  const orderId  = String(event?.data?.id || '');
+
+  if (!email) {
+    console.error('[Lemon] No email in order');
+    return new Response('OK', { status: 200 });
+  }
+
+  console.log(`[Lemon] New order from ${email} (order ${orderId})`);
+
+  // Generate a fresh MVLT-XXXX-XXXX-XXXX key
+  const key = generateLicenseKey();
+
+  // Insert into Supabase licenses table
+  const insertRes = await supabaseDb('POST', 'licenses', {
+    key,
+    max_activations:  3,
+    activation_count: 0,
+    notes:            `LemonSqueezy order ${orderId}`,
+    email,
+  }, null, env);
+
+  if (!insertRes.ok) {
+    console.error('[Lemon] Failed to insert license:', JSON.stringify(insertRes.data));
+    // Still return 200 to LS so it doesn't retry; we'll fix manually if needed
+    return new Response('OK', { status: 200 });
+  }
+
+  console.log(`[Lemon] License created: ${key}`);
+
+  // Send email via Resend
+  if (env.RESEND_API_KEY) {
+    await sendLicenseEmail({ email, name, key }, env);
+  } else {
+    console.warn('[Lemon] RESEND_API_KEY not set — skipping email');
+  }
+
+  return new Response('OK', { status: 200 });
+}
+
+// ── License key generator ─────────────────────────────────────────────────────
+
+const KEY_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I confusion
+
+function generateLicenseKey() {
+  const segment = (len) =>
+    Array.from({ length: len }, () => {
+      // Use crypto.getRandomValues for CF Workers (Web Crypto API)
+      const arr = new Uint8Array(1);
+      crypto.getRandomValues(arr);
+      return KEY_CHARS[arr[0] % KEY_CHARS.length];
+    }).join('');
+  return `MVLT-${segment(4)}-${segment(4)}-${segment(4)}`;
+}
+
+function hexToBytes(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+// ── Resend email ──────────────────────────────────────────────────────────────
+
+async function sendLicenseEmail({ email, name, key }, env) {
+  const firstName = name.split(' ')[0] || 'there';
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f5f2eb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f2eb;padding:48px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e2e0d8;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#1a1a18;padding:32px 40px;text-align:center;">
+            <img src="https://mindvault.ch/icon-512x512.png" width="48" height="48"
+                 style="border-radius:11px;display:block;margin:0 auto 12px;" alt="MindVault" />
+            <p style="margin:0;color:#f5f2eb;font-size:20px;font-weight:700;letter-spacing:-0.3px;">MindVault</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:40px 40px 32px;">
+            <p style="margin:0 0 16px;font-size:16px;color:#1a1a18;">Hi ${firstName},</p>
+            <p style="margin:0 0 24px;font-size:15px;color:#555550;line-height:1.7;">
+              Thank you for your purchase! Here is your MindVault license key:
+            </p>
+
+            <!-- Key box -->
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="background:#f5f2eb;border:1px solid #e2e0d8;border-radius:12px;padding:20px;text-align:center;">
+                  <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#888880;">Your License Key</p>
+                  <p style="margin:0;font-size:22px;font-weight:700;letter-spacing:0.12em;color:#1a1a18;font-family:'Courier New',monospace;">${key}</p>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:28px 0 8px;font-size:15px;color:#555550;line-height:1.7;">
+              To activate MindVault:
+            </p>
+            <ol style="margin:0 0 24px;padding-left:20px;font-size:14px;color:#555550;line-height:1.9;">
+              <li>Open MindVault on your Mac</li>
+              <li>When prompted, enter the license key above</li>
+              <li>MindVault unlocks immediately — no internet required after activation</li>
+            </ol>
+            <p style="margin:0 0 8px;font-size:13px;color:#888880;line-height:1.7;">
+              Your key supports up to <strong>3 devices</strong>. Keep this email safe.
+            </p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="border-top:1px solid #e2e0d8;padding:24px 40px;text-align:center;">
+            <p style="margin:0;font-size:12px;color:#bbbbb5;">
+              Questions? Reply to this email — we are happy to help.<br />
+              MindVault · mindvault.ch
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+    },
+    body: JSON.stringify({
+      from:    'MindVault <hello@mindvault.ch>',
+      to:      [email],
+      subject: 'Your MindVault License Key',
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    console.error('[Resend] Failed to send email:', res.status, errBody);
+  } else {
+    console.log(`[Resend] License email sent to ${email}`);
+  }
 }
 
 // ── Supabase helpers ──────────────────────────────────────────────────────────

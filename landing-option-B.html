@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MindVault — Option B: Editorial</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@font-face{font-family:'Harmony';src:url('frontend/public/fonts/Harmony.otf') format('opentype');}
+@font-face{font-family:'Humane';src:url('frontend/public/fonts/Humane-Medium.ttf') format('truetype');font-weight:500;}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#ffffff;
+  --surface:#f7f5f0;
+  --border:#e8e5de;
+  --text:#111110;
+  --text-muted:#6a6a64;
+  --text-dim:#b8b5ae;
+  --accent:#C8861E;
+}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Harmony',Georgia,serif;-webkit-font-smoothing:antialiased;}
+
+/* NAV */
+.nav{display:flex;align-items:center;justify-content:space-between;padding:18px 40px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.95);backdrop-filter:blur(12px);}
+.nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--text);}
+.nav-logo img{width:26px;height:26px;border-radius:6px;}
+.nav-logo-text{font-family:'Humane',sans-serif;font-weight:500;font-size:20px;letter-spacing:0.06em;}
+.nav-right{display:flex;align-items:center;gap:10px;}
+.btn-try{background:var(--text);color:var(--bg);border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;font-family:'Inter',sans-serif;text-decoration:none;letter-spacing:-0.01em;}
+.btn-buy-sm{color:var(--text-muted);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;font-family:'Inter',sans-serif;text-decoration:none;}
+
+/* HERO — split layout */
+.hero{display:grid;grid-template-columns:1fr 1fr;min-height:88vh;border-bottom:1px solid var(--border);}
+.hero-left{padding:64px 56px;display:flex;flex-direction:column;justify-content:space-between;border-right:1px solid var(--border);}
+.hero-top{flex:1;display:flex;flex-direction:column;justify-content:center;}
+.hero-eyebrow{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:32px;}
+.hero h1{font-family:'Humane',sans-serif;font-size:clamp(88px,10vw,148px);font-weight:500;line-height:0.87;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);}
+.hero-bottom-row{display:flex;align-items:center;justify-content:space-between;padding-top:48px;border-top:1px solid var(--border);}
+.hero-price{font-family:'Harmony',serif;font-size:14px;color:var(--text-muted);}
+.hero-price strong{color:var(--text);font-size:20px;}
+.hero-right{padding:64px 56px;display:flex;flex-direction:column;justify-content:flex-end;background:var(--surface);}
+.hero-sub{font-family:'Harmony',Georgia,serif;font-size:22px;color:var(--text-muted);line-height:1.65;margin-bottom:48px;}
+.hero-cta-stack{display:flex;flex-direction:column;gap:12px;}
+.btn-primary-lg{display:flex;align-items:center;justify-content:space-between;background:var(--text);color:var(--bg);border-radius:12px;padding:20px 24px;text-decoration:none;transition:opacity 0.15s;}
+.btn-primary-lg:hover{opacity:0.85;}
+.btn-primary-lg span{font-family:'Humane',sans-serif;font-size:28px;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;}
+.btn-primary-lg small{font-family:'Inter',sans-serif;font-size:12px;color:rgba(245,242,235,0.5);}
+.btn-outline-lg{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:12px;padding:18px 24px;text-decoration:none;color:var(--text-muted);transition:all 0.15s;}
+.btn-outline-lg:hover{border-color:var(--text-muted);color:var(--text);}
+.btn-outline-lg span{font-family:'Humane',sans-serif;font-size:24px;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;}
+.btn-outline-lg small{font-family:'Inter',sans-serif;font-size:12px;}
+.hero-note{font-family:'Harmony',serif;font-style:italic;font-size:13px;color:var(--text-dim);margin-top:10px;}
+
+/* ROLES TICKER */
+.ticker{overflow:hidden;border-bottom:1px solid var(--border);padding:14px 0;background:var(--surface);}
+.ticker-inner{display:flex;gap:48px;white-space:nowrap;animation:tick 20s linear infinite;}
+.ticker-item{font-family:'Harmony',serif;font-size:14px;color:var(--text-muted);flex-shrink:0;}
+.ticker-sep{color:var(--accent);font-size:14px;flex-shrink:0;}
+@keyframes tick{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+
+/* FEATURES */
+.features{max-width:1100px;margin:0 auto;padding:100px 40px;}
+.features-header{margin-bottom:64px;}
+.features-header h2{font-family:'Humane',sans-serif;font-size:clamp(56px,7vw,100px);font-weight:500;letter-spacing:0.04em;text-transform:uppercase;color:var(--text);line-height:0.9;}
+.features-header p{font-family:'Harmony',serif;font-size:16px;color:var(--text-muted);line-height:1.7;max-width:380px;margin-top:20px;}
+
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+.feat-card{padding:40px 32px;border-right:1px solid var(--border);}
+.feat-card:last-child{border-right:none;}
+.feat-n{font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:32px;}
+.feat-card h3{font-family:'Humane',sans-serif;font-size:40px;font-weight:500;text-transform:uppercase;letter-spacing:0.02em;color:var(--text);line-height:0.95;margin-bottom:20px;}
+.feat-card p{font-family:'Harmony',Georgia,serif;font-size:15px;color:var(--text-muted);line-height:1.75;}
+
+/* EYE MIND — horizontal split */
+.eyemind{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.em-left{padding:80px 64px;background:var(--text);}
+.em-left h2{font-family:'Humane',sans-serif;font-size:clamp(64px,8vw,112px);font-weight:500;text-transform:uppercase;letter-spacing:0.04em;color:var(--bg);line-height:0.88;margin-bottom:28px;}
+.em-left p{font-family:'Harmony',serif;font-size:16px;color:rgba(245,242,235,0.45);line-height:1.75;}
+.em-right{display:grid;grid-template-rows:1fr 1fr;}
+.em-space{padding:48px 56px;border-bottom:1px solid var(--border);}
+.em-space:last-child{border-bottom:none;}
+.em-label{font-family:'Humane',sans-serif;font-size:56px;font-weight:500;text-transform:uppercase;letter-spacing:0.06em;color:var(--accent);line-height:1;margin-bottom:16px;}
+.em-space p{font-family:'Harmony',Georgia,serif;font-size:15px;color:var(--text-muted);line-height:1.75;}
+
+/* PLATFORMS */
+.platforms{padding:20px 40px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.pl{font-family:'Inter',sans-serif;font-size:12px;color:var(--text-dim);background:var(--surface);border:1px solid var(--border);border-radius:100px;padding:5px 14px;}
+
+/* CTA */
+.cta{display:grid;grid-template-columns:1fr 1fr;min-height:40vh;}
+.cta-left{padding:80px 64px;display:flex;flex-direction:column;justify-content:center;border-right:1px solid var(--border);}
+.cta-left h2{font-family:'Humane',sans-serif;font-size:clamp(64px,8vw,112px);font-weight:500;text-transform:uppercase;letter-spacing:0.04em;color:var(--text);line-height:0.88;}
+.cta-right{padding:80px 64px;background:var(--surface);display:flex;flex-direction:column;justify-content:center;gap:20px;}
+.cta-right p{font-family:'Harmony',serif;font-size:17px;color:var(--text-muted);line-height:1.7;margin-bottom:12px;}
+.cta-note{font-family:'Harmony',serif;font-style:italic;font-size:13px;color:var(--text-dim);margin-top:4px;}
+
+/* FOOTER */
+.footer{border-top:1px solid var(--border);padding:24px 40px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.footer-logo{display:flex;align-items:center;gap:8px;}
+.footer-logo-text{font-family:'Humane',sans-serif;font-size:18px;letter-spacing:0.06em;color:var(--text-muted);}
+.footer p,.footer a{font-family:'Harmony',serif;font-size:13px;color:var(--text-dim);text-decoration:none;}
+.footer-links{display:flex;gap:24px;}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <img src="frontend/public/icon-512x512.png" alt=""/>
+    <span class="nav-logo-text">MindVault</span>
+  </a>
+  <div class="nav-right">
+    <a href="#" class="btn-buy-sm">Buy — $29</a>
+    <a href="#" class="btn-try">Try Free</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-top">
+      <div class="hero-eyebrow">For filmmakers, directors &amp; creators</div>
+      <h1>YOUR<br/>CREATIVE<br/>VAULT.</h1>
+    </div>
+    <div class="hero-bottom-row">
+      <div class="hero-price">One-time <strong>$29</strong><br/>30-day free trial</div>
+      <span style="font-family:'Harmony',serif;font-size:13px;color:var(--text-dim);font-style:italic;">Mac only</span>
+    </div>
+  </div>
+  <div class="hero-right">
+    <p class="hero-sub">
+      Everything that stops you mid-scroll belongs somewhere.
+      MindVault turns scattered references into structured inspiration,
+      ready when your next project needs it.
+    </p>
+    <div class="hero-cta-stack">
+      <a href="#" class="btn-primary-lg">
+        <span>Try Free — 30 Days</span>
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4.5 7l3.5 3.5L11.5 7M1.5 14h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="#" class="btn-outline-lg">
+        <span>Buy License — $29</span>
+        <small>One-time</small>
+      </a>
+    </div>
+    <p class="hero-note">No credit card required for trial</p>
+  </div>
+</section>
+
+<div class="ticker">
+  <div class="ticker-inner">
+    <span class="ticker-item">Film Directors</span><span class="ticker-sep">*</span>
+    <span class="ticker-item">Directors of Photography</span><span class="ticker-sep">*</span>
+    <span class="ticker-item">Treatment Designers</span><span class="ticker-sep">*</span>
+    <span class="ticker-item">Creative Directors</span><span class="ticker-sep">*</span>
+    <span class="ticker-item">Video Editors</span><span class="ticker-sep">*</span>
+    <span class="ticker-item">Photographers</span><span class="ticker-sep">*</span>
+    <span class="ticker-item">Film Directors</span><span class="ticker-sep">*</span>
+    <span class="ticker-item">Directors of Photography</span><span class="ticker-sep">*</span>
+    <span class="ticker-item">Treatment Designers</span><span class="ticker-sep">*</span>
+    <span class="ticker-item">Creative Directors</span><span class="ticker-sep">*</span>
+    <span class="ticker-item">Video Editors</span><span class="ticker-sep">*</span>
+    <span class="ticker-item">Photographers</span><span class="ticker-sep">*</span>
+  </div>
+</div>
+
+<section class="features">
+  <div class="features-header">
+    <h2>Less scrolling.<br/>More making.</h2>
+    <p>Three things that change how you work with visual references.</p>
+  </div>
+  <div class="feat-grid">
+    <div class="feat-card">
+      <div class="feat-n">01 / CAPTURE</div>
+      <h3>Capture the moment.</h3>
+      <p>A frame that stops you. A colour palette, a scene, a cut that belongs in your next treatment. Save it in one move, from any source, any device. It's in your vault before the moment passes.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-n">02 / ORGANISE</div>
+      <h3>Always findable.</h3>
+      <p>Collections, tags, and AI that recognises what you saved. No manual labelling, ever. Search by mood, colour, subject or concept. Your archive grows without becoming a mess.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-n">03 / CREATE</div>
+      <h3>Treatment-ready.</h3>
+      <p>Trim a clip. Pull a still. Create a GIF. Your saved references become deliverables without leaving the app. Mood boards and treatments built from the material you collected from day one.</p>
+    </div>
+  </div>
+</section>
+
+<div class="eyemind">
+  <div class="em-left">
+    <h2>Two ways<br/>of seeing.</h2>
+    <p>Not all inspiration works the same way. Some things you feel before you think them. Others you understand before you see them. MindVault keeps both worlds separate and searchable.</p>
+  </div>
+  <div class="em-right">
+    <div class="em-space">
+      <div class="em-label">EYE</div>
+      <p>What you see. Colour, light, texture, movement, composition. Visual references are analysed for how they look. Find a frame by its feel, not by what you called it.</p>
+    </div>
+    <div class="em-space">
+      <div class="em-label">MIND</div>
+      <p>What you think. Articles, scripts, concepts, ideas that matter. Analysed for meaning and context. Find a reference by what it says, not what it shows.</p>
+    </div>
+  </div>
+</div>
+
+<div class="platforms">
+  <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-right:8px;">Works with</span>
+  <span class="pl">Instagram</span><span class="pl">YouTube</span><span class="pl">TikTok</span>
+  <span class="pl">Vimeo</span><span class="pl">Pinterest</span><span class="pl">Any website</span>
+</div>
+
+<section class="cta" id="buy">
+  <div class="cta-left">
+    <h2>Start your vault.</h2>
+  </div>
+  <div class="cta-right">
+    <p>30 days free. Then a one-time purchase. No subscription. No cloud lock-in. Yours forever.</p>
+    <a href="#" class="btn-primary-lg" style="text-decoration:none;">
+      <span>Try Free — 30 Days</span>
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4.5 7l3.5 3.5L11.5 7M1.5 14h13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a href="#" class="btn-outline-lg" style="text-decoration:none;">
+      <span>Buy License — $29</span><small>One-time</small>
+    </a>
+    <p class="cta-note">License key delivered by email instantly after purchase.</p>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="footer-logo">
+    <img src="frontend/public/icon-512x512.png" width="20" height="20" style="border-radius:4px;" alt=""/>
+    <span class="footer-logo-text">MindVault</span>
+  </div>
+  <p>Built for people who collect ideas.</p>
+  <div class="footer-links">
+    <a href="#">Privacy</a><a href="#">Terms</a><a href="#">Licenses</a>
+  </div>
+  <p>© 2026</p>
+</footer>
+</body>
+</html>

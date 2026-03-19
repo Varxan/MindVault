@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    background: #111;
+    color: #555;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 40px;
+    gap: 70px;
+  }
+  h2 {
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #333;
+    font-weight: 400;
+  }
+  .section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 32px;
+    width: 100%;
+  }
+  .section-title {
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #2e2e2e;
+    border-bottom: 1px solid #1e1e1e;
+    width: 100%;
+    text-align: center;
+    padding-bottom: 12px;
+  }
+  .row {
+    display: flex;
+    gap: 48px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .concept {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  .icon {
+    width: 120px;
+    height: 120px;
+    border-radius: 27px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.7), 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .label {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #333;
+    text-align: center;
+    line-height: 1.8;
+  }
+  .gold-swatch {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .swatch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .swatch-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+  }
+  .swatch-label {
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    color: #333;
+  }
+</style>
+</head>
+<body>
+
+<h2>MindVault — Refined Icon Variants</h2>
+
+<!-- Gold swatches reference -->
+<div class="gold-swatch">
+  <div class="swatch">
+    <div class="swatch-dot" style="background:#C8861E"></div>
+    <div class="swatch-label">#C8861E<br>Logo (dark)</div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-dot" style="background:#E8A045"></div>
+    <div class="swatch-label">#E8A045<br>Logo (light)</div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-dot" style="background:#c8a84b"></div>
+    <div class="swatch-label">#c8a84b<br>UI / Tags</div>
+  </div>
+  <div class="swatch">
+    <div class="swatch-dot" style="background:#D4952A"></div>
+    <div class="swatch-label">#D4952A<br>Blend</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- APERTURE VARIANTS -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Aperture</div>
+  <div class="row">
+
+    <!-- A1: Classic — 6 blades, logo gold -->
+    <div class="concept">
+      <div class="icon" style="background:#141414">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <defs>
+            <radialGradient id="ag1" cx="50%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#E8A045"/>
+              <stop offset="100%" stop-color="#A0620E"/>
+            </radialGradient>
+          </defs>
+          <g transform="translate(39,39)">
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#ag1)" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#ag1)" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#ag1)" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#ag1)" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#ag1)" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#ag1)" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="7.5" fill="#141414"/>
+            <circle cx="0" cy="0" r="3" fill="#C8861E" opacity="0.4"/>
+          </g>
+          <circle cx="39" cy="39" r="35" stroke="#C8861E" stroke-width="0.8" fill="none" opacity="0.15"/>
+        </svg>
+      </div>
+      <div class="label">A1 — Classic<br>#C8861E gradient</div>
+    </div>
+
+    <!-- A2: 5 blades — more organic -->
+    <div class="concept">
+      <div class="icon" style="background:#141414">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <defs>
+            <radialGradient id="ag2" cx="50%" cy="25%" r="75%">
+              <stop offset="0%" stop-color="#E8A045"/>
+              <stop offset="100%" stop-color="#8a5010"/>
+            </radialGradient>
+          </defs>
+          <g transform="translate(39,39)">
+            <ellipse cx="0" cy="-14" rx="8" ry="15.5" fill="url(#ag2)" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-14" rx="8" ry="15.5" fill="url(#ag2)" transform="rotate(72)"/>
+            <ellipse cx="0" cy="-14" rx="8" ry="15.5" fill="url(#ag2)" transform="rotate(144)"/>
+            <ellipse cx="0" cy="-14" rx="8" ry="15.5" fill="url(#ag2)" transform="rotate(216)"/>
+            <ellipse cx="0" cy="-14" rx="8" ry="15.5" fill="url(#ag2)" transform="rotate(288)"/>
+            <circle cx="0" cy="0" r="8" fill="#141414"/>
+            <circle cx="0" cy="0" r="2.5" fill="#D4952A" opacity="0.5"/>
+          </g>
+        </svg>
+      </div>
+      <div class="label">A2 — 5 Blades<br>More open feel</div>
+    </div>
+
+    <!-- A3: Minimal — just outline, no fill -->
+    <div class="concept">
+      <div class="icon" style="background:#141414">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <g transform="translate(39,39)">
+            <!-- Blade outlines only -->
+            <ellipse cx="0" cy="-14" rx="7" ry="15" stroke="#C8861E" stroke-width="1.2" fill="none" opacity="0.9" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-14" rx="7" ry="15" stroke="#C8861E" stroke-width="1.2" fill="none" opacity="0.9" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-14" rx="7" ry="15" stroke="#C8861E" stroke-width="1.2" fill="none" opacity="0.9" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-14" rx="7" ry="15" stroke="#C8861E" stroke-width="1.2" fill="none" opacity="0.9" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-14" rx="7" ry="15" stroke="#C8861E" stroke-width="1.2" fill="none" opacity="0.9" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-14" rx="7" ry="15" stroke="#C8861E" stroke-width="1.2" fill="none" opacity="0.9" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="5" stroke="#C8861E" stroke-width="1" fill="none" opacity="0.5"/>
+            <circle cx="0" cy="0" r="2" fill="#C8861E" opacity="0.6"/>
+          </g>
+          <circle cx="39" cy="39" r="35" stroke="#C8861E" stroke-width="1" fill="none" opacity="0.12"/>
+        </svg>
+      </div>
+      <div class="label">A3 — Outline<br>Ultra minimal</div>
+    </div>
+
+    <!-- A4: Warm dark bg + open aperture -->
+    <div class="concept">
+      <div class="icon" style="background:#1a1408">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <defs>
+            <radialGradient id="ag4" cx="50%" cy="20%" r="80%">
+              <stop offset="0%" stop-color="#F0B055"/>
+              <stop offset="100%" stop-color="#9a6018"/>
+            </radialGradient>
+          </defs>
+          <g transform="translate(39,39)">
+            <ellipse cx="0" cy="-13" rx="6.5" ry="14" fill="url(#ag4)" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-13" rx="6.5" ry="14" fill="url(#ag4)" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-13" rx="6.5" ry="14" fill="url(#ag4)" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-13" rx="6.5" ry="14" fill="url(#ag4)" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-13" rx="6.5" ry="14" fill="url(#ag4)" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-13" rx="6.5" ry="14" fill="url(#ag4)" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="9" fill="#1a1408"/>
+            <circle cx="0" cy="0" r="3.5" fill="#D4952A" opacity="0.7"/>
+          </g>
+        </svg>
+      </div>
+      <div class="label">A4 — Warm dark bg<br>Open center</div>
+    </div>
+
+    <!-- A5: Semi-transparent blades, layered -->
+    <div class="concept">
+      <div class="icon" style="background:#0e0e0e">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <g transform="translate(39,39)">
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.6" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.6" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.6" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.6" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.6" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.6" transform="rotate(300)"/>
+            <!-- Bright center ring -->
+            <circle cx="0" cy="0" r="9" fill="#0e0e0e"/>
+            <circle cx="0" cy="0" r="6" stroke="#E8A045" stroke-width="1" fill="none" opacity="0.7"/>
+            <circle cx="0" cy="0" r="2.5" fill="#E8A045"/>
+          </g>
+        </svg>
+      </div>
+      <div class="label">A5 — Transparent<br>Layered depth</div>
+    </div>
+
+    <!-- A6: Gold background, dark blades -->
+    <div class="concept">
+      <div class="icon" style="background:#C8861E">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <g transform="translate(39,39)">
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#0e0e0e" opacity="0.7" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#0e0e0e" opacity="0.7" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#0e0e0e" opacity="0.7" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#0e0e0e" opacity="0.7" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#0e0e0e" opacity="0.7" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#0e0e0e" opacity="0.7" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="7.5" fill="#C8861E"/>
+            <circle cx="0" cy="0" r="3" fill="#141414" opacity="0.5"/>
+          </g>
+        </svg>
+      </div>
+      <div class="label">A6 — Inverted<br>Gold bg, dark blades</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- MONOGRAM VARIANTS -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Monogram</div>
+  <div class="row">
+
+    <!-- M1: Clean V, logo gold, tapered stroke -->
+    <div class="concept">
+      <div class="icon" style="background:#141414">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <defs>
+            <linearGradient id="mg1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#E8A045"/>
+              <stop offset="100%" stop-color="#A0620E"/>
+            </linearGradient>
+          </defs>
+          <path d="M17 22 L39 56 L61 22" stroke="url(#mg1)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="39" cy="56" r="3.5" fill="#C8861E"/>
+        </svg>
+      </div>
+      <div class="label">M1 — Pure V<br>Gradient stroke</div>
+    </div>
+
+    <!-- M2: MV interleaved — M top, V inside -->
+    <div class="concept">
+      <div class="icon" style="background:#141414">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <defs>
+            <linearGradient id="mg2" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#E8A045"/>
+              <stop offset="100%" stop-color="#9a6018"/>
+            </linearGradient>
+          </defs>
+          <!-- M shape -->
+          <path d="M15 54 L15 24 L39 44 L63 24 L63 54" stroke="url(#mg2)" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+          <!-- V shape on top -->
+          <path d="M20 24 L39 54 L58 24" stroke="url(#mg2)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="39" cy="54" r="3" fill="#C8861E"/>
+        </svg>
+      </div>
+      <div class="label">M2 — MV layered<br>Ghost M + solid V</div>
+    </div>
+
+    <!-- M3: V with serif-like terminals -->
+    <div class="concept">
+      <div class="icon" style="background:#141414">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <defs>
+            <linearGradient id="mg3" x1="20%" y1="0%" x2="80%" y2="100%">
+              <stop offset="0%" stop-color="#E8A045"/>
+              <stop offset="100%" stop-color="#B07020"/>
+            </linearGradient>
+          </defs>
+          <!-- Main V -->
+          <path d="M18 23 L39 55 L60 23" stroke="url(#mg3)" stroke-width="3" fill="none" stroke-linecap="butt" stroke-linejoin="round"/>
+          <!-- Left terminal -->
+          <line x1="13" y1="23" x2="23" y2="23" stroke="#C8861E" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+          <!-- Right terminal -->
+          <line x1="55" y1="23" x2="65" y2="23" stroke="#C8861E" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+          <!-- Bottom point accent -->
+          <circle cx="39" cy="55" r="3" fill="#E8A045"/>
+        </svg>
+      </div>
+      <div class="label">M3 — Serif V<br>Classic editorial</div>
+    </div>
+
+    <!-- M4: V with thin crossbar — art deco feel -->
+    <div class="concept">
+      <div class="icon" style="background:#141414">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <defs>
+            <linearGradient id="mg4" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#E8A045"/>
+              <stop offset="100%" stop-color="#9a5c10"/>
+            </linearGradient>
+          </defs>
+          <!-- Main V -->
+          <path d="M18 22 L39 56 L60 22" stroke="url(#mg4)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Art deco crossbar -->
+          <line x1="25" y1="36" x2="53" y2="36" stroke="#C8861E" stroke-width="0.8" opacity="0.35"/>
+          <!-- Outer frame hint -->
+          <rect x="13" y="17" width="52" height="44" rx="2" stroke="#C8861E" stroke-width="0.7" fill="none" opacity="0.12"/>
+          <circle cx="39" cy="56" r="2.5" fill="#E8A045"/>
+        </svg>
+      </div>
+      <div class="label">M4 — Art Deco<br>Frame + crossbar</div>
+    </div>
+
+    <!-- M5: Negative space V in gold square -->
+    <div class="concept">
+      <div class="icon" style="background:#C8861E">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <!-- Dark V cuts into gold bg -->
+          <path d="M18 22 L39 56 L60 22" stroke="#141414" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Subtle inner glow -->
+          <path d="M18 22 L39 56 L60 22" stroke="#A0600A" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"/>
+        </svg>
+      </div>
+      <div class="label">M5 — Inverted<br>Dark V on gold</div>
+    </div>
+
+    <!-- M6: V with aperture center dot — hybrid -->
+    <div class="concept">
+      <div class="icon" style="background:#141414">
+        <svg width="78" height="78" viewBox="0 0 78 78" fill="none">
+          <defs>
+            <radialGradient id="mg6c" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#E8A045"/>
+              <stop offset="100%" stop-color="#8a5010"/>
+            </radialGradient>
+            <linearGradient id="mg6l" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#E8A045"/>
+              <stop offset="100%" stop-color="#9a5c10"/>
+            </linearGradient>
+          </defs>
+          <!-- V -->
+          <path d="M18 22 L39 52 L60 22" stroke="url(#mg6l)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Mini aperture at bottom point -->
+          <g transform="translate(39,52)">
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.7" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.7" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.7" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.7" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.7" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.7" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="3.5" fill="#141414"/>
+            <circle cx="0" cy="0" r="1.2" fill="url(#mg6c)"/>
+          </g>
+        </svg>
+      </div>
+      <div class="label">M6 — Hybrid<br>V + mini aperture</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- LARGE PREVIEW — TOP PICKS -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">Large Preview — Favourites</div>
+  <div class="row">
+
+    <!-- A1 large -->
+    <div class="concept">
+      <div class="icon" style="width:180px;height:180px;border-radius:40px;background:#141414">
+        <svg width="120" height="120" viewBox="0 0 78 78" fill="none">
+          <defs>
+            <radialGradient id="lg1" cx="50%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#E8A045"/>
+              <stop offset="100%" stop-color="#A0620E"/>
+            </radialGradient>
+          </defs>
+          <g transform="translate(39,39)">
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#lg1)" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#lg1)" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#lg1)" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#lg1)" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#lg1)" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-14" rx="7.5" ry="15" fill="url(#lg1)" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="7.5" fill="#141414"/>
+            <circle cx="0" cy="0" r="3" fill="#C8861E" opacity="0.5"/>
+          </g>
+          <circle cx="39" cy="39" r="35" stroke="#C8861E" stroke-width="0.6" fill="none" opacity="0.1"/>
+        </svg>
+      </div>
+      <div class="label">Aperture A1</div>
+    </div>
+
+    <!-- A5 large -->
+    <div class="concept">
+      <div class="icon" style="width:180px;height:180px;border-radius:40px;background:#0e0e0e">
+        <svg width="120" height="120" viewBox="0 0 78 78" fill="none">
+          <g transform="translate(39,39)">
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.55" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.55" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.55" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.55" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.55" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-13" rx="7" ry="15" fill="#C8861E" opacity="0.55" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="9" fill="#0e0e0e"/>
+            <circle cx="0" cy="0" r="6" stroke="#E8A045" stroke-width="1" fill="none" opacity="0.6"/>
+            <circle cx="0" cy="0" r="2.5" fill="#E8A045"/>
+          </g>
+        </svg>
+      </div>
+      <div class="label">Aperture A5</div>
+    </div>
+
+    <!-- M1 large -->
+    <div class="concept">
+      <div class="icon" style="width:180px;height:180px;border-radius:40px;background:#141414">
+        <svg width="120" height="120" viewBox="0 0 78 78" fill="none">
+          <defs>
+            <linearGradient id="lm1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#E8A045"/>
+              <stop offset="100%" stop-color="#A0620E"/>
+            </linearGradient>
+          </defs>
+          <path d="M17 22 L39 56 L61 22" stroke="url(#lm1)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="39" cy="56" r="3.5" fill="#C8861E"/>
+        </svg>
+      </div>
+      <div class="label">Monogram M1</div>
+    </div>
+
+    <!-- M6 large — hybrid -->
+    <div class="concept">
+      <div class="icon" style="width:180px;height:180px;border-radius:40px;background:#141414">
+        <svg width="120" height="120" viewBox="0 0 78 78" fill="none">
+          <defs>
+            <linearGradient id="lm6" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#E8A045"/>
+              <stop offset="100%" stop-color="#9a5c10"/>
+            </linearGradient>
+          </defs>
+          <path d="M18 22 L39 52 L60 22" stroke="url(#lm6)" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <g transform="translate(39,52)">
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.75" transform="rotate(0)"/>
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.75" transform="rotate(60)"/>
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.75" transform="rotate(120)"/>
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.75" transform="rotate(180)"/>
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.75" transform="rotate(240)"/>
+            <ellipse cx="0" cy="-6" rx="3" ry="6.5" fill="#C8861E" opacity="0.75" transform="rotate(300)"/>
+            <circle cx="0" cy="0" r="3.5" fill="#141414"/>
+            <circle cx="0" cy="0" r="1.2" fill="#E8A045"/>
+          </g>
+        </svg>
+      </div>
+      <div class="label">Hybrid M6</div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
