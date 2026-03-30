@@ -608,6 +608,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     // Create a link entry for the uploaded file
     const fileUrl = `local://${filePath}`;
 
+    const { space: reqSpace } = req.body;
     const result = insertLink.run({
       url: fileUrl,
       source: 'upload',
@@ -616,6 +617,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       thumbnail_url: isImage ? filePath : null,
       tags: tags ? JSON.stringify(JSON.parse(tags)) : '[]',
       note: note || null,
+      space: (reqSpace === 'mind' ? 'mind' : 'eye'),
     });
 
     const linkId = result.lastInsertRowid;

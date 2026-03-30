@@ -203,7 +203,7 @@ export default function AddLink({ onAdded }) {
                     <path d="M3.5 6L7 2.5L10.5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     <path d="M1.5 12H12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                   </svg>
-                  Upload file
+                  Import file
                 </button>
 
                 <input
