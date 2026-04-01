@@ -29,8 +29,7 @@ const BACKEND_URL    = process.env.BACKEND_URL || 'http://localhost:3001';
 // VERCEL_URL kept as fallback so existing .env files don't break.
 const APP_URL = process.env.APP_URL || process.env.VERCEL_URL || 'https://mind-vault-chi.vercel.app';
 
-let supabase      = null;  // anon key — Realtime subscription
-let supabaseAdmin = null;  // service_role key — SELECT/UPDATE (bypasses RLS)
+let supabase   = null;  // anon key — Realtime + all DB operations (RLS policies allow anon)
 let deviceId   = null;
 let channel    = null;
 let pollTimer  = null;  // fallback polling interval handle
@@ -50,23 +49,21 @@ function getDeviceId() {
 }
 
 async function init() {
-  const url      = process.env.SUPABASE_URL;
-  const anonKey  = process.env.SUPABASE_ANON_KEY;
-  const adminKey = process.env.SUPABASE_KEY;     // service_role — bypasses RLS for SELECT
+  const url     = process.env.SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY;
 
-  if (!url || (!anonKey && !adminKey)) {
-    console.log('ℹ️  Share queue realtime disabled (no SUPABASE_URL / keys)');
+  if (!url || !anonKey) {
+    console.log('ℹ️  Share queue realtime disabled (no SUPABASE_URL / SUPABASE_ANON_KEY)');
     return;
   }
 
   deviceId = getDeviceId();
   console.log(`📡 Supabase poller init — deviceId: ${deviceId ? deviceId.slice(0,8) + '…' : '⚠️ NOT FOUND'}`);
 
-  // Admin client (service_role) for polling — bypasses RLS, always sees all rows
-  supabaseAdmin = createClient(url, adminKey || anonKey, { auth: { persistSession: false } });
-
-  // Anon client for Realtime subscription (WebSocket)
-  supabase = createClient(url, anonKey || adminKey, { auth: { persistSession: false } });
+  // Single anon client — used for both Realtime and DB operations.
+  // RLS policies on share_queue grant anon access to rows where user_id matches
+  // the device_id passed via query filter, or where user_id IS NULL (legacy).
+  supabase = createClient(url, anonKey, { auth: { persistSession: false } });
 
   // ── Subscribe to INSERT + UPDATE on share_queue (all rows, filter client-side) ──
   // Note: Supabase Realtime filters don't support OR conditions, so we receive
@@ -135,8 +132,8 @@ async function handleRow(entry, event) {
     const timer = setTimeout(async () => {
       pendingTimers.delete(entry.id);
       // Re-fetch to get latest state (user may have added tags in the meantime)
-      if (!supabaseAdmin) return;
-      const { data } = await supabaseAdmin
+      if (!supabase) return;
+      const { data } = await supabase
         .from('share_queue')
         .select('*')
         .eq('id', entry.id)
@@ -152,13 +149,13 @@ async function handleRow(entry, event) {
 // ── On startup (and periodic poll): process anything unprocessed ─────────────
 // silent=true suppresses the "nothing to do" log line (used by 30s interval)
 async function checkExisting(silent = false) {
-  if (!supabaseAdmin) return;
+  if (!supabase) return;
 
   try {
     // Filter by this desktop's device_id so users don't pick up each other's links.
     // Also include rows with user_id IS NULL for backward compatibility
     // (links shared before pairing, or from older app versions).
-    let query = supabaseAdmin
+    let query = supabase
       .from('share_queue')
       .select('*')
       .eq('processed', false)
@@ -200,7 +197,7 @@ async function checkExisting(silent = false) {
       const remaining = TAG_TIMEOUT_MS - elapsed;
       const timer     = setTimeout(async () => {
         pendingTimers.delete(entry.id);
-        const { data: fresh } = await supabaseAdmin
+        const { data: fresh } = await supabase
           .from('share_queue').select('*').eq('id', entry.id).single();
         if (fresh && !fresh.processed) await importEntry(fresh);
       }, remaining);
@@ -236,7 +233,7 @@ async function importEntry(entry) {
     console.log(`✅ Imported [${result.id}]: ${result.title}`);
 
     // Mark as processed — directly via Supabase (no Vercel round-trip)
-    await supabaseAdmin
+    await supabase
       .from('share_queue')
       .update({ processed: true })
       .eq('id', entry.id);
