@@ -192,6 +192,16 @@ module.exports = async function afterPack(context) {
 
   console.log('\n  afterPack: Cleaning up bundle...');
 
+  // 0. Replace .env with .env.dist — strip personal/build credentials from bundle
+  const envDistSrc  = path.join(__dirname, '..', 'backend', '.env.dist');
+  const envBundled  = path.join(resourcesDir, 'backend', '.env');
+  if (fs.existsSync(envDistSrc)) {
+    fs.copyFileSync(envDistSrc, envBundled);
+    console.log('  ✅  .env replaced with .env.dist (personal credentials stripped)');
+  } else {
+    console.warn('  ⚠️  .env.dist not found — bundled .env may contain personal credentials!');
+  }
+
   // 1. Remove absolute and dangling symlinks
   let symlinksRemoved = removeBadSymlinks(resourcesDir);
   symlinksRemoved += removeBadSymlinks(resourcesDir);
