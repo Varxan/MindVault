@@ -4,6 +4,15 @@ import { useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { getApiBase } from '../lib/config';
 
+// Opens an imported local video in the native OS player (QuickTime, VLC etc.)
+// and immediately closes the modal — no in-app player needed since file is local.
+function LocalUploadVideoOpener({ link, onClose }) {
+  useEffect(() => {
+    fetch(`${getApiBase()}/open-file/${link.id}`, { method: 'POST' }).catch(() => {});
+    onClose();
+  }, [link.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
 
 // Platforms with reliable iframe embeds
 const EMBEDDABLE = ['youtube', 'vimeo'];
@@ -173,12 +182,7 @@ export default function PreviewModal({ link, onClose }) {
           )}
 
           {previewType === 'local-upload-video' && (
-            <video
-              src={`${getApiBase()}/files/uploads/${link.file_path}`}
-              className="preview-video"
-              controls
-              autoPlay
-            />
+            <LocalUploadVideoOpener link={link} onClose={onClose} />
           )}
 
           {previewType === 'local-image' && (

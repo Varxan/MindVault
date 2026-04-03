@@ -1777,6 +1777,41 @@ router.post('/pick-folder/media-storage', (req, res) => {
   }
 });
 
+// POST /api/open-file/:id – open an imported file in the native OS app (QuickTime, VLC etc.)
+// Only works in Electron — sends an IPC message to main process via process.send().
+router.post('/open-file/:id', (req, res) => {
+  try {
+    const link = getLinkById.get({ id: req.params.id });
+    if (!link || !link.file_path) return res.status(404).json({ error: 'File not found' });
+
+    const filename = path.basename(link.file_path); // prevent traversal
+    // Resolve absolute path: check external storage first, then internal UPLOAD_DIR
+    const externalSetting = getSetting.get('media_storage_path');
+    let absolutePath = null;
+    if (externalSetting?.value) {
+      const ext = path.join(externalSetting.value, filename);
+      if (fs.existsSync(ext)) absolutePath = ext;
+    }
+    if (!absolutePath) {
+      const internal = path.join(UPLOAD_DIR, filename);
+      if (fs.existsSync(internal)) absolutePath = internal;
+    }
+    if (!absolutePath) return res.status(404).json({ error: 'File not found on disk' });
+
+    // Send to Electron main process which will call shell.openPath()
+    if (process.send) {
+      process.send({ type: 'open-file', path: absolutePath });
+      res.json({ ok: true, path: absolutePath });
+    } else {
+      // Dev mode without Electron: just return the path
+      res.json({ ok: false, path: absolutePath, hint: 'Not running in Electron' });
+    }
+  } catch (err) {
+    console.error('open-file error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/download-file/:type/:filename – stream file to browser with Content-Disposition: attachment
 // Chrome shows this as a native download in the download bar. Deletes backend copy after streaming.
 router.get('/download-file/:type/:filename', (req, res) => {

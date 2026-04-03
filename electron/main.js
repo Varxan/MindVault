@@ -431,6 +431,14 @@ function startBackend() {
   backendProcess.stdout?.on('data', d => log('[Backend] ' + d.toString().trim()));
   backendProcess.stderr?.on('data', d => log('[Backend ERR] ' + d.toString().trim()));
 
+  // Handle messages from backend — e.g. open local files in native OS app
+  backendProcess.on('message', (msg) => {
+    if (msg?.type === 'open-file' && msg.path) {
+      log(`[Shell] Opening file: ${msg.path}`);
+      shell.openPath(msg.path);
+    }
+  });
+
   // Return a promise that rejects if the backend exits early (within first 10s)
   return new Promise((resolve, reject) => {
     let settled = false;
