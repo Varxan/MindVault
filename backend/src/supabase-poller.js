@@ -278,13 +278,24 @@ async function importEntry(entry) {
 async function markProcessedByUrl(url) {
   if (!supabase || !url) return;
   try {
-    const { error } = await supabase
+    // Must apply same device_id filter as checkExisting — RLS requires it
+    let query = supabase
       .from('share_queue')
       .update({ processed: true })
       .eq('url', url)
       .eq('processed', false);
-    if (error) console.warn(`⚠️  markProcessedByUrl(${url}): ${error.message}`);
-    else console.log(`✓ Marked Supabase entries for ${url} as processed (link deleted)`);
+
+    if (deviceId) {
+      query = query.or(`user_id.eq.${deviceId},user_id.is.null`);
+    }
+
+    const { data, error } = await query.select('id');
+    if (error) {
+      console.warn(`⚠️  markProcessedByUrl(${url}): ${error.message}`);
+    } else {
+      const count = data?.length ?? 0;
+      console.log(`✓ markProcessedByUrl: ${count} Supabase entr${count === 1 ? 'y' : 'ies'} marked processed for deleted link (${url})`);
+    }
   } catch (err) {
     console.warn(`⚠️  markProcessedByUrl failed: ${err.message}`);
   }
