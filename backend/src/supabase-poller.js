@@ -222,6 +222,18 @@ async function importEntry(entry) {
     return;
   }
 
+  // Persistent blocklist — skip URLs that were explicitly deleted by the user
+  try {
+    const { isDeletedUrl } = require('./database');
+    if (isDeletedUrl.get(entry.url)) {
+      console.log(`🚫 URL was deleted by user — skipping re-import: ${entry.url}`);
+      // Best-effort: mark as processed in Supabase so it stops appearing
+      importedIds.add(entry.id); // prevent further attempts this session
+      await markProcessedByUrl(entry.url);
+      return;
+    }
+  } catch { /* database not ready yet */ }
+
   try {
     console.log(`🔄 Importing: ${entry.url}`);
 

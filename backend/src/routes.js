@@ -12,6 +12,7 @@ const {
   filterBySource,
   countLinks,
   insertLink,
+  addDeletedUrl,
   db,
   // Collections
   createCollection,
@@ -508,10 +509,12 @@ router.delete('/links/:id', (req, res) => {
     }
 
     deleteLink.run({ id: req.params.id });
+    // Block URL from being re-imported — survives restarts regardless of Supabase state
+    if (link.url) addDeletedUrl.run(link.url);
     res.json({ message: 'Link gelöscht', id: req.params.id, fileDeleted });
     scheduleSync(); // push to PWA
     pushEvent('link-deleted', { id: req.params.id });
-    // Prevent re-import on restart: mark matching Supabase entries as processed
+    // Also try to mark Supabase entry as processed (belt-and-suspenders)
     if (link.url) markProcessedByUrl(link.url).catch(() => {});
   } catch (err) {
     console.error('Error deleting link:', err);

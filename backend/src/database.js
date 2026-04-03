@@ -142,6 +142,17 @@ db.exec(`
   )
 `);
 
+// Deleted URLs blocklist — prevents re-import from Supabase share queue after local deletion
+db.exec(`
+  CREATE TABLE IF NOT EXISTS deleted_urls (
+    url TEXT PRIMARY KEY,
+    deleted_at INTEGER DEFAULT (strftime('%s', 'now'))
+  )
+`);
+
+const addDeletedUrl  = db.prepare('INSERT OR IGNORE INTO deleted_urls (url) VALUES (?)');
+const isDeletedUrl   = db.prepare('SELECT 1 FROM deleted_urls WHERE url = ?');
+
 const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
 const setSetting = db.prepare(`
   INSERT INTO settings (key, value) VALUES (@key, @value)
@@ -284,6 +295,8 @@ module.exports = {
   getSetting,
   setSetting,
   getAllSettings,
+  addDeletedUrl,
+  isDeletedUrl,
   insertLink,
   getAllLinks,
   getLinksPaginated,
