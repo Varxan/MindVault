@@ -57,11 +57,11 @@ export default function SourceLogo({ source, size = 14 }) {
       </svg>
     ),
     upload: (
-      <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="12" y1="18" x2="12" y2="12"/>
-        <polyline points="9 15 12 12 15 15"/>
+      <svg viewBox="0 0 24 24" width={size} height={size} fill={color}>
+        {/* MindVault orb — central sphere + lens-flare rays */}
+        <circle cx="12" cy="12" r="3.8"/>
+        <path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22" stroke={color} strokeWidth="1.6" strokeLinecap="round" fill="none"/>
+        <path d="M5.64 5.64l2.47 2.47M15.9 15.9l2.46 2.47M18.36 5.64l-2.46 2.47M7.54 15.9l-2.47 2.46" stroke={color} strokeWidth="1.1" strokeLinecap="round" fill="none"/>
       </svg>
     ),
     web: (
