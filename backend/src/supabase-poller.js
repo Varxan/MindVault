@@ -35,6 +35,8 @@ let channel    = null;
 let pollTimer  = null;  // fallback polling interval handle
 // Track per-entry timeout timers so we don't double-import
 const pendingTimers = new Map();
+// In-memory dedup: entries successfully imported this session (survives failed Supabase UPDATEs)
+const importedIds = new Set();
 
 function getDeviceId() {
   if (process.env.MINDVAULT_DEVICE_ID) return process.env.MINDVAULT_DEVICE_ID;
@@ -110,6 +112,7 @@ function stop() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   for (const t of pendingTimers.values()) clearTimeout(t);
   pendingTimers.clear();
+  importedIds.clear();
 }
 
 // ── Called for every INSERT or UPDATE event ──────────────────────────────────
@@ -120,8 +123,9 @@ async function handleRow(entry, event) {
   // user_id === null means shared before pairing (legacy / fallback) — accept those too.
   if (entry.user_id && deviceId && entry.user_id !== deviceId) return;
 
-  // Already scheduled or being imported?
-  if (event === 'INSERT' && pendingTimers.has(entry.id)) return;
+  // Already imported this session or scheduled?
+  if (importedIds.has(entry.id)) return;
+  if (pendingTimers.has(entry.id)) return;
 
   if (entry.tags_ready) {
     // Tags confirmed by user — import immediately
@@ -178,8 +182,8 @@ async function checkExisting(silent = false) {
 
     const cutoff = Date.now() - TAG_TIMEOUT_MS;
     const ready  = data.filter(e =>
-      e.tags_ready === true ||
-      new Date(e.created_at).getTime() < cutoff,
+      !importedIds.has(e.id) &&  // skip already imported this session
+      (e.tags_ready === true || new Date(e.created_at).getTime() < cutoff),
     );
 
     if (ready.length > 0) {
@@ -190,6 +194,8 @@ async function checkExisting(silent = false) {
     // Schedule timers for rows that are still within the 2-min window
     const waiting = data.filter(e =>
       !e.tags_ready &&
+      !importedIds.has(e.id) &&      // skip already imported
+      !pendingTimers.has(e.id) &&    // skip already scheduled
       new Date(e.created_at).getTime() >= cutoff,
     );
     for (const entry of waiting) {
@@ -210,6 +216,12 @@ async function checkExisting(silent = false) {
 
 // ── Import one entry into MindVault ──────────────────────────────────────────
 async function importEntry(entry) {
+  // Dedup guard — never import the same entry twice in one session
+  if (importedIds.has(entry.id)) {
+    console.log(`⏩ Entry ${entry.id} already imported this session — skipping`);
+    return;
+  }
+
   try {
     console.log(`🔄 Importing: ${entry.url}`);
 
@@ -232,11 +244,21 @@ async function importEntry(entry) {
     const result = await res.json();
     console.log(`✅ Imported [${result.id}]: ${result.title}`);
 
-    // Mark as processed — directly via Supabase (no Vercel round-trip)
-    await supabase
+    // Mark as imported in-memory immediately — prevents re-import even if Supabase UPDATE fails
+    importedIds.add(entry.id);
+
+    // Mark as processed in Supabase — directly via anon key (no Vercel round-trip)
+    const { error: updateError } = await supabase
       .from('share_queue')
       .update({ processed: true })
       .eq('id', entry.id);
+
+    if (updateError) {
+      console.warn(`⚠️  Could not mark entry ${entry.id} as processed in Supabase: ${updateError.message}`);
+      console.warn(`    (Link was imported locally — in-memory dedup prevents re-import this session)`);
+    } else {
+      console.log(`✓ Marked entry ${entry.id} as processed in Supabase`);
+    }
 
     // Sync library so new link appears in PWA immediately
     try {
@@ -247,8 +269,7 @@ async function importEntry(entry) {
 
   } catch (err) {
     console.error(`❌ Failed to import ${entry.url}:`, err.message);
-    // Don't mark as processed — Realtime UPDATE will retry if tags_ready changes,
-    // or checkExisting() will catch it on next restart.
+    // Don't add to importedIds — allow retry on next poll since import itself failed
   }
 }
 
