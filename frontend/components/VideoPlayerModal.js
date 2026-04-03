@@ -459,6 +459,15 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
                 Source
               </a>
             )}
+            {link.source === 'upload' && link.file_path && (
+              <button
+                className="vp-source-link"
+                onClick={() => fetch(`${getApiBase()}/open-file/${link.id}?reveal=true`, { method: 'POST' }).catch(() => {})}
+                title="Show file in Finder"
+              >
+                Show in Folder
+              </button>
+            )}
             {editMode && (
               <span className="vp-shortcut-hint">
                 {rangeMode ? 'I = IN \u00a0 O = OUT \u00a0 ' : ''}Space = Play &nbsp; ← → = Frame

@@ -437,6 +437,10 @@ function startBackend() {
       log(`[Shell] Opening file: ${msg.path}`);
       shell.openPath(msg.path);
     }
+    if (msg?.type === 'reveal-file' && msg.path) {
+      log(`[Shell] Revealing file in Finder: ${msg.path}`);
+      shell.showItemInFolder(msg.path);
+    }
   });
 
   // Return a promise that rejects if the backend exits early (within first 10s)

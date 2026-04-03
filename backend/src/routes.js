@@ -1822,9 +1822,10 @@ router.post('/open-file/:id', (req, res) => {
     }
     if (!absolutePath) return res.status(404).json({ error: 'File not found on disk' });
 
-    // Send to Electron main process which will call shell.openPath()
+    // ?reveal=true → show file selected in Finder; otherwise open in native app
+    const reveal = req.query.reveal === 'true';
     if (process.send) {
-      process.send({ type: 'open-file', path: absolutePath });
+      process.send({ type: reveal ? 'reveal-file' : 'open-file', path: absolutePath });
       res.json({ ok: true, path: absolutePath });
     } else {
       // Dev mode without Electron: just return the path
