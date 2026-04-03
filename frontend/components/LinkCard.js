@@ -493,11 +493,6 @@ export default function LinkCard({ link, onDelete, onRemoveFromState, onRefresh,
             <SourceLogo source={link.source} size={14} />
           </span>
           <span className="card-domain">{domain}</span>
-          {link.space === 'mind' && (
-            <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#7b9ea8', letterSpacing: '0.06em', opacity: 0.75, fontWeight: 500 }}>
-              mind
-            </span>
-          )}
         </div>
 
         {(() => {
