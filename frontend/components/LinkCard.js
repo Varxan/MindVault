@@ -327,11 +327,15 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
             e.preventDefault();
             e.stopPropagation();
             if (isUpload && link.file_path) {
-              // Ask whether to also delete the local file
-              const deleteFile = window.confirm(
-                `Delete "${link.title || link.file_path}" from MindVault?\n\nClick OK to also delete the file from disk.\nClick Cancel to remove only the link (keep the file).`
+              // Step 1: confirm removal at all
+              const confirmed = window.confirm(
+                `Remove "${link.title || link.file_path}" from MindVault?`
               );
-              // deleteFile = true → also remove file; false → link only
+              if (!confirmed) return;
+              // Step 2: ask whether to also delete the file from disk
+              const deleteFile = window.confirm(
+                `Also delete the file from disk?\n\nOK = delete file · Cancel = keep file`
+              );
               await fetch(`${getApiBase()}/links/${link.id}?deleteFile=${deleteFile}`, { method: 'DELETE' });
               onDelete(link.id);
             } else {
