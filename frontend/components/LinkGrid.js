@@ -1791,7 +1791,7 @@ export default function LinkGrid() {
             <button className="card-context-item" onClick={handleReanalyze}>
               Re-analyse
             </button>
-            {cardContextMenu.link.transcript && (
+            {cardContextMenu.link.space === 'mind' && (
               <button className="card-context-item" onClick={() => {
                 setTranscriptModal(cardContextMenu.link);
                 setCardContextMenu(null);
@@ -1845,7 +1845,10 @@ export default function LinkGrid() {
             </div>
             {/* Body */}
             <div style={{ padding: '20px', overflowY: 'auto', fontSize: '13px', lineHeight: '1.7', color: 'var(--text-muted)', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-body)' }}>
-              {transcriptModal.transcript}
+              {transcriptModal.transcript
+                ? transcriptModal.transcript
+                : <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>No transcript yet. Right-click → Re-analyse to generate one.</span>
+              }
             </div>
           </div>
         </>
