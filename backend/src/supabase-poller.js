@@ -273,4 +273,21 @@ async function importEntry(entry) {
   }
 }
 
-module.exports = { init, stop };
+// Called when a link is deleted locally — marks any unprocessed Supabase entries
+// with the same URL as processed so they don't get re-imported on next startup.
+async function markProcessedByUrl(url) {
+  if (!supabase || !url) return;
+  try {
+    const { error } = await supabase
+      .from('share_queue')
+      .update({ processed: true })
+      .eq('url', url)
+      .eq('processed', false);
+    if (error) console.warn(`⚠️  markProcessedByUrl(${url}): ${error.message}`);
+    else console.log(`✓ Marked Supabase entries for ${url} as processed (link deleted)`);
+  } catch (err) {
+    console.warn(`⚠️  markProcessedByUrl failed: ${err.message}`);
+  }
+}
+
+module.exports = { init, stop, markProcessedByUrl };

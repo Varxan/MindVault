@@ -86,6 +86,7 @@ router.get('/events', (req, res) => {
   });
 });
 // ─────────────────────────────────────────────────────────────────────────────
+const { markProcessedByUrl } = require('./supabase-poller');
 
 // === File Upload Setup ===
 const os = require('os');
@@ -510,6 +511,8 @@ router.delete('/links/:id', (req, res) => {
     res.json({ message: 'Link gelöscht', id: req.params.id, fileDeleted });
     scheduleSync(); // push to PWA
     pushEvent('link-deleted', { id: req.params.id });
+    // Prevent re-import on restart: mark matching Supabase entries as processed
+    if (link.url) markProcessedByUrl(link.url).catch(() => {});
   } catch (err) {
     console.error('Error deleting link:', err);
     res.status(500).json({ error: 'Fehler beim Löschen des Links' });
