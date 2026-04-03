@@ -250,7 +250,7 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
           <button
             className="card-action-btn"
             onClick={handleDownload}
-            title="Download"
+            title="Save locally"
             disabled={downloading}
           >
             {downloading

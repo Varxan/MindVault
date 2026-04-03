@@ -882,8 +882,8 @@ export default function LinkGrid() {
                     </button>
                     <div className="settings-divider" />
                     <button className="settings-item" onClick={() => { setSettingsPage('downloads'); setSettingsActioned(false); }}>
-                      Downloads
-                      <span className="settings-item-sub">Set save location</span>
+                      Export &amp; Import
+                      <span className="settings-item-sub">Export folder &amp; import storage</span>
                     </button>
                     <div className="settings-divider" />
                     <button className="settings-item" onClick={() => { setSettingsPage('tagging'); setSettingsActioned(false); }}>
@@ -978,7 +978,7 @@ export default function LinkGrid() {
                     </button>
                     <div className="settings-divider" />
                     <div className="settings-field">
-                      <label>Download folder</label>
+                      <label>Export folder</label>
                       <span className="settings-field-status">
                         {settingsStatus.download_path ? `● ${settingsStatus.download_path}` : '○ Default (~/Downloads)'}
                       </span>
@@ -996,7 +996,7 @@ export default function LinkGrid() {
                           Choose folder
                         </button>
                       </div>
-                      <span className="settings-field-hint">Where clips, GIFs &amp; stills are saved</span>
+                      <span className="settings-field-hint">Where exported clips, GIFs &amp; stills are saved</span>
                       {settingsStatus.download_path && (
                         <button
                           onClick={() => handleSaveToken('download_path', '')}

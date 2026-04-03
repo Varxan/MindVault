@@ -18,7 +18,9 @@ export default function SourceFilter({ sources, active, onChange }) {
           onClick={() => onChange(active === s.source ? null : s.source)}
         >
           <SourceLogo source={s.source} size={13} />
-          <span style={{ marginLeft: '0.35rem' }}>{s.source}</span>
+          <span style={{ marginLeft: '0.35rem' }}>
+            {s.source === 'upload' ? 'Import' : s.source.charAt(0).toUpperCase() + s.source.slice(1)}
+          </span>
           <span className="source-count">{s.count}</span>
         </button>
       ))}
