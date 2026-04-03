@@ -1708,6 +1708,7 @@ router.patch('/settings', (req, res) => {
       'use_local_clip',
       'download_path',
       'cloud_backup_path',
+      'media_storage_path',
       'custom_preferred_tags',
       'tag_catalog_ratio',
       'custom_ai_prompt',
