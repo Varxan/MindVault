@@ -17,6 +17,9 @@ const path = require('path');
 const os = require('os');
 const { execFile } = require('child_process');
 const { getSetting } = require('./database');
+// Reuse downloader's yt-dlp path resolution (includes BUNDLED_BIN_PATH for the .app)
+// and cookie detection (needed for Instagram audio extraction)
+const { YTDLP, getCookieArgs } = require('./downloader');
 
 // ─── Path Whitelist ───────────────────────────────────────────────────────────
 // Prevent Whisper from transcribing files outside MindVault's own directories.
@@ -60,6 +63,35 @@ function getWhisperPython() {
   return 'python3';
 }
 
+// ── Concurrency Queue (max 1 Whisper job at a time) ──────────────────────────
+// Whisper loads a torch model into MPS/RAM — running two in parallel doubles
+// memory usage and can cause OOM or MPS contention on 8 GB MacBooks.
+let _whisperRunning = false;
+const _whisperQueue = [];
+
+function _runExclusive(fn) {
+  return new Promise((resolve, reject) => {
+    if (_whisperRunning) {
+      console.log(`[Whisper] ⏳ Job queued — ${_whisperQueue.length + 1} waiting (one already running)`);
+    }
+    _whisperQueue.push({ fn, resolve, reject });
+    _drainWhisperQueue();
+  });
+}
+
+function _drainWhisperQueue() {
+  if (_whisperRunning || _whisperQueue.length === 0) return;
+  _whisperRunning = true;
+  const { fn, resolve, reject } = _whisperQueue.shift();
+  fn()
+    .then(resolve, reject)
+    .finally(() => {
+      _whisperRunning = false;
+      _drainWhisperQueue();
+    });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ── Availability check ────────────────────────────────────────────────────────
 /**
  * Check if Whisper is available in the current Python environment.
@@ -89,6 +121,10 @@ function transcribeMedia(mediaPath, options = {}) {
   if (!isAllowedPath(mediaPath)) {
     return Promise.reject(new Error(`[Whisper] ⛔ Path not allowed (outside MindVault dirs): ${mediaPath}`));
   }
+  return _runExclusive(() => _transcribeMediaCore(mediaPath, options));
+}
+
+function _transcribeMediaCore(mediaPath, options = {}) {
 
   const model    = options.model    || 'base';
   const language = options.language || null;
@@ -113,7 +149,15 @@ function transcribeMedia(mediaPath, options = {}) {
         }
 
         try {
-          const result = JSON.parse(stdout.trim());
+          // Whisper sometimes prints "Detected language: X" to stdout before the JSON.
+          // Find the last line that looks like a JSON object.
+          const jsonLine = stdout.trim().split('\n').filter(l => l.trimStart().startsWith('{')).pop();
+          if (!jsonLine) {
+            console.error('[Whisper] ❌ No JSON line found in stdout:', stdout.substring(0, 200));
+            return reject(new Error('No JSON output from whisper_transcriber.py'));
+          }
+
+          const result = JSON.parse(jsonLine);
 
           if (result.error) {
             console.error('[Whisper] ❌ Python error:', result.error);
@@ -170,8 +214,13 @@ async function transcribeFromUrl(url, tmpDir) {
 
   try {
     // Download audio-only (much smaller than video — typically 2-10 MB)
+    // Uses the same bundled yt-dlp path as downloader.js (BUNDLED_BIN_PATH in Electron)
+    // and cookie args for platforms like Instagram that need browser cookies.
     console.log(`[Whisper] 📥 Downloading audio-only for transcription: ${url.substring(0, 60)}…`);
-    await execFileAsync('yt-dlp', [
+    console.log(`[Whisper] 🔧 yt-dlp path: ${YTDLP}`);
+    const cookieArgs = getCookieArgs();
+    await execFileAsync(YTDLP, [
+      ...cookieArgs,
       '--no-playlist',
       '--extract-audio',
       '--audio-format', 'm4a',
@@ -196,6 +245,7 @@ async function transcribeFromUrl(url, tmpDir) {
 
   } catch (err) {
     console.log(`[Whisper] ⚠️  Auto-transcription failed: ${err.message}`);
+    if (err.stderr) console.log(`[Whisper] stderr: ${String(err.stderr).substring(0, 400)}`);
     return '';
   } finally {
     // Always delete temp file

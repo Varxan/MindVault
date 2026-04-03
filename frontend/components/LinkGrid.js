@@ -68,6 +68,7 @@ export default function LinkGrid() {
   // Right-click context menu (global — outside card stacking contexts)
   const [cardContextMenu, setCardContextMenu] = useState(null); // { x, y, link } | null
   const [transcriptModal, setTranscriptModal] = useState(null); // link | null
+  const [analyzingIds, setAnalyzingIds] = useState(new Set()); // IDs currently being re-analysed
 
   const handleCardContextMenu = (e, link) => {
     setCardContextMenu({ x: e.clientX, y: e.clientY, link });
@@ -94,17 +95,20 @@ export default function LinkGrid() {
     if (!cardContextMenu) return;
     const { link } = cardContextMenu;
     setCardContextMenu(null);
+    // Guard: don't start a second analysis if already running
+    if (analyzingIds.has(String(link.id))) return;
+    setAnalyzingIds(prev => new Set([...prev, String(link.id)]));
     try {
       const res = await fetch(`${getApiBase()}/links/${link.id}/analyze`, {
         method: 'POST',
       });
       // 202 = started in background, 200 = done synchronously — both are success
       if (!res.ok) throw new Error('Failed');
-      // Tags update in background — refresh after a short delay to catch quick results
-      setTimeout(() => refresh(), 3000);
     } catch (err) {
+      setAnalyzingIds(prev => { const n = new Set(prev); n.delete(String(link.id)); return n; });
       alert('Error re-analyzing link: ' + err.message);
     }
+    // Note: analyzingIds entry is removed when link-updated SSE fires (see SSE handler below)
   };
 
   // Re-download: clear cached file for this link, then trigger fresh download
@@ -234,7 +238,7 @@ export default function LinkGrid() {
   // For tagging preferences (not API keys) - simplified version
   const handleSaveToken = async (key, value) => {
     // Allow clearing path settings (empty string = reset to default)
-    const clearableKeys = ['download_path', 'cloud_backup_path', 'media_storage_path'];
+    const clearableKeys = ['download_path', 'cloud_backup_path', 'media_storage_path', 'media_cache_path'];
     if (!clearableKeys.includes(key) && !value.trim()) return;
     try {
       const res = await fetch(`${getApiBase()}/settings`, {
@@ -438,11 +442,15 @@ export default function LinkGrid() {
 
     es.onmessage = (e) => {
       try {
-        const { type } = JSON.parse(e.data);
+        const { type, id } = JSON.parse(e.data);
         if (type === 'link-added' || type === 'link-updated' || type === 'link-deleted') {
           // Invalidate space cache so loadLinks does a real fetch (not a cache bail-out)
           spaceCacheRef.current = { eye: null, mind: null };
           loadLinksRef.current();
+        }
+        // Clear analysing spinner for this link when update arrives
+        if (type === 'link-updated' && id) {
+          setAnalyzingIds(prev => { const n = new Set(prev); n.delete(String(id)); return n; });
         }
       } catch {}
     };
@@ -1045,6 +1053,52 @@ export default function LinkGrid() {
                         </button>
                       )}
                     </div>
+                    <div className="settings-divider" />
+                    <div className="settings-field">
+                      <label>Media cache folder</label>
+                      <span className="settings-field-status">
+                        {settingsStatus.media_cache_path ? `● ${settingsStatus.media_cache_path}` : '○ Internal (default)'}
+                      </span>
+                      <div className="settings-field-row">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`${getApiBase()}/pick-folder/media-cache`, { method: 'POST' });
+                              const data = await res.json();
+                              if (res.ok && data.path) loadSettings();
+                            } catch (err) { console.error('Media cache error:', err); }
+                          }}
+                          style={{ flex: 1 }}
+                        >
+                          {settingsStatus.media_cache_path ? 'Change folder' : 'Choose folder'}
+                        </button>
+                      </div>
+                      <span className="settings-field-hint">Downloaded videos (YouTube, Instagram…) are saved here. External drive or NAS recommended for large collections.</span>
+                      {settingsStatus.media_cache_path && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Move all existing cached files to the new folder?')) return;
+                              try {
+                                const res = await fetch(`${getApiBase()}/move-media-cache`, { method: 'POST' });
+                                const data = await res.json();
+                                if (res.ok) alert(`Moved ${data.moved} file${data.moved !== 1 ? 's' : ''} to new location.`);
+                                else alert('Error: ' + data.error);
+                              } catch (err) { alert('Error: ' + err.message); }
+                            }}
+                            style={{ background: 'none', border: 'none', color: '#aaa', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', padding: 0, textAlign: 'left' }}
+                          >
+                            Move existing files here
+                          </button>
+                          <button
+                            onClick={() => handleSaveToken('media_cache_path', '')}
+                            style={{ background: 'none', border: 'none', color: '#888', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', padding: 0, textAlign: 'left' }}
+                          >
+                            Reset to internal storage
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
 
@@ -1442,6 +1496,7 @@ export default function LinkGrid() {
                     onRemoveFromState={handleRemoveFromState}
                     onRefresh={refresh}
                     onContextMenu={handleCardContextMenu}
+                    isAnalyzing={analyzingIds.has(String(link.id))}
                   />
                 )}
               </div>
@@ -1788,8 +1843,12 @@ export default function LinkGrid() {
                 Move to Eye
               </button>
             )}
-            <button className="card-context-item" onClick={handleReanalyze}>
-              Re-analyse
+            <button
+              className="card-context-item"
+              onClick={handleReanalyze}
+              disabled={analyzingIds.has(String(cardContextMenu.link.id))}
+            >
+              {analyzingIds.has(String(cardContextMenu.link.id)) ? '⟳ Analysing…' : 'Re-analyse'}
             </button>
             {cardContextMenu.link.space === 'mind' && (
               <button className="card-context-item" onClick={() => {
@@ -1845,10 +1904,16 @@ export default function LinkGrid() {
             </div>
             {/* Body */}
             <div style={{ padding: '20px', overflowY: 'auto', fontSize: '13px', lineHeight: '1.7', color: 'var(--text-muted)', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-body)' }}>
-              {transcriptModal.transcript
-                ? transcriptModal.transcript
-                : <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>No transcript yet. Right-click → Re-analyse to generate one.</span>
-              }
+              {analyzingIds.has(String(transcriptModal.id)) ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                  <span className="transcript-spinner" />
+                  Analysing… this can take a few minutes.
+                </div>
+              ) : transcriptModal.transcript ? (
+                transcriptModal.transcript
+              ) : (
+                <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>No transcript yet. Right-click → Re-analyse to generate one.</span>
+              )}
             </div>
           </div>
         </>

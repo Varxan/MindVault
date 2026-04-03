@@ -9,7 +9,7 @@ import CollectionForm from './CollectionForm';
 import { getApiBase } from '../lib/config';
 
 
-export default function LinkCard({ link, onDelete, onRemoveFromState, onRefresh, onContextMenu }) {
+export default function LinkCard({ link, onDelete, onRemoveFromState, onRefresh, onContextMenu, isAnalyzing }) {
   const [downloading, setDownloading] = useState(false);
   const [carouselFiles, setCarouselFiles] = useState([]);
   const [carouselMediaPath, setCarouselMediaPath] = useState(null);
@@ -241,7 +241,7 @@ export default function LinkCard({ link, onDelete, onRemoveFromState, onRefresh,
 
   return (
     <div
-      className="card"
+      className={`card${isAnalyzing ? ' card-analyzing' : ''}`}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu?.(e, link); }}
     >
       {/* Action Buttons */}

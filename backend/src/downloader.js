@@ -31,11 +31,27 @@ function getCookieArgs() {
 
 const DEV_DATA_ROOT = path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
 const DATA_ROOT = process.env.DATA_PATH || DEV_DATA_ROOT;
-const MEDIA_DIR = path.join(DATA_ROOT, 'media');
+const MEDIA_DIR = path.join(DATA_ROOT, 'media'); // default (internal) location
 
-// Ensure media directory exists
+// Ensure default media directory exists
 if (!fs.existsSync(MEDIA_DIR)) {
   fs.mkdirSync(MEDIA_DIR, { recursive: true });
+}
+
+/**
+ * Returns the active media cache directory.
+ * If the user has configured a custom path via Settings → media_cache_path,
+ * that folder is used for new downloads. Falls back to the internal MEDIA_DIR.
+ */
+function getMediaCacheDir() {
+  try {
+    const { getSetting } = require('./database');
+    const setting = getSetting.get('media_cache_path');
+    if (setting?.value && fs.existsSync(setting.value)) {
+      return setting.value;
+    }
+  } catch {}
+  return MEDIA_DIR;
 }
 
 /**
@@ -195,7 +211,7 @@ async function downloadInstagramImage(shortcode, linkId) {
       const buffer = await res.buffer();
       const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
       const filename = `${linkId}_instagram_${shortcode}.${ext}`;
-      const filepath = path.join(MEDIA_DIR, filename);
+      const filepath = path.join(getMediaCacheDir(), filename);
       fs.writeFileSync(filepath, buffer);
       console.log(`[Download] Instagram direct image: ${filename} (${(buffer.length / 1024).toFixed(0)}KB)`);
       return {
@@ -210,7 +226,7 @@ async function downloadInstagramImage(shortcode, linkId) {
   }
 
   const filename = `${linkId}_instagram_${shortcode}.jpg`;
-  const filepath = path.join(MEDIA_DIR, filename);
+  const filepath = path.join(getMediaCacheDir(), filename);
   const size = await downloadImageDirect(imageUrl, filepath);
   console.log(`[Download] Instagram image downloaded: ${filename} (${(size / 1024).toFixed(0)}KB)`);
 
@@ -266,8 +282,8 @@ function downloadMedia(url, linkId) {
 
     // For Instagram carousels: include playlist index in filename
     const outputTemplate = isInstagram
-      ? path.join(MEDIA_DIR, `${linkId}_%(title).30s_%(playlist_index|0)s.%(ext)s`)
-      : path.join(MEDIA_DIR, `${linkId}_%(title).30s.%(ext)s`);
+      ? path.join(getMediaCacheDir(), `${linkId}_%(title).30s_%(playlist_index|0)s.%(ext)s`)
+      : path.join(getMediaCacheDir(), `${linkId}_%(title).30s.%(ext)s`);
 
     // Probe to check what this URL contains
     let probeEntries = [];
@@ -343,7 +359,7 @@ function downloadMedia(url, linkId) {
           const ext = (entry.ext || 'jpg').toLowerCase();
           const safeName = (entry.title || 'image').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30);
           const filename = `${linkId}_${safeName}_${i}.${ext}`;
-          const filepath = path.join(MEDIA_DIR, filename);
+          const filepath = path.join(getMediaCacheDir(), filename);
 
           try {
             const size = await downloadImageDirect(imageUrl, filepath);
@@ -519,4 +535,7 @@ module.exports = {
   downloadMedia,
   getDownloadedFiles,
   MEDIA_DIR,
+  getMediaCacheDir,
+  YTDLP,
+  getCookieArgs,
 };

@@ -29,13 +29,17 @@ const tmpDir = path.dirname(tmpApp);
 
 console.log('\n📦 Creating test DMG...');
 
+// Unmount any leftover MindVault volume from previous runs
+try { execSync('hdiutil detach "/Volumes/MindVault" -force 2>/dev/null', { stdio: 'ignore' }); } catch {}
+try { execSync('hdiutil detach "/Volumes/MindVault 1" -force 2>/dev/null', { stdio: 'ignore' }); } catch {}
+
 // Clean and copy to temp
 if (fs.existsSync(tmpDir)) fs.rmSync(tmpDir, { recursive: true });
 fs.mkdirSync(tmpDir, { recursive: true });
 execSync(`cp -R "${appPath}" "${tmpApp}"`);
 
-// Create DMG
-execSync(`hdiutil create -srcfolder "${tmpApp}" -volname "MindVault" -format UDZO -fs APFS "${dmgOut}"`);
+// Create DMG (HFS+ avoids APFS TCC permission issues with hdiutil)
+execSync(`hdiutil create -srcfolder "${tmpApp}" -volname "MindVault" -format UDZO -fs HFS+ "${dmgOut}"`);
 
 // Clean up
 fs.rmSync(tmpDir, { recursive: true });

@@ -200,6 +200,15 @@ if (!APP_ONLY) {
   fs.mkdirSync(DMG_SRC, { recursive: true });
   run(`ditto "${APP_PATH}" "${DMG_SRC}/MindVault.app"`);
 
+  // Unmount any stale MindVault volumes from previous failed attempts
+  try {
+    const vols = fs.readdirSync('/Volumes').filter(v => v.startsWith('MindVault'));
+    for (const vol of vols) {
+      console.log(`  Unmounting stale volume: /Volumes/${vol}`);
+      try { run(`hdiutil detach "/Volumes/${vol}" -force`); } catch {}
+    }
+  } catch {}
+
   if (fs.existsSync(CREATE_DMG_BIN)) {
     try {
       execSync([

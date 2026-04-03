@@ -1,6 +1,6 @@
 # MindVault — Brain Document
 > Dieses Dokument am Anfang jeder Claude-Session mitgeben. Laufend aktualisieren.
-> Letzte Aktualisierung: 11. März 2026
+> Letzte Aktualisierung: 3. April 2026
 
 ---
 
@@ -181,7 +181,7 @@ Alternative Namen (intern, nicht für Tester): FrameVault, Vault, Stills, RefVau
 ### NIEDRIG (nice to have)
 7. **`test-*.js`** Dateien im Backend-Root** (`test-image-post.js`, `test-carousel.js` etc.) — Test-Dateien aufräumen
 8. **`landing-beta.html`** in `/frontend/public/` — verwendet noch Google Fonts (`@import`) → sollte auf self-hosted Inter umgestellt werden (Next.js-Version ist bereits GDPR-konform)
-9. **Whisper Integration** (`whisper.js`) — ob vollständig integriert in UI, unklar
+9. ~~**Whisper Integration**~~ ✅ VOLLSTÄNDIG GEFIXT 03.04.2026 — yt-dlp Pfad, Cookies, JSON-Parse, Sequential Queue
 10. **CLIP Embeddings / semantische Suche** — ob vollständig integriert, unklar
 11. **Activation System** (`electron/activation.html` + `preload-activation.js`) — ob fertig und aktiv, unklar
 12. **`startup-analyzer.js`** — unklarer Status, was analysiert wird
@@ -190,12 +190,16 @@ Alternative Namen (intern, nicht für Tester): FrameVault, Vault, Stills, RefVau
 
 ## 📅 Nächste Schritte (Priorität)
 
-1. [ ] Screen Recording der App machen → Panel 2 Video einbauen
-2. [ ] OG Image mit echtem App-Screenshot aktualisieren
-3. [ ] Google Search Console: Site verifizieren + Sitemap einreichen
-4. [ ] Beta-Tester rekrutieren (MindVault-Beta-Guide.docx ist bereit)
-5. [ ] Loose-End-Cleanup (alte Landing HTMLs, temp files)
-6. [ ] Whisper + CLIP Integration prüfen / dokumentieren
+1. [ ] **0.9.2 Distribution-Build fertigstellen** — auf Mac Terminal ausführen:
+   ```bash
+   cd ~/Documents/MindVault && npm run dist:resign
+   APPLE_ID="marco.pro.frei@gmail.com" APPLE_APP_SPECIFIC_PASSWORD="jiti-iwzd-befe-gawr" APPLE_TEAM_ID="QKY47Z9SPY" npm run dist:notarize
+   ```
+2. [ ] Screen Recording der App machen → Panel 2 Video einbauen
+3. [ ] OG Image mit echtem App-Screenshot aktualisieren
+4. [ ] Google Search Console: Site verifizieren + Sitemap einreichen
+5. [ ] Beta-Tester rekrutieren (MindVault-Beta-Guide.docx ist bereit)
+6. [ ] Loose-End-Cleanup (alte Landing HTMLs, temp files)
 7. [ ] Activation/Licensing System Status prüfen
 8. [ ] MobileQRSection URL prüfen (`mind-vault-chi.vercel.app` → mindvault.ch?)
 9. [ ] **Playwright E2E-Tests** einrichten — automatisiertes Testen aller Kernfunktionen nach jedem Build (statt manuell). Electron-Support vorhanden. Einmalig ~2-3h Aufwand, danach läuft alles in ~3 Min. automatisch. Besprochen am 11.03.2026.
@@ -227,6 +231,7 @@ Alternative Namen (intern, nicht für Tester): FrameVault, Vault, Stills, RefVau
 | 12.03.2026 (session 3) | **Whisper fehlte in python-standalone**: `build-clip-bundle.sh` installierte nur torch+CLIP+sentence-transformers, aber NICHT openai-whisper. Fix: `pip install openai-whisper` zum Build-Script hinzugefügt. Whisper manuell in bestehende python-standalone nachinstalliert. YouTube-Titel-Bug (iOS Share Text überschreibt echten Titel) war bereits in Session 2 gefixt. |
 | 13.03.2026 (nachmittag) | **Video Landing Page Proposal:** `landing.html` + `MV1.mp4` nach `frontend/public/` deployed. Video web-optimiert (32MB→2.4MB). Font-System: Humane + Inter 300. App-Icon base64 eingebettet. Erreichbar unter mindvault.ch/landing.html. Nächster Schritt: LandingBetaContent.js ersetzen für echte Homepage. |
 | 13.03.2026 | **Release-Pipeline vollständig gefixt:** entitlements + disable-library-validation (Team ID crash), torch/testing Exclusion entfernt (CLIP fix), notarize-only.js ZIP-Bug + stderr fix + create-dmg (Homebrew) für schönes DMG-Layout, re-sign.js --force Flag-Parsing fix. Version 0.9.0-beta.1 notarisiert + an Tester gegeben. |
+| 03.04.2026 | **Whisper vollständig gefixt + neue Features + 0.9.2 Distribution-Build vorbereitet:**<br><br>**Whisper-Fixes (`backend/src/whisper.js`):**<br>• `YTDLP` + `getCookieArgs` aus `downloader.js` importiert → yt-dlp wurde vorher als String `'yt-dlp'` aufgerufen, nicht als bundled Binary → crashed in .app<br>• Sequential Queue implementiert (`_runExclusive`, `_drainWhisperQueue`) → max. 1 Whisper-Job gleichzeitig, RAM-Kontrolle<br>• JSON-Parse-Fix: Whisper gibt `Detected language: X` vor dem JSON aus → stdout polluted. Fix: letzte Zeile die mit `{` beginnt nehmen statt alles parsen.<br>• `err.stderr` im catch-Block geloggt für besseres Debugging<br><br>**VideoPlayerModal — Set Thumbnail via Rechtsklick:**<br>• `POST /links/:id/set-thumbnail` Endpoint in `routes.js` → ffmpeg extrahiert Frame bei `time`-Sekunde → speichert als `local_thumbnail`<br>• Rechtsklick-Kontextmenu auf Video mit "Set as thumbnail" (kein Emoji — CI-Regel)<br>• **Kritischer Fix:** `e.stopPropagation()` auf `onContextMenu` des Video-Elements → React Portal Bubbling verursachte 2 Kontextmenus gleichzeitig<br>• Success-Toast im Video-Container<br><br>**Re-Analyse Progress-Indikator (`LinkGrid.js`, `LinkCard.js`, `globals.css`):**<br>• `analyzingIds` State (Set) in LinkGrid → ID wird beim Start des Re-Analyse hinzugefügt, bei SSE `link-updated` entfernt<br>• `isAnalyzing` Prop an LinkCard → pulsierende blaue Border-Animation (`card-analyzing` CSS class)<br>• Kontextmenu zeigt "⟳ Analysing…" (disabled) während Analyse läuft<br>• Transcript Modal zeigt Spinner während Analyse<br><br>**Media Cache Path Setting:**<br>• `getMediaCacheDir()` in `downloader.js` → prüft `media_cache_path` Setting zur Laufzeit, Fallback auf `MEDIA_DIR`<br>• `FFMPEG` aus `thumbnails.js` exportiert für `routes.js`<br>• `/files/media` → dynamischer Endpoint statt statischer Route (prüft media_cache_path)<br>• `resolveVideoPath` prüft auch media_cache_path für `media_path` Dateien<br>• `POST /pick-folder/media-cache`, `GET /media-cache-stats`, `POST /move-media-cache` Endpoints<br>• Settings-UI: "Media cache folder" Sektion in Import/Export Tab<br><br>**Test-DMG Script Fixes (`scripts/create-test-dmg.js`):**<br>• Stale `/Volumes/MindVault` Volume wird vor neuem Mount unmounted<br>• `-fs APFS` → `-fs HFS+` (APFS TCC Permission-Issues auf neueren macOS)<br><br>**0.9.2 Distribution-Build Status:**<br>• Frontend ✅, native rebuild ✅, packaging ✅, 282 Binaries signiert ✅<br>• Notarisierung ❌ — Apple lehnt ab: "The signature of the binary is invalid" für `MindVault` + `Electron Framework`<br>• Root Cause: Electron überschreibt seine eigenen Signaturen beim Packaging → muss danach komplett re-signiert werden<br>• **Lösung:** Zwei-Schritt-Flow: `npm run dist:resign` (MacOS Keychain nötig!) → dann `npm run dist:notarize`<br>• Diese zwei Befehle müssen direkt auf dem Mac ausgeführt werden (nicht in der Linux-VM)<br><br>**Apple Credentials (für Notarisierung):**<br>• `APPLE_ID`: marco.pro.frei@gmail.com<br>• `APPLE_APP_SPECIFIC_PASSWORD`: jiti-iwzd-befe-gawr (neu erstellt 03.04.2026, alter PW war locked)<br>• `APPLE_TEAM_ID`: QKY47Z9SPY<br>• Befehl: `cd ~/Documents/MindVault && npm run dist:resign && APPLE_ID="marco.pro.frei@gmail.com" APPLE_APP_SPECIFIC_PASSWORD="jiti-iwzd-befe-gawr" APPLE_TEAM_ID="QKY47Z9SPY" npm run dist:notarize` |
 | 12.03.2026 (spät) | **GROSSER PATH-AUDIT + FIX** — alle Backend-Dateien zeigten im Dev-Modus auf `backend/data/` statt auf `~/Library/Application Support/mindvault/data/`.<br>**Root Cause:** Electron's `app.getPath('userData')` nutzt `mindvault` (lowercase aus package.json `name`), nicht `MindVault` (Grossschreibung). Unser Fix hatte versehentlich `MindVault` (gross) verwendet → falsche Ordner → Links weg.<br>**Gefixt:** 11 Dateien korrigiert auf `mindvault` (lowercase): database.js, backup.js, downloader.js, gif-creator.js, routes.js, startup-analyzer.js, supabase-poller.js, embeddings.js, ai.js, library-sync.js, thumbnails.js, bot.js<br>**Backup-System verbessert:** Jetzt alle 2h statt 1x/Tag, 14 statt 7 Backups, Timestamp statt Datum im Dateinamen<br>**Weitere Fixes:** yt-dlp Firefox-Cookie Bug (crashed wenn Firefox nicht installiert), bot.js Thumbnail-Pfad, routes.js Python-Pfad, downloader.js HOME-Variable<br>**WICHTIG für Zukunft:** Electron userData = `mindvault` (lowercase). JEDER neue Backend-Pfad muss `process.env.DATA_PATH` mit `~/Library/Application Support/mindvault/data` als Fallback nutzen. NIE `__dirname/../data`! |
 
 ---
@@ -235,4 +240,4 @@ Alternative Namen (intern, nicht für Tester): FrameVault, Vault, Stills, RefVau
 >
 > **Git-Commits vorschlagen:** Wenn in einer Session wichtige oder gute Änderungen gemacht wurden (Bugfixes, neue Features, Script-Verbesserungen etc.), am Ende der Session proaktiv einen `git add` + `git commit` + `git push` vorschlagen. Marco committed nicht immer selbst — ein kurzer Hinweis hilft, damit keine Arbeit verloren geht.
 >
-> **Versionierung:** Vor jedem `npm run dist:notarize` (Release-Build) proaktiv fragen ob die Version gebumpt werden soll. Schema: `+0.0.1` pro Release (0.9.0 → 0.9.1 → 0.9.2 …). Nicht automatisch bumpen — immer fragen. Aktuelle Version: `0.9.0-beta.1`.
+> **Versionierung:** Vor jedem `npm run dist:notarize` (Release-Build) proaktiv fragen ob die Version gebumpt werden soll. Schema: `+0.0.1` pro Release (0.9.0 → 0.9.1 → 0.9.2 …). Nicht automatisch bumpen — immer fragen. Aktuelle Version: `0.9.2`.

@@ -48,6 +48,11 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   const [screenshotError, setScreenshotError] = useState(null);
   const [shutterFlash, setShutterFlash] = useState(false);
 
+  // Right-click context menu for thumbnail
+  const [thumbMenu, setThumbMenu] = useState(null); // { x, y } or null
+  const [settingThumb, setSettingThumb] = useState(false);
+  const [thumbSuccess, setThumbSuccess] = useState(false);
+
   // GIF export
   const [gifExporting, setGifExporting] = useState(false);
   const [gifResult, setGifResult] = useState(null);
@@ -344,6 +349,35 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
     return () => document.removeEventListener('mousedown', close);
   }, [showDownloadMenu]);
 
+  // Dismiss right-click thumbnail menu on any click
+  useEffect(() => {
+    if (!thumbMenu) return;
+    const close = () => setThumbMenu(null);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [thumbMenu]);
+
+  // Set current frame as thumbnail
+  const handleSetThumbnail = async () => {
+    setThumbMenu(null);
+    setSettingThumb(true);
+    try {
+      const res = await fetch(`${getApiBase()}/links/${link.id}/set-thumbnail`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ time: Math.round(currentTime * 100) / 100 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setThumbSuccess(true);
+      setTimeout(() => setThumbSuccess(false), 2500);
+    } catch (err) {
+      alert('Thumbnail error: ' + err.message);
+    } finally {
+      setSettingThumb(false);
+    }
+  };
+
   // Download a file — in Electron the will-download handler auto-saves to the
   // chosen folder with no dialog. Pass saveAs=true to append ?saveAs=1 to the
   // URL so the main process shows the native Save dialog for that one download.
@@ -488,6 +522,12 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
             onPlay={() => setIsPlaying(true)}
             onPause={() => setIsPlaying(false)}
             onEnded={() => setIsPlaying(false)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (videoRef.current) videoRef.current.pause();
+              setThumbMenu({ x: e.clientX, y: e.clientY });
+            }}
             controls={!editMode}
             autoPlay
           />
@@ -499,7 +539,28 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
           )}
           {/* Shutter flash overlay for still grabs */}
           {shutterFlash && <div className="vp-shutter-flash" />}
+          {/* Thumbnail success toast */}
+          {thumbSuccess && (
+            <div className="vp-thumb-toast">✓ Thumbnail updated</div>
+          )}
         </div>
+
+        {/* Right-click context menu */}
+        {thumbMenu && (
+          <div
+            className="vp-context-menu"
+            style={{ position: 'fixed', top: thumbMenu.y, left: thumbMenu.x }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <button
+              className="vp-context-item"
+              onClick={handleSetThumbnail}
+              disabled={settingThumb}
+            >
+              {settingThumb ? 'Setting…' : 'Set as thumbnail'}
+            </button>
+          </div>
+        )}
 
         {/* ── Edit Mode Panel ── */}
         {editMode && (

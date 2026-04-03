@@ -152,4 +152,4 @@ function getThumbnailPath(filename) {
   return path.join(THUMB_DIR, filename);
 }
 
-module.exports = { downloadThumbnail, generateVideoThumbnail, getThumbnailPath, THUMB_DIR };
+module.exports = { downloadThumbnail, generateVideoThumbnail, getThumbnailPath, THUMB_DIR, FFMPEG };

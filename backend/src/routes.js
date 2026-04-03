@@ -33,7 +33,7 @@ const {
 } = require('./database');
 const { detectSource, fetchMetadata, fetchSmartMetadata } = require('./metadata');
 const { analyzeContent, getAIStatus, checkClipAvailable } = require('./ai');
-const { downloadThumbnail, generateVideoThumbnail, THUMB_DIR } = require('./thumbnails');
+const { downloadThumbnail, generateVideoThumbnail, THUMB_DIR, FFMPEG } = require('./thumbnails');
 const { downloadMedia, getDownloadedFiles, isYtdlpInstalled, getMediaInfo, MEDIA_DIR } = require('./downloader');
 const { transcribeMedia, transcribeFromUrl, isWhisperAvailable, isWhisperCompatible } = require('./whisper');
 const { embedText, isEmbeddingAvailable, cosineSimilarity, vecToBuffer, bufferToVec, buildEmbedText } = require('./embeddings');
@@ -167,7 +167,15 @@ async function generateAndStoreEmbedding(linkId) {
 
 // Helper: resolve absolute path for a video link (media_path or file_path/upload)
 function resolveVideoPath(link) {
-  if (link.media_path) return path.join(MEDIA_DIR, link.media_path);
+  if (link.media_path) {
+    // Check custom media cache dir first, then fall back to internal MEDIA_DIR
+    const cacheSetting = getSetting.get('media_cache_path');
+    if (cacheSetting?.value) {
+      const cachePath = path.join(cacheSetting.value, link.media_path);
+      if (fs.existsSync(cachePath)) return cachePath;
+    }
+    return path.join(MEDIA_DIR, link.media_path);
+  }
   if (link.file_path) {
     const filename = path.basename(link.file_path);
     const externalSetting = getSetting.get('media_storage_path');
@@ -196,7 +204,19 @@ router.get('/files/uploads/:filename', (req, res) => {
   if (fs.existsSync(internalPath)) return res.sendFile(internalPath);
   res.status(404).send('File not found');
 });
-router.use('/files/media', express.static(MEDIA_DIR));
+// Serve media files — checks custom cache dir first, then internal MEDIA_DIR
+router.get('/files/media/:filename', (req, res) => {
+  const filename = req.params.filename;
+  if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).send('Invalid filename');
+  }
+  const cacheSetting = getSetting.get('media_cache_path');
+  if (cacheSetting?.value) {
+    const cachePath = path.join(cacheSetting.value, filename);
+    if (fs.existsSync(cachePath)) return res.sendFile(cachePath);
+  }
+  res.sendFile(path.join(MEDIA_DIR, filename));
+});
 router.use('/files/gifs', express.static(GIF_DIR));
 router.use('/files/clips', express.static(CLIP_DIR));
 router.use('/files/screenshots', express.static(SCREENSHOT_DIR));
@@ -402,10 +422,16 @@ router.post('/links', async (req, res) => {
       setImmediate(async () => {
         try {
           const available = await isWhisperAvailable();
-          if (!available) return;
+          if (!available) {
+            console.log(`[Whisper] ⚠️  Not available — skipping transcription for Mind link ${capturedLinkId}. Run /api/whisper-debug for details.`);
+            return;
+          }
 
           const transcript = await transcribeFromUrl(capturedUrl, null);
-          if (!transcript) return;
+          if (!transcript) {
+            console.log(`[Whisper] ⚠️  transcribeFromUrl returned empty for Mind link ${capturedLinkId} (${capturedUrl.substring(0,60)})`);
+            return;
+          }
 
           db.prepare('UPDATE links SET transcript = ? WHERE id = ?').run(transcript, capturedLinkId);
           console.log(`[Whisper] 💾 Hidden transcript stored for Mind link ${capturedLinkId}`);
@@ -454,10 +480,16 @@ router.patch('/links/:id', (req, res) => {
         setImmediate(async () => {
           try {
             const available = await isWhisperAvailable();
-            if (!available) return;
+            if (!available) {
+              console.log(`[Whisper] ⚠️  Not available — skipping transcription for moved Mind link ${capturedLinkId}. Run /api/whisper-debug for details.`);
+              return;
+            }
 
             const transcript = await transcribeFromUrl(capturedUrl, null);
-            if (!transcript) return;
+            if (!transcript) {
+              console.log(`[Whisper] ⚠️  transcribeFromUrl returned empty for moved Mind link ${capturedLinkId}`);
+              return;
+            }
 
             db.prepare('UPDATE links SET transcript = ? WHERE id = ?').run(transcript, capturedLinkId);
             console.log(`[Whisper] 💾 Hidden transcript stored for moved Mind link ${capturedLinkId}`);
@@ -1164,10 +1196,16 @@ router.post('/links/:id/analyze', (req, res) => {
     if (capturedSpace === 'mind' && capturedUrl) {
       try {
         const available = await isWhisperAvailable();
-        if (!available) return;
+        if (!available) {
+          console.log(`[Whisper] ⚠️  Not available — skipping re-transcription for Mind link ${capturedLinkId}. Run /api/whisper-debug for details.`);
+          return;
+        }
 
         const transcript = await transcribeFromUrl(capturedUrl, null);
-        if (!transcript) return;
+        if (!transcript) {
+          console.log(`[Whisper] ⚠️  transcribeFromUrl returned empty for re-transcription of Mind link ${capturedLinkId}`);
+          return;
+        }
 
         db.prepare('UPDATE links SET transcript = ? WHERE id = ?').run(transcript, capturedLinkId);
         console.log(`[Whisper] 💾 Re-transcription stored for Mind link ${capturedLinkId}`);
@@ -1410,6 +1448,46 @@ router.post('/links/:id/screenshot', async (req, res) => {
   } catch (err) {
     console.error('Error creating screenshot:', err);
     res.status(500).json({ error: err.message || 'Fehler beim Erstellen des Screenshots' });
+  }
+});
+
+// POST /api/links/:id/set-thumbnail – Set a specific video frame as the card thumbnail
+router.post('/links/:id/set-thumbnail', async (req, res) => {
+  try {
+    const link = getLinkById.get({ id: req.params.id });
+    if (!link) return res.status(404).json({ error: 'Link nicht gefunden' });
+
+    const { time } = req.body;
+    if (time === undefined) return res.status(400).json({ error: 'time ist erforderlich' });
+
+    const videoPath = resolveVideoPath(link);
+    if (!videoPath || !fs.existsSync(videoPath)) {
+      return res.status(400).json({ error: 'Video-Datei nicht gefunden' });
+    }
+
+    const { execSync } = require('child_process');
+    const crypto = require('crypto');
+    const hash = crypto.createHash('md5').update(videoPath + '-thumb-' + Math.round(parseFloat(time) * 100)).digest('hex');
+    const filename = `${hash}.jpg`;
+    const filepath = path.join(THUMB_DIR, filename);
+
+    execSync(
+      `"${FFMPEG}" -y -ss ${parseFloat(time)} -i "${videoPath}" -vframes 1 -q:v 2 "${filepath}"`,
+      { stdio: 'pipe' }
+    );
+
+    if (!fs.existsSync(filepath) || fs.statSync(filepath).size < 500) {
+      return res.status(500).json({ error: 'Frame konnte nicht extrahiert werden' });
+    }
+
+    db.prepare('UPDATE links SET local_thumbnail = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(filename, link.id);
+    pushEvent('link-updated', { id: link.id });
+
+    console.log(`[Thumb] Custom thumbnail set for link ${link.id}: ${filename} at ${time}s`);
+    res.json({ message: 'Thumbnail aktualisiert', filename, url: `/api/files/thumbnails/${filename}` });
+  } catch (err) {
+    console.error('Error setting thumbnail:', err);
+    res.status(500).json({ error: err.message || 'Fehler beim Setzen des Thumbnails' });
   }
 });
 
@@ -1715,6 +1793,7 @@ router.patch('/settings', (req, res) => {
       'download_path',
       'cloud_backup_path',
       'media_storage_path',
+      'media_cache_path',
       'custom_preferred_tags',
       'tag_catalog_ratio',
       'custom_ai_prompt',
@@ -1805,6 +1884,79 @@ router.post('/pick-folder/media-storage', (req, res) => {
     }
     console.error('Media storage folder picker error:', err.message);
     res.status(500).json({ error: 'Could not open folder picker' });
+  }
+});
+
+// POST /api/pick-folder/media-cache – open folder picker and save as media_cache_path
+router.post('/pick-folder/media-cache', (req, res) => {
+  const { execSync } = require('child_process');
+  try {
+    const result = execSync(
+      `osascript -e 'POSIX path of (choose folder with prompt "Select folder for MindVault media cache (downloaded videos & images)")'`,
+      { timeout: 60000, encoding: 'utf-8' }
+    ).trim();
+    if (result) {
+      setSetting.run({ key: 'media_cache_path', value: result });
+      res.json({ path: result });
+    } else {
+      res.status(400).json({ error: 'No folder selected' });
+    }
+  } catch (err) {
+    if (err.message.includes('User canceled') || err.message.includes('-128')) {
+      return res.status(400).json({ error: 'cancelled' });
+    }
+    res.status(500).json({ error: 'Could not open folder picker' });
+  }
+});
+
+// GET /api/media-cache-stats – size and file count of internal MEDIA_DIR cache
+router.get('/media-cache-stats', (req, res) => {
+  try {
+    const dirs = [MEDIA_DIR];
+    const cacheSetting = getSetting.get('media_cache_path');
+    if (cacheSetting?.value && fs.existsSync(cacheSetting.value) && cacheSetting.value !== MEDIA_DIR) {
+      dirs.push(cacheSetting.value);
+    }
+    let totalFiles = 0;
+    let totalBytes = 0;
+    for (const dir of dirs) {
+      if (!fs.existsSync(dir)) continue;
+      const files = fs.readdirSync(dir).filter(f => /\.(mp4|mov|webm|mkv|avi|jpg|jpeg|png|gif|webp)$/i.test(f));
+      for (const f of files) {
+        try { totalBytes += fs.statSync(path.join(dir, f)).size; } catch {}
+        totalFiles++;
+      }
+    }
+    const totalMB = (totalBytes / 1024 / 1024).toFixed(0);
+    res.json({ files: totalFiles, mb: parseInt(totalMB), bytes: totalBytes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/move-media-cache – move all files from internal MEDIA_DIR to the configured media_cache_path
+router.post('/move-media-cache', async (req, res) => {
+  const cacheSetting = getSetting.get('media_cache_path');
+  if (!cacheSetting?.value) return res.status(400).json({ error: 'No custom cache path configured' });
+  const destDir = cacheSetting.value;
+  if (!fs.existsSync(destDir)) return res.status(400).json({ error: 'Destination folder does not exist' });
+
+  try {
+    const files = fs.readdirSync(MEDIA_DIR).filter(f => /\.(mp4|mov|webm|mkv|avi|jpg|jpeg|png|gif|webp)$/i.test(f));
+    let moved = 0;
+    for (const f of files) {
+      const src = path.join(MEDIA_DIR, f);
+      const dest = path.join(destDir, f);
+      if (!fs.existsSync(dest)) {
+        fs.renameSync(src, dest);
+        moved++;
+      }
+    }
+    console.log(`[Cache] Moved ${moved} files from internal cache to ${destDir}`);
+    res.json({ moved, total: files.length });
+  } catch (err) {
+    console.error('Move media cache error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
