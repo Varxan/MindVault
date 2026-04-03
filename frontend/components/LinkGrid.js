@@ -232,7 +232,9 @@ export default function LinkGrid() {
 
   // For tagging preferences (not API keys) - simplified version
   const handleSaveToken = async (key, value) => {
-    if (key !== 'download_path' && !value.trim()) return;
+    // Allow clearing path settings (empty string = reset to default)
+    const clearableKeys = ['download_path', 'cloud_backup_path', 'media_storage_path'];
+    if (!clearableKeys.includes(key) && !value.trim()) return;
     try {
       const res = await fetch(`${getApiBase()}/settings`, {
         method: 'PATCH',
@@ -1045,6 +1047,36 @@ export default function LinkGrid() {
                           style={{ marginTop: '6px', background: 'none', border: 'none', color: '#888', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
                         >
                           Remove cloud backup
+                        </button>
+                      )}
+                    </div>
+                    <div className="settings-divider" />
+                    <div className="settings-field">
+                      <label>Media storage folder</label>
+                      <span className="settings-field-status">
+                        {settingsStatus.media_storage_path ? `● ${settingsStatus.media_storage_path}` : '○ Internal (default)'}
+                      </span>
+                      <div className="settings-field-row">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`${getApiBase()}/pick-folder/media-storage`, { method: 'POST' });
+                              const data = await res.json();
+                              if (res.ok && data.path) loadSettings();
+                            } catch (err) { console.error('Media storage error:', err); }
+                          }}
+                          style={{ flex: 1 }}
+                        >
+                          {settingsStatus.media_storage_path ? 'Change folder' : 'Choose folder'}
+                        </button>
+                      </div>
+                      <span className="settings-field-hint">Imported videos &amp; images move here — like a Lightroom catalog. Links (Instagram, Vimeo…) always stay internal.</span>
+                      {settingsStatus.media_storage_path && (
+                        <button
+                          onClick={() => handleSaveToken('media_storage_path', '')}
+                          style={{ marginTop: '6px', background: 'none', border: 'none', color: '#888', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                        >
+                          Reset to internal storage
                         </button>
                       )}
                     </div>

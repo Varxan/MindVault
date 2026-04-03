@@ -88,7 +88,7 @@ function buildBackupContent() {
   });
 
   // Export non-sensitive settings — API keys never exported
-  const EXPORTABLE_SETTINGS = ['custom_preferred_tags', 'tag_catalog_ratio', 'custom_ai_prompt', 'download_path', 'cloud_backup_path'];
+  const EXPORTABLE_SETTINGS = ['custom_preferred_tags', 'tag_catalog_ratio', 'custom_ai_prompt', 'download_path', 'cloud_backup_path', 'media_storage_path'];
   const settingsRows = db.prepare(
     `SELECT key, value FROM settings WHERE key IN (${EXPORTABLE_SETTINGS.map(() => '?').join(',')})`
   ).all(...EXPORTABLE_SETTINGS);

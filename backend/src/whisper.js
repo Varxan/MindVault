@@ -14,7 +14,27 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { execFile } = require('child_process');
+const { getSetting } = require('./database');
+
+// ─── Path Whitelist ───────────────────────────────────────────────────────────
+// Prevent Whisper from transcribing files outside MindVault's own directories.
+const _devDataRoot  = path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
+const _ALLOWED_BASE = process.env.DATA_PATH || _devDataRoot;
+
+function isAllowedPath(filePath) {
+  if (!filePath || typeof filePath !== 'string') return false;
+  const resolved = path.resolve(filePath);
+  const allowedDirs = [
+    path.resolve(_ALLOWED_BASE),
+    path.resolve(os.tmpdir()),
+  ];
+  const externalSetting = getSetting.get('media_storage_path');
+  if (externalSetting?.value) allowedDirs.push(path.resolve(externalSetting.value));
+  return allowedDirs.some(dir => resolved.startsWith(dir + path.sep) || resolved === dir);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ── Python resolution (same logic as CLIP in ai.js) ──────────────────────────
 // Reuses the clip-env venv where both CLIP and Whisper are installed.
@@ -66,6 +86,10 @@ function isWhisperAvailable() {
  * @returns {Promise<{ transcript: string, language: string, duration: number|null, segments: number }>}
  */
 function transcribeMedia(mediaPath, options = {}) {
+  if (!isAllowedPath(mediaPath)) {
+    return Promise.reject(new Error(`[Whisper] ⛔ Path not allowed (outside MindVault dirs): ${mediaPath}`));
+  }
+
   const model    = options.model    || 'base';
   const language = options.language || null;
 

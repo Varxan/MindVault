@@ -163,7 +163,22 @@ async function generateAndStoreEmbedding(linkId) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-router.use('/files/uploads', express.static(UPLOAD_DIR));
+// /files/uploads/:filename — serve from external storage first (if configured), else internal UPLOAD_DIR
+router.get('/files/uploads/:filename', (req, res) => {
+  const filename = req.params.filename;
+  // Security: reject any path traversal attempts
+  if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).send('Invalid filename');
+  }
+  const externalSetting = getSetting.get('media_storage_path');
+  if (externalSetting?.value) {
+    const externalPath = path.join(externalSetting.value, filename);
+    if (fs.existsSync(externalPath)) return res.sendFile(externalPath);
+  }
+  const internalPath = path.join(UPLOAD_DIR, filename);
+  if (fs.existsSync(internalPath)) return res.sendFile(internalPath);
+  res.status(404).send('File not found');
+});
 router.use('/files/media', express.static(MEDIA_DIR));
 router.use('/files/gifs', express.static(GIF_DIR));
 router.use('/files/clips', express.static(CLIP_DIR));
@@ -622,13 +637,35 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     const linkId = result.lastInsertRowid;
 
+    // ── Move to external media storage if the user has configured one ───────────
+    // multer always writes to UPLOAD_DIR first (staging); we then move media files
+    // (videos + images) to the external path if set. Links from Instagram/Vimeo
+    // are downloaded separately via yt-dlp and stay in MEDIA_DIR regardless.
+    let finalFilePath = path.join(UPLOAD_DIR, filePath); // default: internal
+    const externalStorageSetting = getSetting.get('media_storage_path');
+    const externalStorageDir = externalStorageSetting?.value || null;
+    if (externalStorageDir) {
+      try {
+        if (!fs.existsSync(externalStorageDir)) {
+          fs.mkdirSync(externalStorageDir, { recursive: true });
+        }
+        const externalDest = path.join(externalStorageDir, filePath);
+        fs.renameSync(finalFilePath, externalDest);
+        finalFilePath = externalDest;
+        console.log(`📦 Upload moved to external storage: ${externalDest}`);
+      } catch (moveErr) {
+        console.warn(`⚠️  Could not move upload to external storage (keeping internal): ${moveErr.message}`);
+        finalFilePath = path.join(UPLOAD_DIR, filePath); // stay internal on error
+      }
+    }
+
     // Save file path
     db.prepare('UPDATE links SET file_path = ?, local_thumbnail = ? WHERE id = ?')
       .run(filePath, isImage ? filePath : null, linkId);
 
     // AI-Analyse für hochgeladene Bilder
     if (isImage) {
-      const localPath = path.join(UPLOAD_DIR, filePath);
+      const localPath = finalFilePath;
       analyzeContent(localPath, {
         title: originalName,
         source: 'upload',
@@ -1696,6 +1733,29 @@ router.post('/pick-folder/cloud-backup', (req, res) => {
       return res.status(400).json({ error: 'cancelled' });
     }
     console.error('Cloud backup folder picker error:', err.message);
+    res.status(500).json({ error: 'Could not open folder picker' });
+  }
+});
+
+// POST /api/pick-folder/media-storage – open folder picker and save as media_storage_path
+router.post('/pick-folder/media-storage', (req, res) => {
+  const { execSync } = require('child_process');
+  try {
+    const result = execSync(
+      `osascript -e 'POSIX path of (choose folder with prompt "Select folder for imported media (videos & images) in MindVault")'`,
+      { timeout: 60000, encoding: 'utf-8' }
+    ).trim();
+    if (result) {
+      setSetting.run({ key: 'media_storage_path', value: result });
+      res.json({ path: result });
+    } else {
+      res.status(400).json({ error: 'No folder selected' });
+    }
+  } catch (err) {
+    if (err.message.includes('User canceled') || err.message.includes('-128')) {
+      return res.status(400).json({ error: 'cancelled' });
+    }
+    console.error('Media storage folder picker error:', err.message);
     res.status(500).json({ error: 'Could not open folder picker' });
   }
 });

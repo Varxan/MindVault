@@ -7,6 +7,31 @@ const { buildPrompt } = require('./tagging-config');
 
 const { getSetting } = require('./database');
 
+// ─── Path Whitelist ───────────────────────────────────────────────────────────
+// Only allow CLIP / ffmpeg to operate on files inside known MindVault dirs.
+// This prevents path-traversal attacks if a crafted URL/payload reaches ai.js.
+const _devDataRoot = path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
+const _DATA_ROOT   = process.env.DATA_PATH
+  ? path.dirname(process.env.DATA_PATH)  // DATA_PATH = …/data, so root = parent? No — DATA_PATH IS the data dir
+  : _devDataRoot;
+// Re-resolve: DATA_PATH already points to the data directory
+const _ALLOWED_BASE = process.env.DATA_PATH || _devDataRoot;
+
+function isAllowedPath(filePath) {
+  if (!filePath || typeof filePath !== 'string') return false;
+  const resolved = path.resolve(filePath);
+  const allowedDirs = [
+    path.resolve(_ALLOWED_BASE),                          // …/mindvault/data (uploads, thumbnails, media inside)
+    path.resolve(os.tmpdir()),                             // system temp (CLIP downloads thumbnails here)
+  ];
+  // Also allow the user-configured external media storage path (e.g. external drive)
+  const externalSetting = getSetting.get('media_storage_path');
+  if (externalSetting?.value) allowedDirs.push(path.resolve(externalSetting.value));
+
+  return allowedDirs.some(dir => resolved.startsWith(dir + path.sep) || resolved === dir);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // ─── AI Status Tracker ────────────────────────────────────────────────────────
 // Tracks the last API failure so the frontend can show a warning banner.
 let _aiStatus = {
@@ -366,6 +391,11 @@ async function analyzeContent(imageSource, context = {}) {
     const cleanupFiles = [];  // temp files to delete after
 
     if (!imageSource.startsWith('http') && fs.existsSync(imageSource)) {
+      // ── Path whitelist: only allow files inside known MindVault directories ──
+      if (!isAllowedPath(imageSource)) {
+        console.warn(`[CLIP] ⛔ Path not allowed (outside MindVault dirs): ${imageSource}`);
+        return { tags: [], description: '' };
+      }
       if (isVideoFile(imageSource)) {
         // ── Video: extract frames just like the API path ──────────────────
         try {

@@ -645,6 +645,20 @@ function registerDownloadHandlers() {
   ipcMain.handle('download:getFolder', () => loadDownloadFolder());
 }
 
+// ── Media Storage Path — folder picker IPC ───────────────────────────────────
+// Called by the Settings UI when the user clicks "Choose Folder".
+// Returns the selected path, or null if the user cancelled.
+ipcMain.handle('settings:pickFolder', async (event, { title = 'Choose Folder' } = {}) => {
+  const win = BrowserWindow.getFocusedWindow();
+  const result = await dialog.showOpenDialog(win, {
+    title,
+    properties: ['openDirectory', 'createDirectory'],
+    buttonLabel: 'Select Folder',
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
 // Set up the will-download handler.
 // Detects Save As mode by checking for ?saveAs=1 in the download URL —
 // no preload IPC needed, works regardless of preload version.

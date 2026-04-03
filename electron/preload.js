@@ -17,4 +17,6 @@ contextBridge.exposeInMainWorld('electron', {
   activateLicense: (key) => ipcRenderer.invoke('activation:activateLicenseExpired', key),
   // Download
   getDownloadFolder: () => ipcRenderer.invoke('download:getFolder'),
+  // Folder picker (used by Settings → Media Storage Path)
+  pickFolder: (options) => ipcRenderer.invoke('settings:pickFolder', options),
 });
