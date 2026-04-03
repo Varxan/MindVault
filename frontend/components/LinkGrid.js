@@ -67,6 +67,7 @@ export default function LinkGrid() {
 
   // Right-click context menu (global — outside card stacking contexts)
   const [cardContextMenu, setCardContextMenu] = useState(null); // { x, y, link } | null
+  const [transcriptModal, setTranscriptModal] = useState(null); // link | null
 
   const handleCardContextMenu = (e, link) => {
     setCardContextMenu({ x: e.clientX, y: e.clientY, link });
@@ -1790,6 +1791,14 @@ export default function LinkGrid() {
             <button className="card-context-item" onClick={handleReanalyze}>
               Re-analyse
             </button>
+            {cardContextMenu.link.transcript && (
+              <button className="card-context-item" onClick={() => {
+                setTranscriptModal(cardContextMenu.link);
+                setCardContextMenu(null);
+              }}>
+                Show transcript
+              </button>
+            )}
             {cardContextMenu.link.media_path && (
               <>
                 <div className="card-context-divider" />
@@ -1804,6 +1813,40 @@ export default function LinkGrid() {
             <button className="card-context-item card-context-cancel" onClick={() => setCardContextMenu(null)}>
               Cancel
             </button>
+          </div>
+        </>
+      )}
+
+      {/* ── Transcript Modal ── */}
+      {transcriptModal && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 10000, backdropFilter: 'blur(4px)' }}
+            onClick={() => setTranscriptModal(null)}
+          />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+            zIndex: 10001, background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: '12px', width: 'min(680px, 92vw)', maxHeight: '75vh',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>Transcript</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', maxWidth: '460px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {transcriptModal.title || transcriptModal.url}
+                </div>
+              </div>
+              <button
+                onClick={() => setTranscriptModal(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px', padding: '4px 8px', lineHeight: 1 }}
+              >✕</button>
+            </div>
+            {/* Body */}
+            <div style={{ padding: '20px', overflowY: 'auto', fontSize: '13px', lineHeight: '1.7', color: 'var(--text-muted)', whiteSpace: 'pre-wrap', fontFamily: 'var(--font-body)' }}>
+              {transcriptModal.transcript}
+            </div>
           </div>
         </>
       )}
