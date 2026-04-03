@@ -57,11 +57,14 @@ export default function SourceLogo({ source, size = 14 }) {
       </svg>
     ),
     upload: (
-      <svg viewBox="0 0 24 24" width={size} height={size} fill={color}>
-        {/* MindVault orb — central sphere + lens-flare rays */}
-        <circle cx="12" cy="12" r="3.8"/>
-        <path d="M12 2v3.5M12 18.5V22M2 12h3.5M18.5 12H22" stroke={color} strokeWidth="1.6" strokeLinecap="round" fill="none"/>
-        <path d="M5.64 5.64l2.47 2.47M15.9 15.9l2.46 2.47M18.36 5.64l-2.46 2.47M7.54 15.9l-2.47 2.46" stroke={color} strokeWidth="1.1" strokeLinecap="round" fill="none"/>
+      <svg viewBox="0 0 24 24" width={size} height={size}>
+        {/* MindVault orb — glowing sphere with soft radial falloff */}
+        <circle cx="12" cy="12" r="11" fill={color} fillOpacity="0.07"/>
+        <circle cx="12" cy="12" r="7.5" fill={color} fillOpacity="0.14"/>
+        <circle cx="12" cy="12" r="4.5" fill={color} fillOpacity="0.45"/>
+        <circle cx="12" cy="12" r="2.2" fill={color}/>
+        {/* Specular highlight */}
+        <circle cx="10.2" cy="10.2" r="0.9" fill={color} fillOpacity="0.6"/>
       </svg>
     ),
     web: (
