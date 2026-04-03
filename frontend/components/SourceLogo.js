@@ -57,22 +57,21 @@ export default function SourceLogo({ source, size = 14 }) {
       </svg>
     ),
     upload: (
+      // MindVault flare: large soft orb filling the icon, bright specular top-left
       <svg viewBox="0 0 24 24" width={size} height={size}>
         <defs>
-          <radialGradient id="mvOrb" cx="40%" cy="36%" r="65%" fx="33%" fy="28%">
+          <radialGradient id="mvOrb" cx="50%" cy="50%" r="50%" fx="43%" fy="40%">
             <stop offset="0%"   stopColor={color} stopOpacity="1"/>
-            <stop offset="28%"  stopColor={color} stopOpacity="0.88"/>
-            <stop offset="55%"  stopColor={color} stopOpacity="0.42"/>
-            <stop offset="80%"  stopColor={color} stopOpacity="0.12"/>
+            <stop offset="22%"  stopColor={color} stopOpacity="0.88"/>
+            <stop offset="50%"  stopColor={color} stopOpacity="0.48"/>
+            <stop offset="78%"  stopColor={color} stopOpacity="0.14"/>
             <stop offset="100%" stopColor={color} stopOpacity="0.02"/>
           </radialGradient>
         </defs>
-        {/* Outer atmospheric halo */}
-        <circle cx="12" cy="12" r="11.2" fill={color} fillOpacity="0.04"/>
-        {/* Main orb — radial gradient gives 3-D sphere depth */}
-        <circle cx="12" cy="12" r="9.5" fill="url(#mvOrb)"/>
-        {/* Bright specular highlight offset upper-left */}
-        <circle cx="9" cy="9" r="1.4" fill={color} fillOpacity="0.75"/>
+        {/* Full-area atmospheric glow — matches original icon proportions */}
+        <circle cx="12" cy="12" r="11.5" fill="url(#mvOrb)"/>
+        {/* Specular highlight — small bright dot upper-left like real icon */}
+        <circle cx="9.8" cy="9.2" r="1.1" fill={color} fillOpacity="0.72"/>
       </svg>
     ),
     web: (
