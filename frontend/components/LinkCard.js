@@ -323,10 +323,20 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
 
         <button
           className="card-action-btn card-delete-btn"
-          onClick={(e) => {
+          onClick={async (e) => {
             e.preventDefault();
             e.stopPropagation();
-            onDelete(link.id);
+            if (isUpload && link.file_path) {
+              // Ask whether to also delete the local file
+              const deleteFile = window.confirm(
+                `Delete "${link.title || link.file_path}" from MindVault?\n\nClick OK to also delete the file from disk.\nClick Cancel to remove only the link (keep the file).`
+              );
+              // deleteFile = true → also remove file; false → link only
+              await fetch(`${getApiBase()}/links/${link.id}?deleteFile=${deleteFile}`, { method: 'DELETE' });
+              onDelete(link.id);
+            } else {
+              onDelete(link.id);
+            }
           }}
           title="Delete"
         >

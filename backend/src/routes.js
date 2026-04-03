@@ -464,13 +464,35 @@ router.patch('/links/:id', (req, res) => {
 });
 
 // DELETE /api/links/:id
+// Optional query param: ?deleteFile=true — also deletes the local file for imports
 router.delete('/links/:id', (req, res) => {
   try {
     const link = getLinkById.get({ id: req.params.id });
     if (!link) return res.status(404).json({ error: 'Link nicht gefunden' });
 
+    // Optionally delete the local file for imported uploads
+    let fileDeleted = false;
+    if (req.query.deleteFile === 'true' && link.source === 'upload' && link.file_path) {
+      const filename = path.basename(link.file_path);
+      const externalSetting = getSetting.get('media_storage_path');
+      const candidates = [];
+      if (externalSetting?.value) candidates.push(path.join(externalSetting.value, filename));
+      candidates.push(path.join(UPLOAD_DIR, filename));
+      for (const candidate of candidates) {
+        if (fs.existsSync(candidate)) {
+          try { fs.unlinkSync(candidate); fileDeleted = true; console.log(`🗑️  Deleted import file: ${candidate}`); } catch {}
+          break;
+        }
+      }
+      // Also delete the generated thumbnail if it differs from the file itself
+      if (link.local_thumbnail && link.local_thumbnail !== link.file_path) {
+        const thumbPath = path.join(THUMB_DIR, path.basename(link.local_thumbnail));
+        if (fs.existsSync(thumbPath)) { try { fs.unlinkSync(thumbPath); } catch {} }
+      }
+    }
+
     deleteLink.run({ id: req.params.id });
-    res.json({ message: 'Link gelöscht', id: req.params.id });
+    res.json({ message: 'Link gelöscht', id: req.params.id, fileDeleted });
     scheduleSync(); // push to PWA
     pushEvent('link-deleted', { id: req.params.id });
   } catch (err) {
