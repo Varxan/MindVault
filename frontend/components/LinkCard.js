@@ -45,7 +45,7 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
   const isUpload = link.source === 'upload';
 
   const domain = (() => {
-    if (isUpload) return 'Upload';
+    if (isUpload) return 'Import';
     try { return new URL(link.url).hostname.replace('www.', ''); } catch { return link.url; }
   })();
 

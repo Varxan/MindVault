@@ -659,27 +659,44 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       }
     }
 
-    // Save file path
-    db.prepare('UPDATE links SET file_path = ?, local_thumbnail = ? WHERE id = ?')
-      .run(filePath, isImage ? filePath : null, linkId);
+    const isVideo = /\.(mp4|mov|webm)$/i.test(originalName);
 
-    // AI-Analyse für hochgeladene Bilder
-    if (isImage) {
-      const localPath = finalFilePath;
-      analyzeContent(localPath, {
+    // Generate thumbnail for uploaded videos (async, fire-and-forget)
+    let thumbName = isImage ? filePath : null;
+    if (isVideo) {
+      try {
+        const generatedThumb = generateVideoThumbnail(finalFilePath);
+        if (generatedThumb) {
+          thumbName = generatedThumb;
+          console.log(`[Upload] 🎬 Video thumbnail generated: ${generatedThumb}`);
+        }
+      } catch (thumbErr) {
+        console.warn(`[Upload] ⚠️  Video thumbnail failed: ${thumbErr.message}`);
+      }
+    }
+
+    // Save file path + thumbnail
+    db.prepare('UPDATE links SET file_path = ?, local_thumbnail = ? WHERE id = ?')
+      .run(filePath, thumbName, linkId);
+
+    // AI analysis — images directly, videos via thumbnail frames
+    const analyzeTarget = isImage ? finalFilePath : (thumbName ? path.join(THUMB_DIR, thumbName) : null);
+    if (analyzeTarget) {
+      analyzeContent(analyzeTarget, {
         title: originalName,
         source: 'upload',
       }).then((aiResult) => {
         if (aiResult.tags.length > 0) {
           mergeAITags(linkId, aiResult.tags);
-          console.log(`[AI] Tags für Upload ${linkId}: ${aiResult.tags.join(', ')}`);
+          console.log(`[AI] Tags für Import ${linkId}: ${aiResult.tags.join(', ')}`);
         }
         if (aiResult.description) {
           db.prepare('UPDATE links SET description = ? WHERE id = ?')
             .run(aiResult.description, linkId);
         }
+        pushEvent('link-updated', { id: linkId }); // refresh card in UI
       }).catch(err => {
-        console.log(`[AI] Analyse fehlgeschlagen für Upload ${linkId}: ${err.message}`);
+        console.log(`[AI] Analyse fehlgeschlagen für Import ${linkId}: ${err.message}`);
       });
     }
 
