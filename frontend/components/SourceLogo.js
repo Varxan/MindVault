@@ -58,13 +58,21 @@ export default function SourceLogo({ source, size = 14 }) {
     ),
     upload: (
       <svg viewBox="0 0 24 24" width={size} height={size}>
-        {/* MindVault orb — glowing sphere with soft radial falloff */}
-        <circle cx="12" cy="12" r="11" fill={color} fillOpacity="0.07"/>
-        <circle cx="12" cy="12" r="7.5" fill={color} fillOpacity="0.14"/>
-        <circle cx="12" cy="12" r="4.5" fill={color} fillOpacity="0.45"/>
-        <circle cx="12" cy="12" r="2.2" fill={color}/>
-        {/* Specular highlight */}
-        <circle cx="10.2" cy="10.2" r="0.9" fill={color} fillOpacity="0.6"/>
+        <defs>
+          <radialGradient id="mvOrb" cx="40%" cy="36%" r="65%" fx="33%" fy="28%">
+            <stop offset="0%"   stopColor={color} stopOpacity="1"/>
+            <stop offset="28%"  stopColor={color} stopOpacity="0.88"/>
+            <stop offset="55%"  stopColor={color} stopOpacity="0.42"/>
+            <stop offset="80%"  stopColor={color} stopOpacity="0.12"/>
+            <stop offset="100%" stopColor={color} stopOpacity="0.02"/>
+          </radialGradient>
+        </defs>
+        {/* Outer atmospheric halo */}
+        <circle cx="12" cy="12" r="11.2" fill={color} fillOpacity="0.04"/>
+        {/* Main orb — radial gradient gives 3-D sphere depth */}
+        <circle cx="12" cy="12" r="9.5" fill="url(#mvOrb)"/>
+        {/* Bright specular highlight offset upper-left */}
+        <circle cx="9" cy="9" r="1.4" fill={color} fillOpacity="0.75"/>
       </svg>
     ),
     web: (
