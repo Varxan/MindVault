@@ -43,6 +43,7 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
   const [savingNote, setSavingNote] = useState(false);
 
   const isUpload = link.source === 'upload';
+  const isUploadVideo = isUpload && link.file_path && /\.(mp4|mov|webm)$/i.test(link.file_path);
 
   const domain = (() => {
     if (isUpload) return 'Import';
@@ -425,7 +426,12 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
       )}
 
       <div className="card-thumbnail-link" onDragStart={(e) => e.preventDefault()} onClick={async () => {
-        if (hasMedia && link.media_type === 'video') {
+        if (isUploadVideo) {
+          // Imported local video → open directly in editor (no carousel needed)
+          setCarouselMediaPath(null);
+          setVideoCarouselFiles([]);
+          setVideoPlayerOpen(true);
+        } else if (hasMedia && link.media_type === 'video') {
           // Check for carousel files and auto-open first video
           try {
             const filesRes = await fetch(`${getApiBase()}/links/${link.id}/files`);

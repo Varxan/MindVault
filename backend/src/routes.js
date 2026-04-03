@@ -163,6 +163,21 @@ async function generateAndStoreEmbedding(linkId) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Helper: resolve absolute path for a video link (media_path or file_path/upload)
+function resolveVideoPath(link) {
+  if (link.media_path) return path.join(MEDIA_DIR, link.media_path);
+  if (link.file_path) {
+    const filename = path.basename(link.file_path);
+    const externalSetting = getSetting.get('media_storage_path');
+    if (externalSetting?.value) {
+      const externalPath = path.join(externalSetting.value, filename);
+      if (fs.existsSync(externalPath)) return externalPath;
+    }
+    return path.join(UPLOAD_DIR, filename);
+  }
+  return null;
+}
+
 // /files/uploads/:filename — serve from external storage first (if configured), else internal UPLOAD_DIR
 router.get('/files/uploads/:filename', (req, res) => {
   const filename = req.params.filename;
@@ -1273,13 +1288,8 @@ router.post('/links/:id/create-gif', async (req, res) => {
       return res.status(400).json({ error: 'startTime und endTime sind erforderlich' });
     }
 
-    // Check if video is downloaded
-    if (!link.media_path) {
-      return res.status(400).json({ error: 'Video muss zuerst heruntergeladen werden' });
-    }
-
-    const videoPath = path.join(MEDIA_DIR, link.media_path);
-    if (!fs.existsSync(videoPath)) {
+    const videoPath = resolveVideoPath(link);
+    if (!videoPath || !fs.existsSync(videoPath)) {
       return res.status(400).json({ error: 'Video-Datei nicht gefunden' });
     }
 
@@ -1330,12 +1340,8 @@ router.post('/links/:id/create-clip', async (req, res) => {
       return res.status(400).json({ error: 'startTime und endTime sind erforderlich' });
     }
 
-    if (!link.media_path) {
-      return res.status(400).json({ error: 'Video muss zuerst heruntergeladen werden' });
-    }
-
-    const videoPath = path.join(MEDIA_DIR, link.media_path);
-    if (!fs.existsSync(videoPath)) {
+    const videoPath = resolveVideoPath(link);
+    if (!videoPath || !fs.existsSync(videoPath)) {
       return res.status(400).json({ error: 'Video-Datei nicht gefunden' });
     }
 
@@ -1384,12 +1390,8 @@ router.post('/links/:id/screenshot', async (req, res) => {
       return res.status(400).json({ error: 'time ist erforderlich' });
     }
 
-    if (!link.media_path) {
-      return res.status(400).json({ error: 'Video muss zuerst heruntergeladen werden' });
-    }
-
-    const videoPath = path.join(MEDIA_DIR, link.media_path);
-    if (!fs.existsSync(videoPath)) {
+    const videoPath = resolveVideoPath(link);
+    if (!videoPath || !fs.existsSync(videoPath)) {
       return res.status(400).json({ error: 'Video-Datei nicht gefunden' });
     }
 

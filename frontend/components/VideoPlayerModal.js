@@ -63,7 +63,9 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
 
   const videoSrc = link.media_path
     ? `${getApiBase()}/files/media/${link.media_path}`
-    : null;
+    : link.file_path
+      ? `${getApiBase()}/files/uploads/${link.file_path}`
+      : null;
 
   const editMode = mode === 'clip' || mode === 'gif' || mode === 'still';
   const rangeMode = mode === 'clip' || mode === 'gif';
@@ -447,14 +449,16 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
             >
               Still
             </button>
-            <a
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="vp-source-link"
-            >
-              Source
-            </a>
+            {link.url && link.source !== 'upload' && (
+              <a
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="vp-source-link"
+              >
+                Source
+              </a>
+            )}
             {editMode && (
               <span className="vp-shortcut-hint">
                 {rangeMode ? 'I = IN \u00a0 O = OUT \u00a0 ' : ''}Space = Play &nbsp; ← → = Frame
