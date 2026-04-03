@@ -628,6 +628,14 @@ export default function LinkGrid() {
     }
   };
 
+  // Called when LinkCard already handled the API delete itself (e.g. imports with file deletion)
+  // — just removes from local state, no confirm, no API call.
+  const handleRemoveFromState = (id) => {
+    setLinks((prev) => prev.filter((l) => l.id !== id));
+    setTotal((prev) => prev - 1);
+    spaceCacheRef.current[activeSpace] = null;
+  };
+
   const handleClearCache = async () => {
     if (!confirm('Delete unsaved media files? Saved media will be kept. Links will be kept, but unsaved videos will need to be re-downloaded.')) return;
     try {
@@ -1430,6 +1438,7 @@ export default function LinkGrid() {
                   <LinkCard
                     link={link}
                     onDelete={handleDelete}
+                    onRemoveFromState={handleRemoveFromState}
                     onRefresh={refresh}
                     onContextMenu={handleCardContextMenu}
                   />

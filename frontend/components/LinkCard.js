@@ -9,7 +9,7 @@ import CollectionForm from './CollectionForm';
 import { getApiBase } from '../lib/config';
 
 
-export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
+export default function LinkCard({ link, onDelete, onRemoveFromState, onRefresh, onContextMenu }) {
   const [downloading, setDownloading] = useState(false);
   const [carouselFiles, setCarouselFiles] = useState([]);
   const [carouselMediaPath, setCarouselMediaPath] = useState(null);
@@ -337,8 +337,10 @@ export default function LinkCard({ link, onDelete, onRefresh, onContextMenu }) {
               const deleteFile = window.confirm(
                 `Also delete the file from disk?\n\nOK = delete file · Cancel = keep file`
               );
-              await fetch(`${getApiBase()}/links/${link.id}?deleteFile=${deleteFile}`, { method: 'DELETE' });
-              onDelete(link.id);
+              const res = await fetch(`${getApiBase()}/links/${link.id}?deleteFile=${deleteFile}`, { method: 'DELETE' });
+              if (!res.ok) { const d = await res.json().catch(() => ({})); alert('Delete error: ' + (d.error || 'Failed')); return; }
+              // Use onRemoveFromState to skip the second confirm + re-delete in handleDelete
+              (onRemoveFromState || onDelete)(link.id);
             } else {
               onDelete(link.id);
             }
