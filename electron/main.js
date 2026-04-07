@@ -834,7 +834,7 @@ function runClipSetupIfNeeded() {
 // Only runs in production; dev mode always skips.
 
 const GITHUB_OWNER = 'Varxan';
-const GITHUB_REPO  = 'MindVault-releases'; // public repo — source stays private
+const GITHUB_REPO  = 'MindVault';
 
 function parseVersion(v) {
   return (v || '').replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
