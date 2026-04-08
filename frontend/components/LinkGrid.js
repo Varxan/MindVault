@@ -884,12 +884,6 @@ export default function LinkGrid() {
                       Connect phone
                       <span className="settings-item-sub">Scan QR code to install app</span>
                     </button>
-                    <div className="settings-divider" />
-                    <button className="settings-item" onClick={() => { setSettingsPage('tokens'); setSettingsActioned(false); }}>
-                      Telegram
-                      <span className="settings-item-sub">{settingsStatus.telegram_bot_token ? '● Connected' : '○ Not set'}</span>
-                    </button>
-
                     <div className="settings-section-label">Settings</div>
                     <button className="settings-item" onClick={() => { setShowSettingsPanel(true); setSettingsActioned(true); }}>
                       AI Provider
@@ -948,44 +942,7 @@ export default function LinkGrid() {
                   </>
                 )}
 
-                {settingsPage === 'tokens' && (
-                  <>
-                    <button className="settings-back" onClick={() => setSettingsPage('main')}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
-                      Back
-                    </button>
-                    <div className="settings-divider" />
-                    <div className="settings-field">
-                      <label>Telegram Bot Token</label>
-                      <span className="settings-field-status">
-                        {settingsStatus.telegram_bot_token ? '● Connected' : '○ Not set'}
-                      </span>
-                      {settingsStatus.telegram_bot_token && (
-                        <span className="settings-field-masked">{settingsStatus.telegram_bot_token}</span>
-                      )}
-                      <div className="settings-field-row">
-                        <input
-                          type="password"
-                          placeholder="Paste new token..."
-                          value={telegramToken}
-                          onChange={e => setTelegramToken(e.target.value)}
-                        />
-                        <button
-                          disabled={!telegramToken.trim()}
-                          onClick={() => {
-                            if (telegramToken.trim()) {
-                              handleSaveToken('telegram_bot_token', telegramToken);
-                              setTelegramToken('');
-                            }
-                          }}
-                        >
-                          Save
-                        </button>
-                      </div>
-                      <span className="settings-field-hint">Requires server restart to take effect</span>
-                    </div>
-                  </>
-                )}
+                {/* Telegram settings hidden — bot integration disabled in 0.9.3 */}
 
                 {settingsPage === 'downloads' && (
                   <>
