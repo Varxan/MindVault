@@ -490,7 +490,7 @@ export default function OnboardingModal({ onComplete }) {
                 className="ob-btn-primary"
                 style={{width: '100%', marginBottom: 12, padding: '12px 24px'}}
                 onClick={() => {
-                  window.open('https://chromewebstore.google.com/detail/mindvault/nbpidmgodflgpbjjfkahailfaaogfoln', '_blank');
+                  window.open('https://mindvault.ch/extension', '_blank');
                 }}
               >
                 Download Browser Extension
