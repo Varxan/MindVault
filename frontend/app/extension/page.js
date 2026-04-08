@@ -103,7 +103,7 @@ export default function ExtensionPage() {
           {/* TODO: replace EXTENSION_ID_PLACEHOLDER with real ID after publishing */}
           <a
             className="ext-btn"
-            href="https://chrome.google.com/webstore/detail/mindvault/EXTENSION_ID_PLACEHOLDER"
+            href="https://chromewebstore.google.com/detail/mindvault/nbpidmgodflgpbjjfkahailfaaogfoln"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -124,7 +124,7 @@ export default function ExtensionPage() {
           </p>
           <a
             className="ext-btn secondary"
-            href="https://chrome.google.com/webstore/detail/mindvault/EXTENSION_ID_PLACEHOLDER"
+            href="https://chromewebstore.google.com/detail/mindvault/nbpidmgodflgpbjjfkahailfaaogfoln"
             target="_blank"
             rel="noopener noreferrer"
           >
