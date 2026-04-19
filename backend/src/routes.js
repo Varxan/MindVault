@@ -72,10 +72,12 @@ router.get('/events', (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
 
-  // Send a heartbeat every 30s to keep the connection alive through proxies
+  // Send a heartbeat every 15s to keep the connection alive through proxies.
+  // 15s is more reliable than 30s — some OS-level TCP keep-alive timeouts are
+  // shorter, and Electron's networking layer can drop idle connections quietly.
   const heartbeat = setInterval(() => {
     try { res.write(': heartbeat\n\n'); } catch {}
-  }, 30_000);
+  }, 15_000);
 
   _sseClients.add(res);
   console.log(`[SSE] Client connected (${_sseClients.size} total)`);
@@ -320,10 +322,18 @@ router.post('/links', async (req, res) => {
     // Metadata (thumbnail, rich title) is fetched async in the background.
     // This makes the Chrome extension + PWA share feel instant even for Vimeo/
     // YouTube where yt-dlp can take 20s+.
+    //
+    // For video platforms we intentionally store title=null on insert, even if
+    // the caller provided one.  iOS/Telegram share sheets often send notification
+    // text ("Marco Frei hat ein Video gesendet…") instead of the real video title.
+    // The background fetchSmartMetadata step always overwrites with the correct
+    // oEmbed/yt-dlp title, but only when current.title IS null (or isVideoPlatform).
+    // Starting with null guarantees the oEmbed title wins every time.
+    const isVideoPlatformInsert = ['youtube', 'vimeo', 'tiktok', 'instagram'].includes(detectedSource);
     const result = insertLink.run({
       url,
       source: detectedSource,
-      title:       title       || null,
+      title:       isVideoPlatformInsert ? null : (title || null),
       description: description || null,
       thumbnail_url: thumbnail_url || null,
       tags:  JSON.stringify(tags || []),

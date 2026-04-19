@@ -5,7 +5,7 @@ export const runtime = 'edge';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase (anon key) — used only for share_queue
+// Supabase (anon key) — used for share_queue + Realtime library_cache subscription
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase    = supabaseUrl && supabaseKey
@@ -95,10 +95,40 @@ export default function LibraryPage() {
     };
   }, [fetchLibrary]);
 
-  // ── Poll every 30s (only updates state if data changed) ───────────────────
+  // ── Poll every 30s as safety fallback (only updates state if data changed) ─
   useEffect(() => {
     const id = setInterval(() => fetchLibrary({ silent: true }), 30_000);
     return () => clearInterval(id);
+  }, [fetchLibrary]);
+
+  // ── Supabase Realtime: instant update when library_cache row changes ────────
+  // The desktop backend writes to library_cache after every link add/edit/delete.
+  // Subscribing here means the PWA refreshes in <1s instead of waiting up to 30s.
+  useEffect(() => {
+    if (!supabase) return;
+
+    const deviceId = typeof window !== 'undefined'
+      ? localStorage.getItem('mindvault_device_id') || 'default'
+      : 'default';
+
+    const channel = supabase
+      .channel('library-cache-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',  // INSERT + UPDATE
+          schema: 'public',
+          table: 'library_cache',
+          filter: `device_id=eq.${deviceId}`,
+        },
+        () => {
+          // Row changed — fetch fresh data immediately
+          fetchLibrary({ silent: true });
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [fetchLibrary]);
 
   // All unique tags sorted by frequency

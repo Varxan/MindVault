@@ -455,11 +455,23 @@ export default function LinkGrid() {
       } catch {}
     };
 
+    // On (re-)connect: do a fresh fetch to catch any events missed while the
+    // connection was down (e.g. Electron backgrounding, network hiccup, etc.)
+    es.onopen = () => {
+      spaceCacheRef.current = { eye: null, mind: null };
+      loadLinksRef.current();
+    };
+
     es.onerror = () => {};
 
+    // Fallback poll: if SSE is not OPEN (CONNECTING or CLOSED), refresh every 30s.
+    // Catches the rare case where EventSource stays stuck in CONNECTING state.
     const fallbackInterval = setInterval(() => {
-      if (es.readyState === EventSource.CLOSED && !document.hidden) loadLinksRef.current();
-    }, 120000);
+      if (es.readyState !== EventSource.OPEN && !document.hidden) {
+        spaceCacheRef.current = { eye: null, mind: null };
+        loadLinksRef.current();
+      }
+    }, 30000);
 
     return () => {
       es.close();
