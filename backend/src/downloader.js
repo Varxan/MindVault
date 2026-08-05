@@ -260,15 +260,26 @@ function probeUrl(cleanUrl) {
   return new Promise((resolve, reject) => {
     execFile(YTDLP, [
       '--dump-json', '--no-download', '--no-warnings',
+      // Instagram carousels: photo entries always error with "No video formats
+      // found" (yt-dlp #7569) and make yt-dlp exit non-zero — but the VIDEO
+      // entries are still printed as valid JSON on stdout. --ignore-errors +
+      // parsing stdout even on error keeps the good entries instead of
+      // discarding the whole carousel.
+      '--ignore-errors',
       ...getCookieArgs(),
       cleanUrl,
     ], { timeout: 30000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
-      if (err) return reject(err);
-      try {
-        const lines = stdout.trim().split('\n');
-        const entries = lines.map(line => JSON.parse(line));
-        resolve(entries);
-      } catch (e) { reject(e); }
+      // Parse whatever JSON lines we got — partial results beat no results
+      const entries = [];
+      for (const line of (stdout || '').trim().split('\n')) {
+        if (!line.startsWith('{')) continue;
+        try { entries.push(JSON.parse(line)); } catch {}
+      }
+      if (entries.length > 0) {
+        if (err) console.log(`[Download] Probe partial: ${entries.length} usable entr${entries.length === 1 ? 'y' : 'ies'} despite errors (photos in carousel?)`);
+        return resolve(entries);
+      }
+      reject(err || new Error('Probe returned no parseable entries'));
     });
   });
 }
@@ -517,6 +528,10 @@ function downloadMedia(url, linkId) {
       cleanUrl,
       '-o', outputTemplate,
       '--no-warnings',
+      // Carousels: photo entries error out (yt-dlp #7569) — keep going and
+      // download the video entries anyway. Exit code will be non-zero, so the
+      // close-handler below checks for downloaded files instead of trusting it.
+      '--ignore-errors',
       '--restrict-filenames',
       ...getCookieArgs(),
       // Best quality video+audio, max 1080p
@@ -548,23 +563,30 @@ function downloadMedia(url, linkId) {
     proc.stderr.on('data', (data) => { stderr += data.toString(); });
 
     proc.on('close', (code) => {
-      if (code !== 0) {
-        console.error(`[Download] Failed (code ${code}):`, stderr);
-        return reject(new Error(`Download fehlgeschlagen: ${stderr.substring(0, 200)}`));
-      }
-
-      // Find the downloaded file(s)
-      const matchingFiles = fs.readdirSync(MEDIA_DIR)
+      // Find the downloaded file(s) — scan the SAME dir the output template
+      // used (custom media cache path aware, was previously always MEDIA_DIR)
+      const scanDir = getMediaCacheDir();
+      const matchingFiles = fs.readdirSync(scanDir)
         .filter(f => f.startsWith(`${linkId}_`));
       const files = matchingFiles.map(f => ({
           filename: f,
-          filepath: path.join(MEDIA_DIR, f),
-          size: fs.statSync(path.join(MEDIA_DIR, f)).size,
+          filepath: path.join(scanDir, f),
+          size: fs.statSync(path.join(scanDir, f)).size,
           type: guessMediaType(f, matchingFiles),
         }));
 
+      // Non-zero exit + zero files = real failure. Non-zero exit + files =
+      // partial success (e.g. carousel where photo entries errored but the
+      // videos downloaded fine) — treat as success.
       if (files.length === 0) {
+        if (code !== 0) {
+          console.error(`[Download] Failed (code ${code}):`, stderr);
+          return reject(new Error(`Download fehlgeschlagen: ${stderr.substring(0, 200)}`));
+        }
         return reject(new Error('Keine Datei heruntergeladen'));
+      }
+      if (code !== 0) {
+        console.log(`[Download] Partial success: ${files.length} file(s) downloaded despite yt-dlp exit code ${code} (photos in carousel?)`);
       }
 
       // Return the main media file (largest non-thumbnail)
