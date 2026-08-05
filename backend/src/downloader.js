@@ -127,7 +127,12 @@ function updateYtdlp() {
       return resolve(false);
     }
     console.log('[yt-dlp] Checking for updates…');
-    execFile(YTDLP, ['-U'], { timeout: 120000 }, (err, stdout, stderr) => {
+    // --update-to nightly: extractor fixes land in nightly within days, but can
+    // take months to reach stable (e.g. Vimeo-401 fix: nightly 2026-08-04,
+    // stable still 2026-07-04). Nightly is the yt-dlp-recommended channel for
+    // consumers of extractors. Explicit channel also migrates a stable-seeded
+    // copy over to nightly on first update.
+    execFile(YTDLP, ['--update-to', 'nightly'], { timeout: 120000 }, (err, stdout, stderr) => {
       if (err) {
         console.warn(`[yt-dlp] Self-update failed: ${err.message}`);
         if (stderr) console.warn(`[yt-dlp] stderr: ${stderr.substring(0, 300)}`);
