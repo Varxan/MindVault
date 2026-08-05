@@ -16,17 +16,44 @@ const fetch = require('node-fetch');
  */
 function getCookieArgs() {
   const home = os.homedir();
-  const candidates = [
-    { browser: 'firefox', path: path.join(home, 'Library', 'Application Support', 'Firefox', 'Profiles') },
-    { browser: 'chrome',  path: path.join(home, 'Library', 'Application Support', 'Google', 'Chrome', 'Default') },
-    { browser: 'chromium',path: path.join(home, 'Library', 'Application Support', 'Chromium', 'Default') },
-  ];
-  for (const { browser, path: p } of candidates) {
+
+  // Find the newest cookie-DB mtime for a browser — proxy for "actively used".
+  // Why not a fixed order: stale Firefox profiles from years ago would win over
+  // the user's actual daily browser, sending yt-dlp cookies with no logins
+  // (real bug: Vimeo/Instagram rejected downloads because an unused Firefox
+  // profile shadowed the logged-in Chrome).
+  const cookieMtime = (paths) => {
+    let newest = 0;
+    for (const p of paths) {
+      try { newest = Math.max(newest, fs.statSync(p).mtimeMs); } catch {}
+    }
+    return newest;
+  };
+
+  const firefoxProfiles = path.join(home, 'Library', 'Application Support', 'Firefox', 'Profiles');
+  const firefoxCookieDbs = (() => {
     try {
-      if (fs.existsSync(p)) return ['--cookies-from-browser', browser];
-    } catch {}
-  }
-  return []; // no supported browser found — proceed without cookies
+      return fs.readdirSync(firefoxProfiles)
+        .map(d => path.join(firefoxProfiles, d, 'cookies.sqlite'));
+    } catch { return []; }
+  })();
+
+  const chromeDefault   = path.join(home, 'Library', 'Application Support', 'Google', 'Chrome', 'Default');
+  const chromiumDefault = path.join(home, 'Library', 'Application Support', 'Chromium', 'Default');
+
+  const candidates = [
+    { browser: 'chrome',   mtime: cookieMtime([path.join(chromeDefault, 'Cookies'), path.join(chromeDefault, 'Network', 'Cookies')]) },
+    { browser: 'firefox',  mtime: cookieMtime(firefoxCookieDbs) },
+    { browser: 'chromium', mtime: cookieMtime([path.join(chromiumDefault, 'Cookies'), path.join(chromiumDefault, 'Network', 'Cookies')]) },
+  ].filter(c => c.mtime > 0);
+
+  if (candidates.length === 0) return []; // no browser found — proceed without cookies
+
+  // Most recently used browser wins (ties broken by order above: chrome first)
+  candidates.sort((a, b) => b.mtime - a.mtime);
+  const chosen = candidates[0].browser;
+  console.log(`[yt-dlp] Using cookies from: ${chosen} (most recently used browser)`);
+  return ['--cookies-from-browser', chosen];
 }
 
 const DEV_DATA_ROOT = path.join(os.homedir(), 'Library', 'Application Support', 'mindvault', 'data');
