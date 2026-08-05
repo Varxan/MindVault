@@ -1,6 +1,10 @@
 const fetch = require('node-fetch');
 const cheerio = require('cheerio');
 const { execFile } = require('child_process');
+// Resolved yt-dlp binary path + safe cookie detection.
+// NOTE: never call execFile('yt-dlp', …) with the bare string — in the packaged
+// .app the PATH doesn't contain yt-dlp, so it silently fails on every call.
+const { YTDLP, getCookieArgs } = require('./downloader');
 
 // Platforms where yt-dlp gives better metadata than og:image
 const VIDEO_PLATFORMS = ['instagram', 'youtube', 'vimeo', 'tiktok'];
@@ -192,12 +196,12 @@ function fetchVideoMetadata(url) {
   }
 
   return new Promise((resolve) => {
-    execFile('yt-dlp', [
+    execFile(YTDLP, [
       '--dump-json',
       '--no-download',
       '--no-warnings',
       '--playlist-items', '1',
-      '--cookies-from-browser', 'firefox',
+      ...getCookieArgs(),
       cleanUrl,
     ], { timeout: 20000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
       if (err) {

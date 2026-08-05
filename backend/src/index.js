@@ -141,6 +141,11 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // Sync library snapshot to Supabase on startup
   librarySync.init();
+
+  // Keep yt-dlp current: self-update 30s after startup + every 24h.
+  // Platform extractors (Vimeo, Instagram, TikTok) break regularly when sites
+  // change their APIs — without this, every breakage needs a full app release.
+  require('./downloader').startYtdlpAutoUpdate();
 });
 
 // Start Telegram Bot (DB setting takes priority over .env)

@@ -55,9 +55,18 @@ function getMediaCacheDir() {
 }
 
 /**
+ * User-writable yt-dlp copy — lives OUTSIDE the signed .app bundle so it can
+ * self-update via `yt-dlp -U`. The bundled binary inside the app is read-only
+ * and frozen at build time, which means its extractors break as platforms
+ * change their APIs (e.g. Vimeo killed anonymous OAuth in July 2026 → 401).
+ * Keeping an auto-updating copy in Application Support fixes this permanently.
+ */
+const USER_BIN_DIR   = path.join(DATA_ROOT, 'bin');
+const USER_YTDLP     = path.join(USER_BIN_DIR, 'yt-dlp');
+
+/**
  * Resolve the full path to yt-dlp.
- * Bundled binary (shipped inside the app) takes priority,
- * then falls back to Homebrew / system installs.
+ * Priority: user-writable auto-updating copy → bundled binary → system installs.
  */
 function findYtdlp() {
   // Bundled binary path set by Electron via BUNDLED_BIN_PATH env var
@@ -65,8 +74,22 @@ function findYtdlp() {
     ? path.join(process.env.BUNDLED_BIN_PATH, 'yt-dlp')
     : null;
 
+  // ── Seed the user-writable copy from the bundled binary (one-time) ─────────
+  // The copy in Application Support can self-update via -U; the bundled one can't.
+  try {
+    if (bundledBin && fs.existsSync(bundledBin) && !fs.existsSync(USER_YTDLP)) {
+      fs.mkdirSync(USER_BIN_DIR, { recursive: true });
+      fs.copyFileSync(bundledBin, USER_YTDLP);
+      fs.chmodSync(USER_YTDLP, 0o755);
+      console.log(`[yt-dlp] Seeded user-writable copy: ${USER_YTDLP}`);
+    }
+  } catch (e) {
+    console.warn(`[yt-dlp] Could not seed user copy: ${e.message}`);
+  }
+
   const candidates = [
-    bundledBin,                      // bundled inside the .app (highest priority)
+    USER_YTDLP,                      // auto-updating user copy (highest priority)
+    bundledBin,                      // bundled inside the .app (frozen at build time)
     'yt-dlp',                        // PATH (works in dev + if PATH is set)
     '/opt/homebrew/bin/yt-dlp',      // Homebrew on Apple Silicon
     '/usr/local/bin/yt-dlp',         // Homebrew on Intel
@@ -84,6 +107,50 @@ function findYtdlp() {
 }
 
 const YTDLP = findYtdlp();
+
+/**
+ * Self-update yt-dlp via its built-in updater (`yt-dlp -U`).
+ * Only possible for the user-writable copy — the bundled binary inside the
+ * signed .app is read-only. Runs non-blocking; downloads the latest stable
+ * release from GitHub and atomically replaces the binary in place.
+ *
+ * Why this matters: platform extractors (Vimeo, Instagram, TikTok…) break
+ * regularly when sites change their APIs. yt-dlp ships fixes within days —
+ * but only users running a current version get them. Without this, every
+ * site breakage would require a full MindVault release.
+ */
+function updateYtdlp() {
+  return new Promise((resolve) => {
+    // Only the user copy is writable/updatable
+    if (YTDLP !== USER_YTDLP) {
+      console.log(`[yt-dlp] Skipping self-update (not using user-writable copy: ${YTDLP})`);
+      return resolve(false);
+    }
+    console.log('[yt-dlp] Checking for updates…');
+    execFile(YTDLP, ['-U'], { timeout: 120000 }, (err, stdout, stderr) => {
+      if (err) {
+        console.warn(`[yt-dlp] Self-update failed: ${err.message}`);
+        if (stderr) console.warn(`[yt-dlp] stderr: ${stderr.substring(0, 300)}`);
+        return resolve(false);
+      }
+      const out = (stdout || '').trim().split('\n').pop() || '';
+      console.log(`[yt-dlp] ${out}`);
+      resolve(true);
+    });
+  });
+}
+
+/**
+ * Start the periodic updater: check on startup (delayed so app boot isn't
+ * slowed) and then every 24h while the app is running.
+ */
+let _updateTimer = null;
+function startYtdlpAutoUpdate() {
+  if (_updateTimer) return;
+  // First check 30s after startup — network and app are settled by then
+  setTimeout(() => { updateYtdlp(); }, 30_000);
+  _updateTimer = setInterval(() => { updateYtdlp(); }, 24 * 60 * 60 * 1000);
+}
 
 /**
  * Check if yt-dlp is installed
@@ -538,4 +605,6 @@ module.exports = {
   getMediaCacheDir,
   YTDLP,
   getCookieArgs,
+  updateYtdlp,
+  startYtdlpAutoUpdate,
 };
