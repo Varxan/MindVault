@@ -192,8 +192,9 @@ Alternative Namen (intern, nicht für Tester): FrameVault, Vault, Stills, RefVau
 
 1. ~~**0.9.3 Release**~~ ✅ ERLEDIGT 05.08.2026 — DMG notarisiert + veröffentlicht: https://github.com/Varxan/MindVault/releases/tag/v0.9.3
 2. [ ] **0.9.2-User manuell benachrichtigen** über 0.9.3 (deren Auto-Updater zeigt aufs falsche Repo — erst ab 0.9.3→0.9.4 automatisch)
-3. [ ] **0.9.3 selbst testen**: DMG von GitHub laden, installieren, Vimeo- + Instagram-Download prüfen
-4. [ ] Screen Recording der App machen → Panel 2 Video einbauen
+3. [ ] **0.9.3-DMG ersetzen** (Rebuild mit Cookie-Fix `ef59ba8` + Karussell-Fix `df28048`): dist → resign → notarize → `gh release upload v0.9.3 dist/mac-arm64/MindVault-0.9.3-arm64.dmg --clobber`. Danach installieren + Video-Karussell erneut testen.
+4. [ ] **GIF-Creator: In/Out-Points beim Moduswechsel behalten** — Beim Umschalten zwischen Trim (MP4-Export) und GIF werden die In/Out-Points zurückgesetzt. Gewünscht: Points bleiben erhalten, damit man dieselbe Stelle nacheinander als GIF UND MP4 exportieren kann. (Betrifft `GifCreatorModal.js`. Von Marco gewünscht 05.08.2026, Umsetzung später — Credits-Budget.)
+5. [ ] Screen Recording der App machen → Panel 2 Video einbauen
 6. [ ] OG Image mit echtem App-Screenshot aktualisieren
 7. [ ] Google Search Console: Site verifizieren + Sitemap einreichen
 8. [ ] Beta-Tester rekrutieren (MindVault-Beta-Guide.docx ist bereit)
