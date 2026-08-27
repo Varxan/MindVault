@@ -119,9 +119,11 @@ function stop() {
 async function handleRow(entry, event) {
   if (!entry || entry.processed) return;
 
-  // Multi-user isolation: only process entries that belong to this device.
-  // user_id === null means shared before pairing (legacy / fallback) — accept those too.
-  if (entry.user_id && deviceId && entry.user_id !== deviceId) return;
+  // Multi-user isolation: only process entries that belong to THIS device.
+  // Entries with user_id === null are NOT accepted anymore — the old legacy
+  // fallback caused fresh installs to import strangers' orphaned queue entries
+  // (real bug: a friend's brand-new install showed Marco's old links).
+  if (!deviceId || entry.user_id !== deviceId) return;
 
   // Already imported this session or scheduled?
   if (importedIds.has(entry.id)) return;
@@ -156,21 +158,21 @@ async function checkExisting(silent = false) {
   if (!supabase) return;
 
   try {
-    // Filter by this desktop's device_id so users don't pick up each other's links.
-    // Also include rows with user_id IS NULL for backward compatibility
-    // (links shared before pairing, or from older app versions).
-    let query = supabase
+    // Filter STRICTLY by this desktop's device_id. No user_id-IS-NULL fallback
+    // and no "all rows" fallback anymore — both caused fresh installs to
+    // import other people's orphaned queue entries. Without a deviceId we
+    // import nothing (correct: an unpaired desktop has no queue).
+    if (!deviceId) {
+      if (!silent) console.log('📭 No device ID yet — skipping share queue check.');
+      return;
+    }
+
+    const { data, error } = await supabase
       .from('share_queue')
       .select('*')
       .eq('processed', false)
+      .eq('user_id', deviceId)
       .order('created_at', { ascending: true });
-
-    if (deviceId) {
-      query = query.or(`user_id.eq.${deviceId},user_id.is.null`);
-    }
-    // If deviceId is unknown (not yet paired), fall back to all — better than dropping links.
-
-    const { data, error } = await query;
     if (error) {
       console.error('❌ checkExisting query failed:', error.message, error.code);
       return;

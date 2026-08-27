@@ -43,29 +43,20 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const deviceId = searchParams.get('device_id') || null;
 
-    // Return all unprocessed rows:
-    // - rows matching this device_id, OR
-    // - rows with user_id IS NULL (phone shared before pairing / no device set)
-    // This is a single-user app so no cross-user leakage risk.
-    let data, error;
-
-    if (deviceId) {
-      // user_id = deviceId OR user_id IS NULL
-      const result = await supabase
-        .from('share_queue')
-        .select('*')
-        .eq('processed', false)
-        .or(`user_id.eq.${deviceId},user_id.is.null`)
-        .order('created_at', { ascending: true });
-      data = result.data; error = result.error;
-    } else {
-      const result = await supabase
-        .from('share_queue')
-        .select('*')
-        .eq('processed', false)
-        .order('created_at', { ascending: true });
-      data = result.data; error = result.error;
+    // Return ONLY rows matching this device_id. The old user_id-IS-NULL and
+    // "no device_id → all rows" fallbacks leaked orphaned entries into every
+    // fresh install (new user saw a stranger's old links). Without a
+    // device_id there is nothing to return.
+    if (!deviceId) {
+      return NextResponse.json({ items: [] });
     }
+
+    const { data, error } = await supabase
+      .from('share_queue')
+      .select('*')
+      .eq('processed', false)
+      .eq('user_id', deviceId)
+      .order('created_at', { ascending: true });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
