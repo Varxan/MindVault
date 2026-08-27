@@ -1,6 +1,6 @@
 # MindVault — Brain Document
 > Dieses Dokument am Anfang jeder Claude-Session mitgeben. Laufend aktualisieren.
-> Letzte Aktualisierung: 5. August 2026
+> Letzte Aktualisierung: 26. August 2026
 
 ---
 
@@ -194,14 +194,16 @@ Alternative Namen (intern, nicht für Tester): FrameVault, Vault, Stills, RefVau
 2. [ ] **0.9.2-User manuell benachrichtigen** über 0.9.3 (deren Auto-Updater zeigt aufs falsche Repo — erst ab 0.9.3→0.9.4 automatisch)
 3. [ ] **0.9.3-DMG ersetzen** (Rebuild mit Cookie-Fix `ef59ba8` + Karussell-Fix `df28048`): dist → resign → notarize → `gh release upload v0.9.3 dist/mac-arm64/MindVault-0.9.3-arm64.dmg --clobber`. Danach installieren + Video-Karussell erneut testen.
 4. [ ] **GIF-Creator: In/Out-Points beim Moduswechsel behalten** — Beim Umschalten zwischen Trim (MP4-Export) und GIF werden die In/Out-Points zurückgesetzt. Gewünscht: Points bleiben erhalten, damit man dieselbe Stelle nacheinander als GIF UND MP4 exportieren kann. (Betrifft `GifCreatorModal.js`. Von Marco gewünscht 05.08.2026, Umsetzung später — Credits-Budget.)
-5. [ ] Screen Recording der App machen → Panel 2 Video einbauen
-6. [ ] OG Image mit echtem App-Screenshot aktualisieren
-7. [ ] Google Search Console: Site verifizieren + Sitemap einreichen
-8. [ ] Beta-Tester rekrutieren (MindVault-Beta-Guide.docx ist bereit)
-9. [ ] Loose-End-Cleanup (alte Landing HTMLs, temp files)
-10. [ ] Activation/Licensing System Status prüfen
-11. [ ] MobileQRSection URL prüfen (`mind-vault-chi.vercel.app` → mindvault.ch?)
-12. [ ] **Playwright E2E-Tests** einrichten — automatisiertes Testen aller Kernfunktionen nach jedem Build (statt manuell). Electron-Support vorhanden. Einmalig ~2-3h Aufwand, danach läuft alles in ~3 Min. automatisch. Besprochen am 11.03.2026.
+5. [ ] **In-App-Login für Vimeo + Instagram ("Connected Accounts")** — Downloads nicht mehr von Chrome/Firefox-Cookies abhängig. Konzept: Electron-Fenster öffnet die ECHTE Login-Seite der Plattform, User loggt sich ein, MindVault exportiert Session-Cookies aus der eigenen Electron-Session (Netscape-Format) → yt-dlp via `--cookies`. Settings-UI "Connected Accounts". **Vimeo zuerst** (Login-Pflicht seit Juli 2026, risikoarm). **Instagram optional** mit Hinweis auf Zweit-Account (Bot-Erkennung kann Sessions flaggen; Cookie-Quelle Chrome vs. In-App macht fürs Risiko keinen Unterschied). **KEIN YouTube-Login** (läuft anonym; Google blockt eingebettete Logins). Aufwand 1–2 Sessions. Besprochen 26.08.2026, Umsetzung wenn Credits-Budget wieder da.
+6. [ ] **iOS Share-Sheet via Apple-Kurzbefehl** — iOS/Safari unterstützt Web Share Target NICHT (Android schon → `share_target` in manifest.json). iPhone-PWA-User können daher nicht direkt aus dem Share-Sheet teilen. Lösung: Apple-Kurzbefehl "Zu MindVault" (nimmt URL aus Share-Sheet, POSTet an `https://mindvault.ch/api/share-queue` mit `{url, device_id}`). TODO: (a) Anleitung für Tester schreiben, (b) längerfristig in Onboarding/Pair-Seite integrieren — idealerweise vorgefertigter Kurzbefehl via iCloud-Link, in den der User nur seine device_id einträgt (oder Kurzbefehl-Link direkt mit device_id generieren auf der /pair-Seite). Aufgefallen 26.08.2026 bei erster iPhone-Installation (Freund von Marco).
+7. [ ] Screen Recording der App machen → Panel 2 Video einbauen
+8. [ ] OG Image mit echtem App-Screenshot aktualisieren
+9. [ ] Google Search Console: Site verifizieren + Sitemap einreichen
+10. [ ] Beta-Tester rekrutieren (MindVault-Beta-Guide.docx ist bereit)
+11. [ ] Loose-End-Cleanup (alte Landing HTMLs, temp files)
+12. [ ] Activation/Licensing System Status prüfen
+13. [ ] MobileQRSection URL prüfen (`mind-vault-chi.vercel.app` → mindvault.ch?)
+14. [ ] **Playwright E2E-Tests** einrichten — automatisiertes Testen aller Kernfunktionen nach jedem Build (statt manuell). Electron-Support vorhanden. Einmalig ~2-3h Aufwand, danach läuft alles in ~3 Min. automatisch. Besprochen am 11.03.2026.
 
 ---
 
