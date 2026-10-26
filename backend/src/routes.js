@@ -111,7 +111,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
+  // 8GB max — users drag in whole films (feature, not abuse: local disk, streamed
+  // to disk by multer, no RAM impact). The old 50MB limit caused "Internal server
+  // error" on every film drop because the LIMIT_FILE_SIZE error wasn't handled.
+  limits: { fileSize: 8 * 1024 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = /\.(jpg|jpeg|png|gif|webp|mp4|mov|webm|pdf|svg)$/i;
     if (allowed.test(path.extname(file.originalname))) {
@@ -694,7 +697,21 @@ router.post('/links/:id/refresh-metadata', async (req, res) => {
 // =============================================
 
 // POST /api/upload – Datei hochladen und als Link speichern
-router.post('/upload', upload.single('file'), async (req, res) => {
+// Multer errors (file too large, bad type) are caught here explicitly —
+// otherwise Express returns a bare 500 "Internal server error" to the UI.
+const uploadSingle = (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ error: 'Datei zu gross (max. 8 GB)' });
+      }
+      return res.status(400).json({ error: `Upload fehlgeschlagen: ${err.message}` });
+    }
+    next();
+  });
+};
+
+router.post('/upload', uploadSingle, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Keine Datei hochgeladen' });
