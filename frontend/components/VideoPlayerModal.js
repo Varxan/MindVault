@@ -59,7 +59,7 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   const [gifError, setGifError] = useState(null);
   const [downloadSuccess, setDownloadSuccess] = useState(null); // brief success toast after download
   const [downloadFolder, setDownloadFolder] = useState(null);  // cached current download folder
-  const [showDownloadMenu, setShowDownloadMenu] = useState(false); // split-button dropdown
+  const [showDownloadMenu, setShowDownloadMenu] = useState(null); // 'clip' | 'gif' | null — scoped so both bars in GIF+MP4 mode don't open together
   const [gifFps, setGifFps] = useState(25);
   const [gifWidth, setGifWidth] = useState(480);
   const [gifQuality, setGifQuality] = useState(256);
@@ -72,8 +72,8 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
       ? `${getApiBase()}/files/uploads/${link.file_path}`
       : null;
 
-  const editMode = mode === 'clip' || mode === 'gif' || mode === 'still';
-  const rangeMode = mode === 'clip' || mode === 'gif';
+  const editMode = mode === 'clip' || mode === 'gif' || mode === 'both' || mode === 'still';
+  const rangeMode = mode === 'clip' || mode === 'gif' || mode === 'both';
 
   // Lock body scroll + keyboard shortcuts
   useEffect(() => {
@@ -231,14 +231,16 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
     };
   }, [dragging, inPoint, outPoint, duration, getTimeFromPosition, seekTo]);
 
-  // Switch mode — useCallback with [mode, duration] to avoid stale closures
+  // Switch mode — useCallback with [duration] to avoid stale closures.
+  // IN/OUT points are KEPT across mode switches so the same range can be
+  // exported as MP4, then GIF (or via the combined GIF+MP4 mode) without
+  // re-marking it. They only initialize on first use (out === 0).
   const switchMode = useCallback((newMode) => {
     setMode(prev => {
       if (prev === newMode) return null; // toggle off
       return newMode;
     });
-    setInPoint(0);
-    setOutPoint(prev => duration > 0 ? duration : prev);
+    setOutPoint(prev => (prev === 0 && duration > 0) ? duration : prev);
     setExportResult(null);
     setExportError(null);
     setGifResult(null);
@@ -300,6 +302,17 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
     }
   };
 
+  // ── Combined GIF + MP4 Export — one IN/OUT range, both files at once ──
+  // Marco's workflow: GIF for directing/communication, MP4 for the edit.
+  // Both exports run in parallel against the same timestamps; each manages
+  // its own loading/result/error state, so partial failures stay visible.
+  const handleExportBoth = async () => {
+    const clipDur = outPoint - inPoint;
+    if (clipDur <= 0) { setGifError('IN must be before OUT'); return; }
+    if (clipDur > 120) { setGifError('Max. 120 seconds for GIFs'); return; }
+    await Promise.all([handleExportClip(), handleExportGif()]);
+  };
+
   // ── Still Grab ──
   const handleScreenshot = async () => {
     try {
@@ -335,7 +348,7 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   // to the URL. The main process will-download handler reads the URL directly —
   // no preload IPC needed, no caching issues.
   const handleSaveAs = (url, filename, onSuccess) => {
-    setShowDownloadMenu(false);
+    setShowDownloadMenu(null);
     forceDownload(url, filename, onSuccess, true);
   };
 
@@ -343,7 +356,7 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
   useEffect(() => {
     if (!showDownloadMenu) return;
     const close = (e) => {
-      if (!e.target.closest('.vp-download-split')) setShowDownloadMenu(false);
+      if (!e.target.closest('.vp-download-split')) setShowDownloadMenu(null);
     };
     document.addEventListener('mousedown', close);
     return () => document.removeEventListener('mousedown', close);
@@ -475,6 +488,13 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
               title="Create GIF"
             >
               GIF
+            </button>
+            <button
+              className={`vp-mode-btn ${mode === 'both' ? 'active' : ''}`}
+              onClick={() => switchMode('both')}
+              title="Export GIF and MP4 of the same range in one go"
+            >
+              GIF+MP4
             </button>
             <button
               className={`vp-mode-btn ${mode === 'still' ? 'active' : ''}`}
@@ -748,6 +768,54 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
                 </>
               )}
 
+              {/* COMBINED GIF+MP4 MODE — one range, both exports */}
+              {mode === 'both' && (
+                <>
+                  <div className="vp-settings-row">
+                    <div className="vp-setting-item">
+                      <label>FPS</label>
+                      <input type="number" value={gifFps}
+                        onChange={(e) => setGifFps(parseInt(e.target.value) || 10)}
+                        min="1" max="30"
+                      />
+                    </div>
+                    <div className="vp-setting-item">
+                      <label>Width</label>
+                      <input type="number" value={gifWidth}
+                        onChange={(e) => setGifWidth(parseInt(e.target.value) || 480)}
+                        min="100" max="1920" step="10"
+                      />
+                      <span className="vp-unit">px</span>
+                    </div>
+                    <div className="vp-setting-item">
+                      <label>Quality</label>
+                      <select value={gifQuality}
+                        onChange={(e) => setGifQuality(parseInt(e.target.value))}
+                      >
+                        <option value={256}>MAX</option>
+                        <option value={128}>MID</option>
+                        <option value={32}>LOW</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    className={`vp-compress-toggle ${compressMode ? 'active' : ''}`}
+                    onClick={() => setCompressMode(!compressMode)}
+                    title="Compress MP4 to max. 4.9 MB"
+                  >
+                    {compressMode ? '≤ 4.9 MB' : 'Compress'}
+                  </button>
+                  <div className="vp-bottom-spacer" />
+                  <button
+                    className="vp-create-btn"
+                    onClick={handleExportBoth}
+                    disabled={exporting || gifExporting || clipDuration <= 0}
+                  >
+                    {(exporting || gifExporting) ? 'Exporting…' : 'Export GIF + MP4'}
+                  </button>
+                </>
+              )}
+
               {/* STILL MODE */}
               {mode === 'still' && (
                 <>
@@ -777,7 +845,7 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
             )}
 
             {/* Clip result */}
-            {mode === 'clip' && exportResult && (
+            {(mode === 'clip' || mode === 'both') && exportResult && (
               <div className="vp-result-bar">
                 <span>Clip created ({formatSize(exportResult.size)})</span>
                 <div className="vp-download-split" style={{ marginLeft: 'auto' }}>
@@ -790,12 +858,12 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
                   </button>
                   <button
                     className="vp-result-download vp-split-arrow"
-                    onClick={() => setShowDownloadMenu(m => !m)}
+                    onClick={() => setShowDownloadMenu(m => m === 'clip' ? null : 'clip')}
                     title="Download options"
                   >
                     ▾
                   </button>
-                  {showDownloadMenu && (
+                  {showDownloadMenu === 'clip' && (
                     <div className="vp-download-menu">
                       <button
                         className="vp-download-menu-item"
@@ -810,7 +878,7 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
             )}
 
             {/* GIF result */}
-            {mode === 'gif' && gifResult && (
+            {(mode === 'gif' || mode === 'both') && gifResult && (
               <div className="vp-result-bar">
                 <span>GIF created ({formatSize(gifResult.size)})</span>
                 <div className="vp-download-split" style={{ marginLeft: 'auto' }}>
@@ -826,12 +894,12 @@ export default function VideoPlayerModal({ link, carouselFiles = [], onClose, on
                   </button>
                   <button
                     className="vp-result-download vp-split-arrow"
-                    onClick={() => setShowDownloadMenu(m => !m)}
+                    onClick={() => setShowDownloadMenu(m => m === 'gif' ? null : 'gif')}
                     title="Download options"
                   >
                     ▾
                   </button>
-                  {showDownloadMenu && (
+                  {showDownloadMenu === 'gif' && (
                     <div className="vp-download-menu">
                       <button
                         className="vp-download-menu-item"

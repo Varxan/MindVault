@@ -1,6 +1,6 @@
 {
   "name": "mindvault",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "MindVault – Personal visual inspiration tool",
   "private": true,
   "main": "electron/main.js",
@@ -54,7 +54,6 @@
           "!node_modules/**",
           "!data/**",
           "!.git/**",
-          "!clip-models/**",
           "!clip-env/**",
           "!python-standalone/**/__pycache__/**",
           "!python-standalone/**/tests/**",

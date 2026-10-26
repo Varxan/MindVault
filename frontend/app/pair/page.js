@@ -5,6 +5,15 @@ export const runtime = 'edge';
 import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
+// ── iOS Share Shortcut ────────────────────────────────────────────────────────
+// iOS/Safari doesn't support the Web Share Target API (Android does), so
+// iPhone users can't share into the PWA from the share sheet. The workaround
+// is an Apple Shortcut that POSTs the shared URL to /api/share-queue.
+// IOS_SHORTCUT_URL = published iCloud link of the "Save to MindVault" shortcut.
+// After (re)publishing: Shortcuts app → right-click shortcut → Share →
+// Copy iCloud Link → paste here. Section stays hidden while placeholder is set.
+const IOS_SHORTCUT_URL = 'https://www.icloud.com/shortcuts/REPLACE_WITH_PUBLISHED_LINK';
+
 // ── Platform detection ────────────────────────────────────────────────────────
 
 function getOS() {
@@ -71,6 +80,8 @@ function PairContent() {
   const [installable, setInstallable] = useState(false);
   const [installing,  setInstalling]  = useState(false);
   const [showIosHint, setShowIosHint] = useState(false);
+  const [deviceId,    setDeviceId]    = useState(null);
+  const [idCopied,    setIdCopied]    = useState(false);
 
   useEffect(() => {
     setOS(getOS());
@@ -81,6 +92,11 @@ function PairContent() {
     if (id && id.length >= 10) {
       localStorage.setItem('mindvault_device_id', id);
       setPaired(true);
+      setDeviceId(id);
+    } else {
+      // Returning visitor without QR params — reuse stored ID for the shortcut setup
+      const stored = localStorage.getItem('mindvault_device_id');
+      if (stored) setDeviceId(stored);
     }
 
     // Capture Chrome/Android native install prompt
@@ -196,6 +212,46 @@ function PairContent() {
         )}
 
       </div>
+
+      {/* ── iOS: Share-Sheet Shortcut ─────────────────────── */}
+      {/* iOS can't register PWAs in the share sheet (no Web Share Target),
+          so we offer the Apple Shortcut that posts links to the share queue. */}
+      {os === 'ios' && deviceId && !IOS_SHORTCUT_URL.includes('REPLACE') && (
+        <div className="a3 ios-shortcut-box">
+          <div className="ios-shortcut-title">Share from any app</div>
+          <div className="ios-shortcut-desc">
+            Add the MindVault shortcut to save links straight from the
+            share sheet (Safari, YouTube, Instagram…).
+          </div>
+          <div className="ios-shortcut-id-row">
+            <span className="ios-shortcut-id-label">Your Device ID</span>
+            <button
+              className="ios-shortcut-copy"
+              onClick={() => {
+                navigator.clipboard?.writeText(deviceId).then(() => {
+                  setIdCopied(true);
+                  setTimeout(() => setIdCopied(false), 2000);
+                }).catch(() => {});
+              }}
+            >
+              {idCopied ? 'Copied ✓' : 'Copy ID'}
+            </button>
+          </div>
+          <a
+            className="btn-primary"
+            style={{ textDecoration: 'none', marginTop: 10 }}
+            href={IOS_SHORTCUT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Get Share Shortcut
+          </a>
+          <div className="ios-shortcut-hint">
+            1. Copy your ID above &nbsp;·&nbsp; 2. Add the shortcut &nbsp;·&nbsp;
+            3. Paste the ID when asked
+          </div>
+        </div>
+      )}
 
       {/* Skip link */}
       <div className="a3">
@@ -335,6 +391,42 @@ const css = `
     color:#666; font-size:13px; line-height:1.5;
   }
   .step-text strong { color:#aaa; font-weight:600; }
+
+  .ios-shortcut-box {
+    margin-top:22px;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(255,255,255,0.07);
+    border-radius:14px;
+    padding:16px;
+    text-align:left;
+  }
+  .ios-shortcut-title {
+    color:#c9a84c; font-size:13px; font-weight:650;
+    letter-spacing:0.02em; margin-bottom:6px;
+  }
+  .ios-shortcut-desc {
+    color:#666; font-size:12.5px; line-height:1.5; margin-bottom:12px;
+  }
+  .ios-shortcut-id-row {
+    display:flex; align-items:center; justify-content:space-between;
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.06);
+    border-radius:10px; padding:9px 12px;
+  }
+  .ios-shortcut-id-label {
+    color:#888; font-size:12px; font-weight:500;
+  }
+  .ios-shortcut-copy {
+    background:none; border:1px solid rgba(201,168,76,0.35);
+    color:#c9a84c; font-size:11.5px; font-weight:600;
+    border-radius:8px; padding:5px 10px; cursor:pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ios-shortcut-copy:active { opacity:0.7; }
+  .ios-shortcut-hint {
+    color:#444; font-size:11px; line-height:1.5;
+    margin-top:10px; text-align:center;
+  }
 `;
 
 // ── Export ────────────────────────────────────────────────────────────────────
