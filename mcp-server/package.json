@@ -1,0 +1,15 @@
+{
+  "name": "mindvault-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for MindVault — search, manage and deep-analyze your visual reference library from Claude",
+  "type": "module",
+  "main": "index.js",
+  "bin": { "mindvault-mcp": "./index.js" },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.24.0"
+  }
+}

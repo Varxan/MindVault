@@ -252,6 +252,8 @@ router.get('/links', (req, res) => {
         OR LOWER(COALESCE(tags,'')) LIKE @w${i}
         OR LOWER(COALESCE(note,'')) LIKE @w${i}
         OR LOWER(COALESCE(source,'')) LIKE @w${i}
+        OR LOWER(COALESCE(transcript,'')) LIKE @w${i}
+        OR LOWER(COALESCE(scene_analysis,'')) LIKE @w${i}
       )`);
 
       const spaceClause = spaceFilter ? ` AND space = '${spaceFilter}'` : '';
@@ -1344,6 +1346,116 @@ router.get('/links/:id/video-info', (req, res) => {
   } catch (err) {
     console.error('Error getting video info:', err);
     res.status(500).json({ error: 'Fehler beim Abrufen der Video-Informationen' });
+  }
+});
+
+// =============================================
+// SCENE ANALYSIS — MCP deep-analysis support
+// =============================================
+// Claude (via the MindVault MCP server) pulls frames from local videos,
+// looks at them itself, and writes timestamped scene descriptions back.
+// No API key in the app — the vision analysis runs in the user's Claude session.
+
+const FRAMES_TMP_DIR = path.join(DATA_ROOT, 'frames');
+
+// POST /api/links/:id/extract-frames — evenly spaced stills from the local video
+// Body: { count } (default 8, max 30). Returns file paths + timestamps.
+router.post('/links/:id/extract-frames', async (req, res) => {
+  try {
+    const link = getLinkById.get({ id: req.params.id });
+    if (!link) return res.status(404).json({ error: 'Link nicht gefunden' });
+
+    const videoPath = resolveVideoPath(link);
+    if (!videoPath || !fs.existsSync(videoPath)) {
+      return res.status(400).json({ error: 'Kein lokales Video vorhanden — erst herunterladen' });
+    }
+
+    const count = Math.min(Math.max(parseInt(req.body?.count) || 8, 1), 30);
+    const duration = await getVideoDuration(videoPath);
+    if (!duration) return res.status(500).json({ error: 'Videodauer nicht ermittelbar' });
+
+    if (!fs.existsSync(FRAMES_TMP_DIR)) fs.mkdirSync(FRAMES_TMP_DIR, { recursive: true });
+    // Clean previous frames for this link (frames are throwaway)
+    for (const f of fs.readdirSync(FRAMES_TMP_DIR)) {
+      if (f.startsWith(`frames_${link.id}_`)) {
+        try { fs.unlinkSync(path.join(FRAMES_TMP_DIR, f)); } catch {}
+      }
+    }
+
+    const { execFile: execFrame } = require('child_process');
+    const frames = [];
+    for (let i = 0; i < count; i++) {
+      const t = ((i + 0.5) / count) * duration; // centers of equal segments
+      const filename = `frames_${link.id}_${String(i).padStart(2, '0')}.jpg`;
+      const outPath = path.join(FRAMES_TMP_DIR, filename);
+      await new Promise((resolve) => {
+        execFrame(FFMPEG, [
+          '-ss', t.toFixed(2), '-i', videoPath,
+          '-frames:v', '1', '-q:v', '4', '-vf', 'scale=768:-2', '-y', outPath,
+        ], { timeout: 20000 }, () => resolve());
+      });
+      if (fs.existsSync(outPath)) {
+        frames.push({
+          index: i,
+          timestamp: Math.round(t * 10) / 10,
+          path: outPath,
+          url: `/api/files/frames/${filename}`,
+        });
+      }
+    }
+
+    res.json({ id: link.id, title: link.title, duration, frames });
+  } catch (err) {
+    console.error('Error extracting frames:', err);
+    res.status(500).json({ error: err.message || 'Frame-Extraktion fehlgeschlagen' });
+  }
+});
+
+// GET /api/files/frames/:filename — serve extracted stills
+router.get('/files/frames/:filename', (req, res) => {
+  const filename = req.params.filename;
+  if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return res.status(400).json({ error: 'Ungültiger Dateiname' });
+  }
+  const p = path.join(FRAMES_TMP_DIR, filename);
+  if (!fs.existsSync(p)) return res.status(404).json({ error: 'Frame nicht gefunden' });
+  res.sendFile(p);
+});
+
+// PATCH /api/links/:id/scene-analysis — save Claude's scene descriptions
+router.patch('/links/:id/scene-analysis', (req, res) => {
+  try {
+    const link = getLinkById.get({ id: req.params.id });
+    if (!link) return res.status(404).json({ error: 'Link nicht gefunden' });
+
+    const { analysis } = req.body;
+    if (typeof analysis !== 'string' || !analysis.trim()) {
+      return res.status(400).json({ error: 'analysis (string) erforderlich' });
+    }
+
+    db.prepare('UPDATE links SET scene_analysis = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(analysis.trim(), link.id);
+    pushEvent('link-updated', { id: link.id });
+    scheduleSync();
+    res.json({ message: 'Scene-Analyse gespeichert', id: link.id, length: analysis.trim().length });
+  } catch (err) {
+    console.error('Error saving scene analysis:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/links-needing-analysis — local videos without scene_analysis yet
+router.get('/links-needing-analysis', (req, res) => {
+  try {
+    const rows = db.prepare(`
+      SELECT id, title, url, source, space, media_path, created_at
+      FROM links
+      WHERE scene_analysis IS NULL AND media_path IS NOT NULL
+      ORDER BY created_at DESC
+    `).all();
+    res.json({ count: rows.length, links: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

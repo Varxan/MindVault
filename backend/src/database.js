@@ -87,6 +87,11 @@ if (!columns.includes('embedding')) {
 if (!columns.includes('transcript')) {
   db.exec('ALTER TABLE links ADD COLUMN transcript TEXT');
 }
+if (!columns.includes('scene_analysis')) {
+  // Deep scene descriptions with timestamps, written by Claude via the MCP
+  // server (frame-by-frame analysis). Searchable alongside transcript.
+  db.exec('ALTER TABLE links ADD COLUMN scene_analysis TEXT');
+}
 
 // Cleanup: remove "Watch..." notes that were accidentally saved from Vimeo link previews
 db.exec(`UPDATE links SET note = NULL WHERE source = 'vimeo' AND note LIKE 'Watch%'`);
@@ -201,6 +206,8 @@ const searchLinks = db.prepare(`
     OR description LIKE @query
     OR tags LIKE @query
     OR note LIKE @query
+    OR transcript LIKE @query
+    OR scene_analysis LIKE @query
   ORDER BY created_at DESC
 `);
 
